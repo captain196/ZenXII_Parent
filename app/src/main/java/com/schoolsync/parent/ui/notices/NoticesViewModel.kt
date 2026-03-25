@@ -1,0 +1,115 @@
+package com.schoolsync.parent.ui.notices
+
+import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.schoolsync.parent.data.model.Notice
+import com.schoolsync.parent.data.model.firestore.CircularDoc
+import com.schoolsync.parent.data.repository.firestore.CommunicationFirestoreRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
+import javax.inject.Inject
+
+data class NoticesUiState(
+    val isLoading: Boolean = true,
+    val notices: List<Notice> = emptyList(),
+    val expandedNoticeId: String? = null,
+    val isRefreshing: Boolean = false,
+    val errorMessage: String? = null
+)
+
+@HiltViewModel
+class NoticesViewModel @Inject constructor(
+    private val communicationFirestoreRepo: CommunicationFirestoreRepository
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(NoticesUiState())
+    val uiState: StateFlow<NoticesUiState> = _uiState.asStateFlow()
+
+    init {
+        loadNotices()
+        observeNotices()
+    }
+
+    private fun loadNotices() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+            communicationFirestoreRepo.getCirculars().fold(
+                onSuccess = { circulars ->
+                    val notices = circulars.map { it.toNotice() }
+                    _uiState.update { it.copy(isLoading = false, notices = notices) }
+                },
+                onFailure = { e ->
+                    Log.e("NoticesVM", "Failed to load notices", e)
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = e.message ?: "Failed to load notices"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    private fun observeNotices() {
+        viewModelScope.launch {
+            try {
+                communicationFirestoreRepo.observeCirculars().collect { circulars ->
+                    val notices = circulars.map { it.toNotice() }
+                    _uiState.update { it.copy(notices = notices, isLoading = false) }
+                }
+            } catch (e: Exception) {
+                Log.e("NoticesVM", "Notices observer failed", e)
+            }
+        }
+    }
+
+    fun toggleExpanded(noticeId: String) {
+        _uiState.update {
+            it.copy(
+                expandedNoticeId = if (it.expandedNoticeId == noticeId) null else noticeId
+            )
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+
+            communicationFirestoreRepo.getCirculars().fold(
+                onSuccess = { circulars ->
+                    val notices = circulars.map { it.toNotice() }
+                    _uiState.update { it.copy(isRefreshing = false, notices = notices) }
+                },
+                onFailure = { e ->
+                    _uiState.update {
+                        it.copy(isRefreshing = false, errorMessage = e.message)
+                    }
+                }
+            )
+        }
+    }
+
+    private fun CircularDoc.toNotice(): Notice {
+        val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        return Notice(
+            noticeId = id,
+            title = title,
+            body = body,
+            author = author,
+            category = category,
+            priority = priority,
+            attachmentUrl = attachmentUrl,
+            date = sentAt?.toDate()?.let { dateFormatter.format(it) } ?: "",
+            timestamp = sentAt?.toDate()?.time ?: 0L
+        )
+    }
+}
