@@ -8,9 +8,11 @@ data class Notice(
     val noticeId: String = "",
     val title: String = "",
     val body: String = "",
+    val bodyHtml: String = "",        // Rich HTML variant for detail view when present
     val date: String = "",
     val timestamp: Long = 0L,
     val author: String = "",
+    val authorRole: String = "",       // e.g. "Admin", "HR Manager"
     val category: String = "",
     val attachmentUrl: String = "",
     val priority: String = "Normal",  // Normal, Important, Urgent

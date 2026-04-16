@@ -108,6 +108,62 @@ class FCMService : FirebaseMessagingService() {
                         data = message.data
                     )
                 }
+                "student_absent" -> {
+                    showNotification(
+                        title = title.ifBlank { "Attendance: Absent" },
+                        body = body.ifBlank { "Your child was marked Absent today" },
+                        data = message.data
+                    )
+                }
+                "student_late" -> {
+                    showNotification(
+                        title = title.ifBlank { "Attendance: Late" },
+                        body = body.ifBlank { "Your child was marked Late today" },
+                        data = message.data
+                    )
+                }
+                "leave_approved" -> {
+                    showNotification(
+                        title = title.ifBlank { "Leave Approved" },
+                        body = body.ifBlank { "Your leave application has been approved" },
+                        data = message.data
+                    )
+                }
+                "leave_rejected" -> {
+                    showNotification(
+                        title = title.ifBlank { "Leave Rejected" },
+                        body = body.ifBlank { "Your leave application has been rejected" },
+                        data = message.data
+                    )
+                }
+                "homework_created" -> {
+                    showNotification(
+                        title = title.ifBlank { "New Homework" },
+                        body = body.ifBlank { "New homework has been assigned" },
+                        data = message.data
+                    )
+                }
+                "homework_reviewed" -> {
+                    showNotification(
+                        title = title.ifBlank { "Homework Graded" },
+                        body = body.ifBlank { "Your homework has been reviewed" },
+                        data = message.data
+                    )
+                }
+                "notice_created" -> {
+                    showNotification(
+                        title = title.ifBlank { "New Notice" },
+                        body = body.ifBlank { "A new notice has been posted" },
+                        data = message.data
+                    )
+                }
+                "circular_created" -> {
+                    showNotification(
+                        title = title.ifBlank { "New Circular" },
+                        body = body.ifBlank { "A new circular has been posted" },
+                        data = message.data
+                    )
+                }
                 else -> {
                     if (body.isNotBlank()) {
                         showNotification(title = title, body = body, data = message.data)

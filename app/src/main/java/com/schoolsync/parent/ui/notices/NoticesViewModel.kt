@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.model.Notice
 import com.schoolsync.parent.data.model.firestore.CircularDoc
 import com.schoolsync.parent.data.repository.firestore.CommunicationFirestoreRepository
+import com.schoolsync.parent.util.toDateOrNull
+import com.schoolsync.parent.util.toEpochMillisOrNull
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -104,12 +106,18 @@ class NoticesViewModel @Inject constructor(
             noticeId = id,
             title = title,
             body = body,
+            // Carry HTML only when description has markup AND differs from body
+            // (avoids rendering a redundant WebView for plain notices)
+            bodyHtml = description
+                .takeIf { it.contains('<') && it != body }
+                .orEmpty(),
             author = author,
+            authorRole = authorRole,
             category = category,
             priority = priority,
             attachmentUrl = attachmentUrl,
-            date = sentAt?.toDate()?.let { dateFormatter.format(it) } ?: "",
-            timestamp = sentAt?.toDate()?.time ?: 0L
+            date = sentAt.toDateOrNull()?.let { dateFormatter.format(it) } ?: "",
+            timestamp = sentAt.toEpochMillisOrNull() ?: 0L
         )
     }
 }

@@ -8,7 +8,8 @@ import java.util.Calendar
  */
 object Constants {
 
-    const val BASE_URL = "https://project2-2-80nu.onrender.com/"
+    // Node.js API removed — auth now via Firebase Auth directly
+    // const val BASE_URL = "https://project2-2-80nu.onrender.com/"
 
     /** Firebase RTDB path builders */
     object Firebase {
@@ -250,6 +251,7 @@ object Constants {
         const val STUDENTS = "students"
         const val PARENTS = "parents"
         const val SECTIONS = "sections"
+        const val SUBJECT_ASSIGNMENTS = "subjectAssignments"
         const val USERS = "users"
         const val ATTENDANCE = "attendance"
         const val ATTENDANCE_SUMMARY = "attendanceSummary"
@@ -267,6 +269,7 @@ object Constants {
         const val FEE_RECEIPTS = "feeReceipts"
         const val PAYMENT_INTENTS = "paymentIntents"
         const val CIRCULARS = "circulars"
+        const val NOTICES_FS = "notices"  // Admin Notice Board writes here (type=notice)
         const val CIRCULAR_READS = "circularReads"
         const val NOTIFICATIONS = "notifications"
         const val EVENTS = "events"
@@ -320,7 +323,6 @@ object Constants {
         const val VENDORS = "vendors"
         const val SURVEYS = "surveys"
         const val SURVEY_RESPONSES = "surveyResponses"
-        const val EVENTS = "events"
         const val LOST_FOUND = "lostFound"
 
         // Analytics

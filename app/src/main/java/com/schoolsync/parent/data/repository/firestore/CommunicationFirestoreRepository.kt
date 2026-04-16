@@ -12,6 +12,8 @@ import com.schoolsync.parent.data.model.firestore.PtmConfigDoc
 import com.schoolsync.parent.util.Constants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -37,8 +39,23 @@ class CommunicationFirestoreRepository @Inject constructor(
 
     // ── Circulars ──────────────────────────────────────────────────────────
 
+    // Target groups that are staff/teacher-only — parents must not see these.
+    // Checked case-insensitively.
+    private val STAFF_ONLY_TARGETS = setOf(
+        "all staff", "staff", "all teachers", "teachers", "admin", "all admins"
+    )
+
+    private fun isForParents(c: CircularDoc): Boolean {
+        val t = (c.targetType.ifBlank { "All" }).trim().lowercase()
+        return t !in STAFF_ONLY_TARGETS
+    }
+
     /**
-     * Fetch sent circulars for the current school, ordered by most recent first.
+     * Fetch sent circulars AND notices for the current school, merged and
+     * ordered by most recent first. Admin Notice Board posts to the `notices`
+     * collection; HR auto-posts + Circulars module posts to `circulars`.
+     * Staff/teacher-targeted posts are filtered out — parents shouldn't see
+     * internal HR/staff comms.
      */
     suspend fun getCirculars(limit: Int = 50): Result<List<CircularDoc>> {
         val schoolCode = getSchoolCode()
@@ -53,7 +70,25 @@ class CommunicationFirestoreRepository @Inject constructor(
                     .orderBy("sentAt", Query.Direction.DESCENDING)
                     .limit(limit.toLong())
             }
-            Result.success(circulars)
+            val notices = try {
+                firestoreService.queryDocumentsAs<CircularDoc>(
+                    Constants.Firestore.NOTICES_FS
+                ) { ref ->
+                    ref.whereEqualTo("schoolId", schoolCode)
+                        .whereEqualTo("status", "sent")
+                        .orderBy("sentAt", Query.Direction.DESCENDING)
+                        .limit(limit.toLong())
+                }
+            } catch (e: Exception) {
+                // Notices collection is optional — if the index isn't deployed yet
+                // or the query fails, fall through with circulars only.
+                emptyList()
+            }
+            val merged = (circulars + notices)
+                .filter { isForParents(it) }
+                .sortedByDescending { it.sentAt?.toString().orEmpty() }
+                .take(limit)
+            Result.success(merged)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -94,28 +129,44 @@ class CommunicationFirestoreRepository @Inject constructor(
     }
 
     /**
-     * Observe circulars in real time for the current school.
-     * Reacts to user profile changes (school code) via [flatMapLatest].
+     * Observe circulars AND notices in real time for the current school,
+     * merged into a single stream ordered by most recent first. Reacts to
+     * user profile changes (school code) via [flatMapLatest]. If the notices
+     * composite index isn't available yet, the notices stream emits empty
+     * and the combined output degrades to circulars-only.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeCirculars(): Flow<List<CircularDoc>> {
         return tokenManager.user
-            .map { user ->
-                user.schoolCode.takeIf { it.isNotBlank() }
-            }
+            .map { user -> user.schoolCode.takeIf { it.isNotBlank() } }
             .flatMapLatest { schoolCode ->
                 if (schoolCode == null) {
                     flowOf(emptyList())
                 } else {
-                    firestoreService.observeQuery(
+                    val circulars = firestoreService.observeQuery(
                         Constants.Firestore.CIRCULARS
                     ) { ref ->
                         ref.whereEqualTo("schoolId", schoolCode)
                             .whereEqualTo("status", "sent")
                             .orderBy("sentAt", Query.Direction.DESCENDING)
                             .limit(50)
-                    }.map { snapshot ->
-                        snapshot.toObjects(CircularDoc::class.java)
+                    }.map { it.toObjects(CircularDoc::class.java) }
+
+                    val notices = firestoreService.observeQuery(
+                        Constants.Firestore.NOTICES_FS
+                    ) { ref ->
+                        ref.whereEqualTo("schoolId", schoolCode)
+                            .whereEqualTo("status", "sent")
+                            .orderBy("sentAt", Query.Direction.DESCENDING)
+                            .limit(50)
+                    }.map { it.toObjects(CircularDoc::class.java) }
+                        .catch { emit(emptyList()) } // index missing → degrade gracefully
+
+                    combine(circulars, notices) { c, n ->
+                        (c + n)
+                            .filter { isForParents(it) }
+                            .sortedByDescending { it.sentAt?.toString().orEmpty() }
+                            .take(50)
                     }
                 }
             }
@@ -272,7 +323,7 @@ class CommunicationFirestoreRepository @Inject constructor(
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private suspend fun getSchoolCode(): String? {
-        return tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
+        return tokenManager.user.firstOrNull()?.schoolId?.takeIf { it.isNotBlank() }
     }
 
     private suspend fun getUserId(): String? {
