@@ -1,8 +1,6 @@
 package com.schoolsync.parent.data.model.firestore
 
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
-import com.google.firebase.firestore.ServerTimestamp
 
 data class AppraisalDoc(
     @DocumentId
@@ -17,10 +15,8 @@ data class AppraisalDoc(
     val overallManagerRating: Double = 0.0,
     val overallRating: Double = 0.0,
     val status: String = "pending",        // pending, self_review, manager_review, finalized
-    @ServerTimestamp
-    val selfSubmittedAt: Timestamp? = null,
-    @ServerTimestamp
-    val finalizedAt: Timestamp? = null
+    val selfSubmittedAt: Any? = null,
+    val finalizedAt: Any? = null
 )
 
 data class KraDoc(

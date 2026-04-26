@@ -20,14 +20,28 @@ class StudentFirestoreRepository @Inject constructor(
 ) {
 
     /**
-     * Fetch a single student by their document ID.
+     * Fetch a single student. Admin writes use the compound docId
+     * `{schoolId}_{studentId}` (see Firestore_service::docId). We try
+     * that first, falling back to the plain studentId for any legacy
+     * docs written without the prefix.
      */
     suspend fun getStudent(studentId: String): Result<StudentDoc> {
         return try {
-            val doc = firestoreService.getDocumentAs<StudentDoc>(
-                Constants.Firestore.STUDENTS,
-                studentId
-            )
+            val schoolCode = tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
+                ?: tokenManager.user.firstOrNull()?.schoolId?.takeIf { it.isNotBlank() }
+            var doc: StudentDoc? = null
+            if (schoolCode != null) {
+                doc = firestoreService.getDocumentAs<StudentDoc>(
+                    Constants.Firestore.STUDENTS,
+                    "${schoolCode}_$studentId"
+                )
+            }
+            if (doc == null) {
+                doc = firestoreService.getDocumentAs<StudentDoc>(
+                    Constants.Firestore.STUDENTS,
+                    studentId
+                )
+            }
             if (doc != null) {
                 Result.success(doc)
             } else {
@@ -51,8 +65,8 @@ class StudentFirestoreRepository @Inject constructor(
                 Constants.Firestore.STUDENTS
             ) { ref ->
                 ref.whereEqualTo("schoolId", schoolCode)
-                    .whereEqualTo("className", className)
-                    .whereEqualTo("section", section)
+                    .whereEqualTo("className", Constants.Firebase.classKey(className))
+                    .whereEqualTo("section", Constants.Firebase.sectionKey(section))
             }
             Result.success(students)
         } catch (e: Exception) {
@@ -107,6 +121,57 @@ class StudentFirestoreRepository @Inject constructor(
     }
 
     /**
+     * Find siblings of the given primary student — i.e. other active
+     * students in the same school whose parent details match.
+     *
+     * Match strategy (strictest first):
+     *   1. Same `parentDbKey` if non-blank
+     *   2. Same `fatherName` AND same `motherName` AND non-blank
+     *   3. Same `fatherPhone` (or `phone`) AND non-blank
+     *
+     * The primary student is excluded from the returned list. If no
+     * siblings are found, returns an empty list (not an error).
+     */
+    suspend fun findSiblings(primary: StudentDoc): Result<List<StudentDoc>> {
+        val schoolCode = getSchoolCode()
+            ?: return Result.failure(Exception("School code not available"))
+        return try {
+            val fetched = firestoreService.queryDocumentsAs<StudentDoc>(
+                Constants.Firestore.STUDENTS
+            ) { ref ->
+                ref.whereEqualTo("schoolId", schoolCode)
+            }
+
+            val primaryFather = primary.fatherName.trim().lowercase()
+            val primaryMother = primary.motherName.trim().lowercase()
+            val primaryPhone  = listOf(primary.phone, primary.phoneNumber)
+                .map { it.trim() }.firstOrNull { it.isNotBlank() } ?: ""
+            val primaryParentKey = primary.parentDbKey.trim()
+            val primaryId = primary.userId.ifBlank { primary.studentId }.ifBlank { primary.id }
+
+            val siblings = fetched.filter { s ->
+                val sid = s.userId.ifBlank { s.studentId }.ifBlank { s.id }
+                if (sid == primaryId || sid.isBlank()) return@filter false
+                val sFather = s.fatherName.trim().lowercase()
+                val sMother = s.motherName.trim().lowercase()
+                val sPhone  = listOf(s.phone, s.phoneNumber)
+                    .map { it.trim() }.firstOrNull { it.isNotBlank() } ?: ""
+
+                val keyMatch = primaryParentKey.isNotBlank() &&
+                        s.parentDbKey.trim() == primaryParentKey
+                val namesMatch = primaryFather.isNotBlank() && primaryMother.isNotBlank() &&
+                        sFather == primaryFather && sMother == primaryMother
+                val phoneMatch = primaryPhone.isNotBlank() && sPhone == primaryPhone
+
+                keyMatch || namesMatch || phoneMatch
+            }.sortedBy { it.name }
+            Result.success(siblings)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Observe a student document for real-time changes.
      * Emits `null` when the document does not exist.
      */
@@ -118,6 +183,6 @@ class StudentFirestoreRepository @Inject constructor(
     }
 
     private suspend fun getSchoolCode(): String? {
-        return tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
+        return tokenManager.user.firstOrNull()?.schoolId?.takeIf { it.isNotBlank() }
     }
 }

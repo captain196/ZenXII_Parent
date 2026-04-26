@@ -137,6 +137,6 @@ class TransportFirestoreRepository @Inject constructor(
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private suspend fun getSchoolCode(): String? {
-        return tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
+        return tokenManager.user.firstOrNull()?.schoolId?.takeIf { it.isNotBlank() }
     }
 }

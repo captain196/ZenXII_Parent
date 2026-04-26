@@ -3,17 +3,14 @@ package com.schoolsync.parent.data.repository
 import android.util.Log
 import com.schoolsync.parent.data.firebase.FirebaseAuthManager
 import com.schoolsync.parent.data.firebase.FirebaseService
+import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
-import com.schoolsync.parent.data.model.ChangePasswordRequest
-import com.schoolsync.parent.data.model.LoginRequest
-import com.schoolsync.parent.data.model.LogoutRequest
-import com.schoolsync.parent.data.model.RefreshRequest
-import com.schoolsync.parent.data.model.RegisterFcmRequest
 import com.schoolsync.parent.data.model.User
-import com.schoolsync.parent.data.remote.ApiService
+import com.schoolsync.parent.data.model.firestore.StudentDoc
 import com.schoolsync.parent.util.Constants
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,242 +21,327 @@ sealed class AuthResult<out T> {
 
 @Singleton
 class AuthRepository @Inject constructor(
-    private val apiService: ApiService,
     private val tokenManager: TokenManager,
     private val firebaseAuthManager: FirebaseAuthManager,
-    private val firebaseService: FirebaseService
+    private val firebaseService: FirebaseService,
+    private val firestoreService: FirestoreService
 ) {
     companion object {
         private const val TAG = "AuthRepository"
     }
 
-    /** Observe login state */
     val isLoggedIn: Flow<Boolean> = tokenManager.isLoggedIn
-
-    /** Observe current user profile */
     val currentUser: Flow<User> = tokenManager.user
 
     /**
-     * Full login flow:
-     * 1. Call login API
-     * 2. Store JWT tokens in DataStore
-     * 3. Store user profile in DataStore
-     * 4. Sign into Firebase with custom token
-     * 5. Look up schoolCode from Indexes/School_codes/{schoolId}
-     * 6. Store schoolCode
+     * Login flow — Phase 2: Firestore-first with RTDB fallback.
+     *
+     * 1. Firebase Auth sign-in (email/password)
+     * 2. Read custom claims (role, school_id, parent_db_key)
+     * 3. Read profile from Firestore students/{schoolId}_{userId}
+     * 4. If Firestore fails → fallback to RTDB Users/Parents/{parentDbKey}/{userId}
+     * 5. Resolve active session
+     * 6. Save to TokenManager
      */
     suspend fun login(userId: String, password: String, deviceId: String): AuthResult<User> {
         return try {
-            val response = apiService.login(LoginRequest(userId, password, deviceId))
+            // ── Step 1: Firebase Auth ────────────────────────────────
+            val firebaseUser = firebaseAuthManager.signInWithEmailAndPassword(userId, password)
+                ?: return AuthResult.Error("Sign-in failed: no user returned")
 
-            if (!response.isSuccessful) {
-                val errorBody = response.errorBody()?.string() ?: "Login failed"
-                Log.e(TAG, "Login API error: ${response.code()} - $errorBody")
-                return AuthResult.Error(
-                    message = parseErrorMessage(errorBody),
-                    code = response.code()
-                )
+            Log.d(TAG, "Firebase Auth sign-in OK: uid=${firebaseUser.uid}")
+
+            // ── Step 2: Custom claims ───────────────────────────────
+            val tokenResult = firebaseAuthManager.getIdTokenResult(forceRefresh = true)
+            val claims = tokenResult?.claims ?: emptyMap()
+            val role = claims["role"]?.toString() ?: ""
+
+            val schoolId = claims["school_id"]?.toString()
+                ?: claims["schoolId"]?.toString() ?: ""
+            val claimParentDbKey = claims["parent_db_key"]?.toString()
+                ?: claims["parentDbKey"]?.toString() ?: ""
+            val claimSchoolCode = claims["school_code"]?.toString()
+                ?: claims["schoolCode"]?.toString() ?: ""
+
+            // schoolCode = the RTDB path key for Schools/{schoolCode}/...
+            val schoolCode = schoolId.ifBlank {
+                if (claimSchoolCode.isNotBlank()) lookupSchoolCode(claimSchoolCode) ?: claimSchoolCode
+                else ""
             }
+            val parentDbKey = claimParentDbKey.ifBlank { schoolCode }
 
-            val loginResponse = response.body()
-            if (loginResponse == null || !loginResponse.success) {
-                return AuthResult.Error("Login failed: empty response")
-            }
+            Log.d(TAG, "Claims: schoolId=$schoolId, schoolCode=$schoolCode, parentDbKey=$parentDbKey")
 
-            // Step 2: Store tokens
-            tokenManager.saveTokens(
-                accessToken = loginResponse.accessToken,
-                refreshToken = loginResponse.refreshToken,
-                firebaseToken = loginResponse.firebaseToken
-            )
+            // ── Step 3: Firestore-first profile read ────────────────
+            val user = loadProfileFromFirestore(userId, schoolId, schoolCode, parentDbKey, role)
+                ?: loadProfileFromRtdb(userId, schoolId, schoolCode, parentDbKey, role)
+                ?: return AuthResult.Error("Student profile not found")
 
-            // Step 3: Store user profile
-            tokenManager.saveUser(loginResponse.user)
+            Log.d(TAG, "Profile loaded: name=${user.name}, source=${if (user.profilePic.isNotBlank()) "Firestore" else "RTDB"}")
+
+            // ── Step 4: Save to TokenManager ────────────────────────
+            tokenManager.saveUserDirect(user)
             tokenManager.saveDeviceId(deviceId)
 
-            // Step 4: Sign into Firebase
-            try {
-                firebaseAuthManager.signInWithCustomToken(loginResponse.firebaseToken)
-                Log.d(TAG, "Firebase sign-in successful")
-            } catch (e: Exception) {
-                Log.e(TAG, "Firebase sign-in failed (non-fatal for login)", e)
-                // Don't fail the login — Firebase auth can be retried
-            }
-
-            // Step 5: Look up school code from Firebase
-            val schoolCode = lookupSchoolCode(loginResponse.user.schoolId)
-
-            // Step 6: Store school code + resolve active session
-            if (schoolCode != null) {
+            // ── Step 5: Resolve active session ──────────────────────
+            if (schoolCode.isNotBlank()) {
                 tokenManager.saveSchoolCode(schoolCode)
-
-                // Step 6b: Look up active session from Firebase
                 val session = lookupActiveSession(schoolCode)
                 if (session != null) {
                     tokenManager.saveSession(session)
-                } else {
-                    Log.w(TAG, "Could not resolve active session for schoolCode=$schoolCode")
+                    Log.d(TAG, "Session resolved: $session")
                 }
-            } else {
-                Log.w(TAG, "Could not resolve schoolCode for schoolId=${loginResponse.user.schoolId}")
             }
 
-            val user = User.fromDto(loginResponse.user, schoolCode ?: "")
+            // ── Step 6: Phase 7z — register the current FCM token ───
+            // FCMService.onNewToken only fires when FCM rotates the
+            // token (usually at install). At that moment the user
+            // hasn't logged in yet, so registerFcmToken bails with
+            // "no user logged in" and the token is never saved.
+            // Pull the current token here on every successful login
+            // so Users/Devices/{userId}/{deviceId}/fcmToken is always
+            // populated and admin pushes can find it.
+            try {
+                val token = com.google.firebase.messaging.FirebaseMessaging.getInstance()
+                    .token
+                    .await()
+                if (token.isNotBlank()) {
+                    when (val fcm = registerFcmToken(token, deviceId)) {
+                        is AuthResult.Success -> Log.d(TAG, "FCM token registered for $userId on login")
+                        is AuthResult.Error   -> Log.w(TAG, "FCM token registration failed on login: ${fcm.message}")
+                    }
+                } else {
+                    Log.w(TAG, "FCM token blank on login — skipping registration")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "FCM token fetch failed on login", e)
+            }
+
             AuthResult.Success(user)
 
         } catch (e: Exception) {
             Log.e(TAG, "Login exception", e)
-            AuthResult.Error(e.message ?: "Network error")
+            AuthResult.Error(mapAuthError(e))
         }
     }
 
     /**
-     * Refresh tokens (called by AuthInterceptor automatically,
-     * but can also be called manually).
+     * PRIMARY: Read student profile from Firestore.
+     * DocId: {schoolId}_{userId}
      */
-    suspend fun refreshTokens(): AuthResult<Unit> {
+    private suspend fun loadProfileFromFirestore(
+        userId: String, schoolId: String, schoolCode: String,
+        parentDbKey: String, role: String
+    ): User? {
+        if (schoolId.isBlank()) return null
+
         return try {
-            val currentRefreshToken = tokenManager.refreshToken.firstOrNull()
-                ?: return AuthResult.Error("No refresh token")
-
-            val response = apiService.refreshToken(RefreshRequest(currentRefreshToken))
-
-            if (!response.isSuccessful) {
-                return AuthResult.Error("Refresh failed", response.code())
-            }
-
-            val refreshResponse = response.body()
-            if (refreshResponse == null || !refreshResponse.success) {
-                return AuthResult.Error("Refresh failed: empty response")
-            }
-
-            tokenManager.saveTokens(
-                accessToken = refreshResponse.accessToken,
-                refreshToken = refreshResponse.refreshToken,
-                firebaseToken = refreshResponse.firebaseToken
+            val docId = "${schoolId}_${userId}"
+            val doc = firestoreService.getDocumentAs<StudentDoc>(
+                Constants.Firestore.STUDENTS, docId
             )
+            if (doc == null || doc.name.isBlank()) {
+                Log.w(TAG, "Firestore profile empty for $docId")
+                return null
+            }
 
-            // Re-authenticate with Firebase using new custom token
-            firebaseAuthManager.trySignInWithCustomToken(refreshResponse.firebaseToken)
+            Log.d(TAG, "Firestore profile found: $docId")
 
-            AuthResult.Success(Unit)
+            // Fetch school display name from the schools collection
+            val schoolDisplayName = try {
+                val schoolDoc = firestoreService.getDocumentAs<com.schoolsync.parent.data.model.firestore.SchoolDoc>(
+                    Constants.Firestore.SCHOOLS, schoolId
+                )
+                schoolDoc?.name ?: ""
+            } catch (_: Exception) { "" }
+
+            User(
+                userId = userId,
+                name = doc.name,
+                email = doc.email,
+                phone = doc.phone,
+                role = role.ifBlank { "student" },
+                schoolId = schoolId,
+                schoolDisplayName = schoolDisplayName,
+                profilePic = doc.profilePic,
+                className = doc.className,
+                section = doc.section,
+                rollNo = doc.rollNo,
+                fatherName = doc.fatherName,
+                motherName = doc.motherName,
+                dob = doc.dob,
+                gender = doc.gender,
+                admissionDate = doc.admissionDate,
+                parentDbKey = parentDbKey,
+                session = doc.session,
+                schoolCode = schoolCode
+            )
         } catch (e: Exception) {
-            Log.e(TAG, "Token refresh failed", e)
-            AuthResult.Error(e.message ?: "Refresh failed")
+            Log.w(TAG, "Firestore profile read failed for $userId", e)
+            null
         }
     }
 
     /**
-     * Logout: revoke refresh token on server, clear local storage, sign out Firebase.
+     * FALLBACK: Read student profile from RTDB.
+     * Path: Users/Parents/{parentDbKey}/{userId}
+     * Will be removed in Phase 3 when RTDB is decommissioned.
      */
+    private suspend fun loadProfileFromRtdb(
+        userId: String, schoolId: String, schoolCode: String,
+        parentDbKey: String, role: String
+    ): User? {
+        if (parentDbKey.isBlank()) return null
+
+        return try {
+            val profilePath = "Users/Parents/$parentDbKey/$userId"
+            val data = firebaseService.readMap(profilePath)
+            if (data.isEmpty()) {
+                Log.w(TAG, "RTDB profile empty at $profilePath")
+                return null
+            }
+
+            Log.d(TAG, "RTDB fallback profile loaded from $profilePath")
+            User(
+                userId = userId,
+                name = data["Name"]?.toString() ?: data["name"]?.toString() ?: "",
+                email = data["Email"]?.toString() ?: data["email"]?.toString() ?: "",
+                phone = data["Phone Number"]?.toString() ?: data["Phone"]?.toString() ?: data["phone"]?.toString() ?: "",
+                role = role.ifBlank { data["Role"]?.toString() ?: "student" },
+                schoolId = schoolId,
+                schoolDisplayName = data["SchoolName"]?.toString() ?: "",
+                profilePic = data["Profile Pic"]?.toString() ?: data["profilePic"]?.toString() ?: "",
+                className = Constants.Firebase.classKey(data["Class"]?.toString() ?: data["className"]?.toString() ?: ""),
+                section = Constants.Firebase.sectionKey(data["Section"]?.toString() ?: data["section"]?.toString() ?: ""),
+                rollNo = data["Roll No"]?.toString() ?: data["rollNo"]?.toString() ?: "",
+                fatherName = data["Father Name"]?.toString() ?: data["fatherName"]?.toString() ?: "",
+                motherName = data["Mother Name"]?.toString() ?: data["motherName"]?.toString() ?: "",
+                dob = data["DOB"]?.toString() ?: data["dob"]?.toString() ?: "",
+                gender = data["Gender"]?.toString() ?: data["gender"]?.toString() ?: "",
+                admissionDate = data["Admission Date"]?.toString() ?: data["admissionDate"]?.toString() ?: "",
+                parentDbKey = parentDbKey,
+                session = "",
+                schoolCode = schoolCode
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "RTDB profile read failed for $userId", e)
+            null
+        }
+    }
+
     suspend fun logout(): AuthResult<Unit> {
         return try {
-            val refreshToken = tokenManager.refreshToken.firstOrNull()
-            val deviceId = tokenManager.deviceId.firstOrNull()
-            if (refreshToken != null) {
-                try {
-                    apiService.logout(LogoutRequest(refreshToken, deviceId))
-                } catch (e: Exception) {
-                    Log.w(TAG, "Server logout failed (non-fatal)", e)
-                }
-            }
-
-            // Always clear local state regardless of server response
             firebaseAuthManager.signOut()
             tokenManager.clearAll()
-
             AuthResult.Success(Unit)
         } catch (e: Exception) {
-            // Still clear local state
             firebaseAuthManager.signOut()
             tokenManager.clearAll()
             AuthResult.Success(Unit)
         }
     }
 
-    /**
-     * Change password (requires current auth).
-     */
     suspend fun changePassword(currentPassword: String, newPassword: String): AuthResult<String> {
         return try {
-            val response = apiService.changePassword(
-                ChangePasswordRequest(currentPassword, newPassword)
-            )
-
-            if (!response.isSuccessful) {
-                val errorBody = response.errorBody()?.string() ?: "Change password failed"
-                return AuthResult.Error(parseErrorMessage(errorBody), response.code())
+            val userId = tokenManager.user.firstOrNull()?.userId
+            if (!userId.isNullOrBlank() && currentPassword.isNotBlank()) {
+                try {
+                    firebaseAuthManager.signInWithEmailAndPassword(userId, currentPassword)
+                } catch (e: Exception) {
+                    return AuthResult.Error("Current password is incorrect")
+                }
             }
-
-            val body = response.body()
-            if (body != null && body.success) {
-                AuthResult.Success(body.message ?: "Password changed successfully")
-            } else {
-                AuthResult.Error(body?.message ?: "Change password failed")
-            }
+            firebaseAuthManager.changePassword(newPassword)
+            AuthResult.Success("Password changed successfully")
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Network error")
+            AuthResult.Error(e.message ?: "Failed to change password")
         }
     }
 
-    /**
-     * Register FCM token for push notifications.
-     */
     suspend fun registerFcmToken(fcmToken: String, deviceId: String): AuthResult<Unit> {
         return try {
-            val response = apiService.registerFcm(RegisterFcmRequest(fcmToken, deviceId))
-            if (response.isSuccessful && response.body()?.success == true) {
+            val user = tokenManager.user.firstOrNull()
+            val userId = user?.userId
+            if (userId.isNullOrBlank()) return AuthResult.Error("No user logged in")
+
+            val schoolId = user.schoolId
+            val now = java.time.OffsetDateTime.now().toString()
+            // Sanitize for use as a Firestore doc id (collapse anything
+            // that's not alphanumeric/dash/underscore to underscore so
+            // exotic device IDs from manufacturer ROMs don't break the
+            // path).
+            val safeDeviceId = deviceId.replace(Regex("[^A-Za-z0-9_\\-]"), "_")
+            val docId = "${userId}_${safeDeviceId}"
+
+            val payload = mapOf(
+                "schoolId"   to schoolId,
+                "userId"     to userId,
+                "deviceId"   to deviceId,
+                "fcmToken"   to fcmToken,
+                "platform"   to "android",
+                "status"     to "active",
+                "lastActive" to now,
+                "appRole"    to "parent"
+            )
+
+            // ── Firestore FIRST (canonical — rules now allow userDevices writes) ──
+            var firestoreOk = false
+            try {
+                firestoreService.setDocument("userDevices", docId, payload, merge = true)
+                firestoreOk = true
+                Log.w(TAG, "FCM token written to Firestore userDevices/$docId")
+            } catch (e: Exception) {
+                Log.e(TAG, "FCM token Firestore write failed", e)
+            }
+
+            // ── RTDB mirror (best-effort, stays until Phase 9 cleanup) ──
+            try {
+                firebaseService.updateChildren(
+                    "Users/Devices/$userId/$deviceId",
+                    mapOf(
+                        "fcmToken"   to fcmToken,
+                        "status"     to "active",
+                        "platform"   to "android",
+                        "lastActive" to now
+                    )
+                )
+                Log.d(TAG, "FCM token mirrored to RTDB")
+            } catch (e: Exception) {
+                Log.w(TAG, "FCM token RTDB mirror failed (non-fatal)", e)
+            }
+
+            if (firestoreOk) {
                 AuthResult.Success(Unit)
             } else {
-                AuthResult.Error("FCM registration failed")
+                AuthResult.Error("FCM token write failed")
             }
         } catch (e: Exception) {
-            Log.w(TAG, "FCM registration failed", e)
+            Log.e(TAG, "registerFcmToken exception", e)
             AuthResult.Error(e.message ?: "FCM registration failed")
         }
     }
 
-    /**
-     * Re-authenticate Firebase if needed (e.g., after app restart).
-     */
-    suspend fun ensureFirebaseAuth(): Boolean {
-        if (firebaseAuthManager.isSignedIn) return true
+    suspend fun ensureFirebaseAuth(): Boolean = firebaseAuthManager.isSignedIn
 
-        val firebaseToken = tokenManager.firebaseToken.firstOrNull()
-        if (firebaseToken.isNullOrBlank()) return false
-
-        return firebaseAuthManager.trySignInWithCustomToken(firebaseToken) != null
-    }
-
-    /**
-     * Look up the Firebase school key from Indexes/School_codes/{mongoSchoolId}.
-     */
-    private suspend fun lookupSchoolCode(mongoSchoolId: String): String? {
+    private suspend fun lookupSchoolCode(id: String): String? {
         return try {
-            val path = Constants.Firebase.schoolCodePath(mongoSchoolId)
-            firebaseService.readString(path)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to look up school code", e)
-            null
-        }
+            firebaseService.readString(Constants.Firebase.schoolCodePath(id))
+        } catch (e: Exception) { null }
     }
 
     private suspend fun lookupActiveSession(schoolCode: String): String? {
         return try {
             firebaseService.readString("Schools/$schoolCode/Config/ActiveSession")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to look up active session", e)
-            null
-        }
+        } catch (e: Exception) { null }
     }
 
-    private fun parseErrorMessage(errorBody: String): String {
-        return try {
-            // Try to extract "message" field from JSON error body
-            val regex = """"message"\s*:\s*"([^"]+)"""".toRegex()
-            regex.find(errorBody)?.groupValues?.get(1) ?: errorBody
-        } catch (_: Exception) {
-            errorBody
-        }
+    private fun mapAuthError(e: Exception): String = when {
+        e.message?.contains("INVALID_LOGIN_CREDENTIALS") == true ||
+        e.message?.contains("wrong-password") == true ||
+        e.message?.contains("user-not-found") == true -> "Invalid ID or password"
+        e.message?.contains("too-many-requests") == true -> "Too many attempts. Try later."
+        e.message?.contains("network") == true -> "Network error. Check connection."
+        e.message?.contains("disabled") == true -> "Account is disabled. Contact school."
+        else -> e.message ?: "Login failed"
     }
 }

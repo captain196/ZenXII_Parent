@@ -52,6 +52,7 @@ import com.schoolsync.parent.ui.theme.*
 @Composable
 fun ResultsScreen(
     onBack: () -> Unit,
+    onPayFees: () -> Unit = {},
     viewModel: ResultsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -82,6 +83,19 @@ fun ResultsScreen(
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
             )
+        }
+
+        // Pre-emptive dues warning — shown above the exam selector so
+        // parents understand WHY a result might be withheld before they
+        // tap into the exam list. Server still owns the actual block.
+        if (uiState.pendingFees > 0.0) {
+            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                com.schoolsync.parent.ui.fees.FeeBlockedBanner(
+                    dueAmount = uiState.pendingFees,
+                    scope = "Result cards may be withheld until fees are cleared",
+                    onPayClick = onPayFees
+                )
+            }
         }
 
         // Exam Selector
@@ -131,62 +145,67 @@ fun ResultsScreen(
             }
         }
 
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Teal, modifier = Modifier.size(40.dp))
-            }
-        } else if (uiState.examIds.isEmpty()) {
-            EmptyResultsState()
-        } else {
-            val result = uiState.examResult
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Overall Result Card
-                if (result != null) {
-                    item {
-                        OverallResultCard(result = result)
-                    }
-
-                    // Subject Results Header
-                    item {
-                        Text(
-                            text = "Subject-wise Marks",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-
-                    // Subject Results
-                    itemsIndexed(result.subjects) { _, subject ->
-                        SubjectResultCard(subject = subject)
-                    }
+        com.schoolsync.parent.ui.common.PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.pullRefresh() }
+        ) {
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Teal, modifier = Modifier.size(40.dp))
                 }
+            } else if (uiState.examIds.isEmpty()) {
+                EmptyResultsState()
+            } else {
+                val result = uiState.examResult
 
-                // Error message
-                uiState.errorMessage?.let { error ->
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(ErrorRedBg)
-                                .padding(12.dp)
-                        ) {
-                            Text(text = error, color = ErrorRed, style = MaterialTheme.typography.bodySmall)
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Overall Result Card
+                    if (result != null) {
+                        item {
+                            OverallResultCard(result = result)
+                        }
+
+                        // Subject Results Header
+                        item {
+                            Text(
+                                text = "Subject-wise Marks",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+
+                        // Subject Results
+                        itemsIndexed(result.subjects) { _, subject ->
+                            SubjectResultCard(subject = subject)
                         }
                     }
-                }
 
-                item { Spacer(modifier = Modifier.height(8.dp)) }
+                    // Error message
+                    uiState.errorMessage?.let { error ->
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(ErrorRedBg)
+                                    .padding(12.dp)
+                            ) {
+                                Text(text = error, color = ErrorRed, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+
+                    item { Spacer(modifier = Modifier.height(8.dp)) }
+                }
             }
         }
     }

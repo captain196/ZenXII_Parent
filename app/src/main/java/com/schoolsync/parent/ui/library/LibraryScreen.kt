@@ -125,23 +125,28 @@ fun LibraryScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         // ── Content ─────────────────────────────────────────────────────
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = c.accent, modifier = Modifier.size(40.dp))
-            }
-        } else {
-            when (uiState.selectedTab) {
-                0 -> CurrentBooksTab(books = uiState.currentBooks)
-                1 -> HistoryTab(history = uiState.bookHistory)
-                2 -> FinesTab(fines = uiState.fines, totalFines = uiState.totalFines)
-                3 -> CatalogTab(
-                    books = uiState.catalogBooks,
-                    searchQuery = uiState.searchQuery,
-                    onSearchQueryChange = viewModel::updateSearchQuery
-                )
+        com.schoolsync.parent.ui.common.PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.pullRefresh() }
+        ) {
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = c.accent, modifier = Modifier.size(40.dp))
+                }
+            } else {
+                when (uiState.selectedTab) {
+                    0 -> CurrentBooksTab(books = uiState.currentBooks)
+                    1 -> HistoryTab(history = uiState.bookHistory)
+                    2 -> FinesTab(fines = uiState.fines, totalFines = uiState.totalFines)
+                    3 -> CatalogTab(
+                        books = uiState.catalogBooks,
+                        searchQuery = uiState.searchQuery,
+                        onSearchQueryChange = viewModel::updateSearchQuery
+                    )
+                }
             }
         }
 
@@ -834,30 +839,9 @@ private fun EmptyState(
     title: String,
     subtitle: String
 ) {
-    val c = LocalAppColors.current
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = emoji, fontSize = 48.sp)
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = c.textSecondary,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = c.textTertiary,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
+    com.schoolsync.parent.ui.components.EmptyStatePro(
+        emoji = emoji,
+        title = title,
+        description = subtitle,
+    )
 }

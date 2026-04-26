@@ -29,7 +29,12 @@ class AttendanceFirestoreRepository @Inject constructor(
 
     /**
      * Fetch attendance summary for a specific month.
-     * Uses direct document read with ID pattern: {schoolId}_{session}_{month}_{studentId}.
+     *
+     * Doc id format: `{schoolId}_{studentId}_{YYYY-MM}` — matches what
+     * admin `save_student_attendance` and the teacher app both write.
+     *
+     * @param month either "Month YYYY" (e.g. "April 2026") or
+     *              "YYYY-MM" (e.g. "2026-04") — both accepted.
      */
     suspend fun getAttendanceForMonth(
         studentId: String,
@@ -37,10 +42,9 @@ class AttendanceFirestoreRepository @Inject constructor(
     ): Result<AttendanceSummaryDoc> {
         val schoolCode = getSchoolCode()
             ?: return Result.failure(Exception("School code not available"))
-        val session = getSession()
-            ?: return Result.failure(Exception("Session not available"))
 
-        val docId = "${schoolCode}_${session}_${month}_${studentId}"
+        val monthKey = monthLabelToKey(month)
+        val docId = "${schoolCode}_${studentId}_${monthKey}"
 
         return try {
             val doc = firestoreService.getDocumentAs<AttendanceSummaryDoc>(
@@ -57,24 +61,44 @@ class AttendanceFirestoreRepository @Inject constructor(
         }
     }
 
+    /** "April 2026" → "2026-04". Pass-through if already in YYYY-MM form. */
+    private fun monthLabelToKey(monthOrKey: String): String {
+        val s = monthOrKey.trim()
+        if (s.matches(Regex("^\\d{4}-\\d{2}$"))) return s
+        val parts = s.split(" ")
+        if (parts.size != 2) return s
+        val year = parts[1].toIntOrNull() ?: return s
+        val monthNum = monthNameToNumber(parts[0]) ?: return s
+        return "%d-%02d".format(year, monthNum)
+    }
+
+    private fun monthNameToNumber(name: String): Int? = when (name.lowercase()) {
+        "january" -> 1; "february" -> 2; "march" -> 3
+        "april" -> 4; "may" -> 5; "june" -> 6
+        "july" -> 7; "august" -> 8; "september" -> 9
+        "october" -> 10; "november" -> 11; "december" -> 12
+        else -> null
+    }
+
     /**
-     * Fetch all monthly attendance summaries for a student in the current academic year.
-     * Query: schoolId + session + studentId.
+     * Fetch all monthly attendance summaries for a student.
+     *
+     * Phase 7h (2026-04-08): dropped the `session` filter — the
+     * admin writer doesn't use it as a query key and we want this to
+     * return both admin-written canonical docs and legacy
+     * teacher-app docs in the same result set.
      */
     suspend fun getAttendanceSummary(
         studentId: String
     ): Result<List<AttendanceSummaryDoc>> {
         val schoolCode = getSchoolCode()
             ?: return Result.failure(Exception("School code not available"))
-        val session = getSession()
-            ?: return Result.failure(Exception("Session not available"))
 
         return try {
             val summaries = firestoreService.queryDocumentsAs<AttendanceSummaryDoc>(
                 Constants.Firestore.ATTENDANCE_SUMMARY
             ) { ref ->
                 ref.whereEqualTo("schoolId", schoolCode)
-                    .whereEqualTo("session", session)
                     .whereEqualTo("studentId", studentId)
             }
             Result.success(summaries)
@@ -140,11 +164,7 @@ class AttendanceFirestoreRepository @Inject constructor(
     }
 
     private suspend fun getSchoolCode(): String? {
-        return tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
-    }
-
-    private suspend fun getSession(): String? {
-        return tokenManager.user.firstOrNull()?.session?.takeIf { it.isNotBlank() }
+        return tokenManager.user.firstOrNull()?.schoolId?.takeIf { it.isNotBlank() }
     }
 
     private fun todayDate(): String {

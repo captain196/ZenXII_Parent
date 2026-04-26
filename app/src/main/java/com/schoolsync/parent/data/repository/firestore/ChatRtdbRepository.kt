@@ -1,6 +1,7 @@
 package com.schoolsync.parent.data.repository.firestore
 
-import com.schoolsync.parent.data.firebase.FirebaseService
+import com.google.firebase.firestore.DocumentSnapshot
+import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.rtdb.NotifBadgeRtdb
 import com.schoolsync.parent.data.model.rtdb.PresenceRtdb
@@ -14,112 +15,96 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Repository for RTDB-backed communication features: notification badges and presence.
+ * Notification badges + user-presence repository.
  *
- * RTDB paths used:
- * - NotifBadge/{userId}: per-user badge counts by category
- * - Presence/{userId}: online/offline status and last-seen timestamp
+ * Phase 5: migrated off Firebase Realtime Database onto Firestore. The
+ * class name is retained for binary-compat with the DI module; the data
+ * source is now pure Firestore. Two collections replace the old RTDB
+ * subtrees:
+ *
+ *   RTDB  NotifBadge/{userId}     →  Firestore  notifBadges/{userId}
+ *   RTDB  Presence/{userId}        →  Firestore  presence/{userId}
+ *
+ * Document shapes intentionally mirror the NotifBadgeRtdb / PresenceRtdb
+ * POJOs one-for-one so the domain layer needs zero changes. A one-time
+ * migration (scripts/migrate_rtdb_to_firestore.js --mapping=notifBadges
+ * --mapping=presence) seeds the Firestore collections; after that the
+ * RTDB nodes are no longer read or written.
  */
 @Singleton
 class ChatRtdbRepository @Inject constructor(
-    private val firebaseService: FirebaseService,
-    private val tokenManager: TokenManager
+    private val firestoreService: FirestoreService,
+    private val tokenManager: TokenManager,
 ) {
+
+    companion object {
+        private const val COL_NOTIF_BADGES = "notifBadges"
+        private const val COL_PRESENCE     = "presence"
+    }
 
     // ── Notification Badge ──────────────────────────────────────────────────
 
-    /**
-     * One-shot read of notification badge counts for the current user.
-     */
     suspend fun getNotifBadge(): Result<NotifBadgeRtdb> {
         val userId = getUserId()
             ?: return Result.failure(Exception("User ID not available"))
-
         return try {
-            val snapshot = firebaseService.readValue("NotifBadge/$userId")
-            if (snapshot != null && snapshot.exists()) {
-                val badge = snapshot.getValue(NotifBadgeRtdb::class.java)
-                    ?: NotifBadgeRtdb()
-                Result.success(badge)
-            } else {
-                Result.success(NotifBadgeRtdb())
-            }
+            val snap: DocumentSnapshot? = firestoreService.getDocument(COL_NOTIF_BADGES, userId)
+            val badge = snap?.takeIf { it.exists() }
+                ?.toObject(NotifBadgeRtdb::class.java)
+                ?: NotifBadgeRtdb()
+            Result.success(badge)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Observe notification badge counts in real time.
-     * Reacts to user profile changes (userId) via [flatMapLatest].
-     * Emits null when no badge data exists or user is not logged in.
-     */
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeNotifBadge(): Flow<NotifBadgeRtdb?> {
         return tokenManager.user
             .map { user -> user.userId.takeIf { it.isNotBlank() } }
             .flatMapLatest { userId ->
-                if (userId == null) {
-                    flowOf(null)
-                } else {
-                    firebaseService.observeValue("NotifBadge/$userId")
-                        .map { snapshot ->
-                            snapshot?.getValue(NotifBadgeRtdb::class.java)
-                        }
-                }
+                if (userId == null) flowOf(null)
+                else firestoreService.observeDocumentAs<NotifBadgeRtdb>(COL_NOTIF_BADGES, userId)
             }
     }
 
     // ── Presence ────────────────────────────────────────────────────────────
 
-    /**
-     * Update the current user's online/offline presence.
-     */
     suspend fun updatePresence(online: Boolean): Result<Unit> {
         val userId = getUserId()
             ?: return Result.failure(Exception("User ID not available"))
-
         return try {
-            val data = mapOf(
-                "online" to online,
-                "lastSeen" to System.currentTimeMillis()
+            firestoreService.setDocument(
+                COL_PRESENCE,
+                userId,
+                mapOf(
+                    "userId"   to userId,
+                    "online"   to online,
+                    "lastSeen" to System.currentTimeMillis(),
+                ),
+                merge = true,
             )
-            firebaseService.writeValue("Presence/$userId", data)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * One-shot read of a user's presence status.
-     */
     suspend fun getPresence(userId: String): Result<PresenceRtdb?> {
         return try {
-            val snapshot = firebaseService.readValue("Presence/$userId")
-            if (snapshot != null && snapshot.exists()) {
-                Result.success(snapshot.getValue(PresenceRtdb::class.java))
-            } else {
-                Result.success(null)
-            }
+            val snap = firestoreService.getDocument(COL_PRESENCE, userId)
+            val obj = snap?.takeIf { it.exists() }?.toObject(PresenceRtdb::class.java)
+            Result.success(obj)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Observe a user's presence in real time.
-     */
-    fun observePresence(userId: String): Flow<PresenceRtdb?> {
-        return firebaseService.observeValue("Presence/$userId")
-            .map { snapshot ->
-                snapshot?.getValue(PresenceRtdb::class.java)
-            }
-    }
+    fun observePresence(userId: String): Flow<PresenceRtdb?> =
+        firestoreService.observeDocumentAs<PresenceRtdb>(COL_PRESENCE, userId)
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    private suspend fun getUserId(): String? {
-        return tokenManager.user.firstOrNull()?.userId?.takeIf { it.isNotBlank() }
-    }
+    private suspend fun getUserId(): String? =
+        tokenManager.user.firstOrNull()?.userId?.takeIf { it.isNotBlank() }
 }

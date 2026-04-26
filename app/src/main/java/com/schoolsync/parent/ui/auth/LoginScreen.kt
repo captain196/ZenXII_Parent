@@ -4,7 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,6 +64,7 @@ import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
@@ -70,9 +73,20 @@ fun LoginScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val c = LocalAppColors.current
+    val showDevSettingsState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    val showDevSettings = showDevSettingsState.value
 
     LaunchedEffect(uiState.loginSuccess) {
         if (uiState.loginSuccess) onLoginSuccess()
+    }
+
+    // Hidden dev override dialog — long-press the SchoolSync title to
+    // open. Survives PC IP changes during testing without rebuilding.
+    if (showDevSettings) {
+        com.schoolsync.parent.ui.common.DevSettingsDialog(
+            devPrefs = viewModel.devPrefs,
+            onDismiss = { showDevSettingsState.value = false }
+        )
     }
 
     Box(
@@ -111,7 +125,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // ── Brand ──
+            // ── Brand ── (long-press → hidden dev settings dialog)
             Text(
                 text = "SchoolSync",
                 style = TextStyle(
@@ -119,6 +133,12 @@ fun LoginScreen(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.8).sp,
                     color = c.textPrimary
+                ),
+                modifier = Modifier.combinedClickable(
+                    interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource(),
+                    indication = null,
+                    onClick = {},
+                    onLongClick = { showDevSettingsState.value = true }
                 )
             )
             Text(

@@ -52,6 +52,35 @@ class HomeworkFirestoreRepository @Inject constructor(
                     .orderBy("createdAt", Query.Direction.DESCENDING)
             }
             Result.success(homework)
+        } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+            // HW-6: Handle missing composite index — fall back to
+            // client-side sort (same pattern as teacher app).
+            if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION) {
+                android.util.Log.w("HomeworkRepo",
+                    "Composite index missing — falling back to client-side sort")
+                runCatching {
+                    val rows = firestoreService.queryDocumentsAs<HomeworkDoc>(
+                        Constants.Firestore.HOMEWORK
+                    ) { ref ->
+                        ref.whereEqualTo("schoolId", schoolCode)
+                            .whereEqualTo("sectionKey", sectionKey)
+                            .whereEqualTo("status", "active")
+                    }
+                    rows.sortedByDescending { row ->
+                        when (val ts = row.createdAt) {
+                            is com.google.firebase.Timestamp -> ts.seconds
+                            is Long -> ts / 1000
+                            is Number -> ts.toLong() / 1000
+                            else -> 0L
+                        }
+                    }
+                }.fold(
+                    onSuccess = { Result.success(it) },
+                    onFailure = { Result.failure(it) }
+                )
+            } else {
+                Result.failure(e)
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -66,16 +95,22 @@ class HomeworkFirestoreRepository @Inject constructor(
         homeworkId: String,
         studentId: String
     ): Result<SubmissionDoc?> {
+        // Direct doc read by the canonical doc ID: {hwId}_{studentId}.
+        // This is the ONLY read path — we DON'T use a query because
+        // Firestore queries without a schoolId filter get PERMISSION_DENIED.
+        // If the doc doesn't exist, the SDK returns null (not an error).
+        // If rules block the read, we catch and treat it as "not submitted".
+        val docId = "${homeworkId}_${studentId}"
         return try {
-            val submissions = firestoreService.queryDocumentsAs<SubmissionDoc>(
-                Constants.Firestore.SUBMISSIONS
-            ) { ref ->
-                ref.whereEqualTo("homeworkId", homeworkId)
-                    .whereEqualTo("studentId", studentId)
-            }
-            Result.success(submissions.firstOrNull())
+            val doc = firestoreService.getDocumentAs<SubmissionDoc>(
+                Constants.Firestore.SUBMISSIONS, docId
+            )
+            Result.success(doc)  // null = not submitted yet
         } catch (e: Exception) {
-            Result.failure(e)
+            // PERMISSION_DENIED or any error → treat as "not submitted"
+            // (safe: if submission exists but can't be read, the UI shows
+            // pending — the teacher can still see it from their side)
+            Result.success(null)
         }
     }
 
@@ -118,6 +153,11 @@ class HomeworkFirestoreRepository @Inject constructor(
                 data,
                 merge = true
             )
+
+            // submissionCount: can't increment from parent app (Firestore
+            // rules only allow staff to update homework docs). The admin
+            // panel counts actual submissions when it needs the number.
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -135,16 +175,19 @@ class HomeworkFirestoreRepository @Inject constructor(
 
         return tokenManager.user
             .map { user ->
-                user.schoolCode.takeIf { it.isNotBlank() }
+                // Use schoolId (e.g. "SCH_D94FE8F7AD") — matches what teacher/admin
+                // write to the homework doc's schoolId field.
+                // NOT schoolCode (which is the login code like "10004").
+                user.schoolId.takeIf { it.isNotBlank() }
             }
-            .flatMapLatest { schoolCode ->
-                if (schoolCode == null) {
+            .flatMapLatest { schoolId ->
+                if (schoolId == null) {
                     flowOf(emptyList())
                 } else {
                     firestoreService.observeQuery(
                         Constants.Firestore.HOMEWORK
                     ) { ref ->
-                        ref.whereEqualTo("schoolId", schoolCode)
+                        ref.whereEqualTo("schoolId", schoolId)
                             .whereEqualTo("sectionKey", sectionKey)
                             .whereEqualTo("status", "active")
                             .orderBy("createdAt", Query.Direction.DESCENDING)
@@ -158,6 +201,6 @@ class HomeworkFirestoreRepository @Inject constructor(
     }
 
     private suspend fun getSchoolCode(): String? {
-        return tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
+        return tokenManager.user.firstOrNull()?.schoolId?.takeIf { it.isNotBlank() }
     }
 }

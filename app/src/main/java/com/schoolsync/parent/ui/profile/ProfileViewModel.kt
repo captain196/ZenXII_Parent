@@ -72,12 +72,18 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val data = attendanceRepository.getCurrentMonthAttendance()
-                _uiState.update { it.copy(attendancePercent = data.attendancePercentage) }
-            } catch (_: Exception) {
+                val pct = data.attendancePercentage
+                android.util.Log.w("ProfileVM", "loadAttendance: pct=$pct present=${data.presentCount} tardy=${data.countOf(com.schoolsync.parent.data.model.AttendanceStatus.TRIP)} working=${data.workingDays} total=${data.totalDays}")
+                _uiState.update { it.copy(attendancePercent = pct) }
+            } catch (e: Exception) {
+                android.util.Log.e("ProfileVM", "loadAttendance FAILED", e)
                 _uiState.update { it.copy(attendancePercent = 0f) }
             }
         }
     }
+
+    /** Public so the screen can re-fetch on every visit. */
+    fun refreshAttendance() = loadAttendance()
 
     fun setThemeMode(mode: String) {
         viewModelScope.launch {

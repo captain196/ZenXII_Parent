@@ -1,8 +1,6 @@
 package com.schoolsync.parent.data.model.firestore
 
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
-import com.google.firebase.firestore.ServerTimestamp
 
 data class HomeworkDoc(
     @DocumentId
@@ -18,8 +16,7 @@ data class HomeworkDoc(
     val teacherId: String = "",
     val teacherName: String = "",
     val dueDate: String = "",        // "2026-03-28"
-    @ServerTimestamp
-    val createdAt: Timestamp? = null,
+    val createdAt: Any? = null,
     val status: String = "active",   // "active", "closed"
     val submissionCount: Int = 0,
     val totalStudents: Int = 0,

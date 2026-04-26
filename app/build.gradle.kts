@@ -20,7 +20,9 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
-        buildConfigField("String", "BASE_URL", "\"https://project2-2-80nu.onrender.com/\"")
+        // PHP backend URL — used for any future REST API endpoints
+        // Emulator: 10.0.2.2 | Physical device over USB: use localhost + `adb reverse tcp:80 tcp:80`
+        buildConfigField("String", "BASE_URL", "\"http://localhost:8080/Grader/school/\"")
     }
 
     buildTypes {
@@ -65,6 +67,10 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    // Pull-to-refresh — Material3's PullToRefreshBox isn't in the
+    // 1.2.x BoM we're on, so we use the older Material (Compose
+    // Material 2) `pullRefresh` API which coexists with Material3.
+    implementation("androidx.compose.material:material")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
@@ -104,12 +110,19 @@ dependencies {
 
     // Image loading
     implementation("io.coil-kt:coil-compose:2.6.0")
+    // Video playback (Stories viewer — Round 1a).
+    // Media3 = modern ExoPlayer; stable, Compose-friendly via AndroidView.
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
 
     // Lottie animations
     implementation("com.airbnb.android:lottie-compose:6.4.0")
 
     // Shimmer effect
     implementation("com.valentinilk.shimmer:compose-shimmer:1.3.0")
+
+    // Razorpay checkout
+    implementation("com.razorpay:checkout:1.6.38")
 
     // Tests
     testImplementation("junit:junit:4.13.2")

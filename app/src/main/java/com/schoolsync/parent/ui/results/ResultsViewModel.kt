@@ -8,6 +8,7 @@ import com.schoolsync.parent.data.model.ExamResult
 import com.schoolsync.parent.data.model.SubjectResult
 import com.schoolsync.parent.data.model.User
 import com.schoolsync.parent.data.repository.firestore.ExamFirestoreRepository
+import com.schoolsync.parent.data.repository.firestore.FeeFirestoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,16 +20,22 @@ import javax.inject.Inject
 
 data class ResultsUiState(
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val examIds: List<String> = emptyList(),
     val selectedExamIndex: Int = 0,
     val examResult: ExamResult? = null,
     val examSelectorExpanded: Boolean = false,
+    /** Outstanding fees on the active student. >0 → show
+     *  the fee-blocked banner so the parent knows results MAY
+     *  be withheld depending on the school's policy. */
+    val pendingFees: Double = 0.0,
     val errorMessage: String? = null
 )
 
 @HiltViewModel
 class ResultsViewModel @Inject constructor(
     private val examFirestoreRepo: ExamFirestoreRepository,
+    private val feeFirestoreRepo: FeeFirestoreRepository,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
@@ -37,6 +44,45 @@ class ResultsViewModel @Inject constructor(
 
     init {
         loadExams()
+        loadDuesSnapshot()
+    }
+
+    /** Pull-to-refresh: reload exams + dues with min spinner time. */
+    fun pullRefresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            val startedAt = System.currentTimeMillis()
+            val minSpinnerMs = 600L
+            try {
+                loadExams()
+                loadDuesSnapshot()
+            } catch (e: Exception) {
+                Log.w("ResultsVM", "pullRefresh failed", e)
+            }
+            val elapsed = System.currentTimeMillis() - startedAt
+            if (elapsed < minSpinnerMs) {
+                kotlinx.coroutines.delay(minSpinnerMs - elapsed)
+            }
+            _uiState.update { it.copy(isRefreshing = false) }
+        }
+    }
+
+    /** Lightweight one-shot dues fetch so the screen can display the
+     *  fee-blocked warning banner. We don't gate the UI here — the
+     *  server is the source of truth for actual blocking; this is
+     *  just an early warning to the parent. */
+    private fun loadDuesSnapshot() {
+        viewModelScope.launch {
+            val user = tokenManager.user.firstOrNull() ?: User.empty()
+            if (user.userId.isBlank()) return@launch
+            try {
+                val demands = feeFirestoreRepo.getPendingDemands(user.userId).getOrNull().orEmpty()
+                val pending = demands.sumOf { (it.netAmount - it.paidAmount).coerceAtLeast(0.0) }
+                _uiState.update { it.copy(pendingFees = pending) }
+            } catch (e: Exception) {
+                Log.w("ResultsVM", "Dues snapshot failed", e)
+            }
+        }
     }
 
     private fun loadExams() {

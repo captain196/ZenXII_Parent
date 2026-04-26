@@ -1,8 +1,6 @@
 package com.schoolsync.parent.data.model.firestore
 
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
-import com.google.firebase.firestore.ServerTimestamp
 
 data class LeaveApplicationDoc(
     @DocumentId
@@ -19,10 +17,8 @@ data class LeaveApplicationDoc(
     val reason: String = "",
     val attachments: List<String> = emptyList(),
     val status: String = "pending",  // "pending", "approved", "rejected", "cancelled"
-    @ServerTimestamp
-    val appliedAt: Timestamp? = null,
+    val appliedAt: Any? = null,
     val approvedBy: String = "",
-    @ServerTimestamp
-    val approvedAt: Timestamp? = null,
+    val approvedAt: Any? = null,
     val remarks: String = ""
 )

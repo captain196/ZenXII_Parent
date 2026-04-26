@@ -5,7 +5,12 @@ data class TeacherStoryGroup(
     val teacherName: String,
     val teacherPic: String,
     val stories: List<Story>,
-    val hasUnviewed: Boolean
+    val hasUnviewed: Boolean,
+    /** Phase C — drives the StoriesRow ring color: admin posts get
+     *  red/gold gradient; teacher posts get the existing teal one. */
+    val authorType: String = "teacher",
+    /** "high" | "normal". Admin high-priority posts pin to row top. */
+    val priority: String = "normal"
 )
 
 data class Story(

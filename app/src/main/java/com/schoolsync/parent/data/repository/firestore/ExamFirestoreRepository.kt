@@ -65,7 +65,7 @@ class ExamFirestoreRepository @Inject constructor(
         val schoolCode = getSchoolCode()
             ?: return Result.failure(Exception("School code not available"))
 
-        val docId = "${schoolCode}_${examId}_${className}_${section}"
+        val docId = "${schoolCode}_${examId}_${Constants.Firebase.classKey(className)}_${Constants.Firebase.sectionKey(section)}"
 
         return try {
             val doc = firestoreService.getDocumentAs<ExamScheduleDoc>(
@@ -159,7 +159,7 @@ class ExamFirestoreRepository @Inject constructor(
     }
 
     private suspend fun getSchoolCode(): String? {
-        return tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
+        return tokenManager.user.firstOrNull()?.schoolId?.takeIf { it.isNotBlank() }
     }
 
     private suspend fun getSession(): String? {

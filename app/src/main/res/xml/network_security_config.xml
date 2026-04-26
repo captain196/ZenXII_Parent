@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEV BUILD: cleartext (HTTP) is allowed for ANY host so the in-app
+  Dev Settings BASE_URL override works without app rebuilds when the
+  PC's LAN IP changes. Before going to production, replace with a
+  domain-config that whitelists only your HTTPS production host.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -6,7 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.schoolsync.parent.BuildConfig
+import com.google.firebase.auth.FirebaseAuth
 import com.schoolsync.parent.data.model.User
 import com.schoolsync.parent.data.model.UserDto
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -18,8 +18,9 @@ import javax.inject.Singleton
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "schoolsync_prefs")
 
 /**
- * DataStore-based secure storage for JWT tokens, Firebase token, device ID,
- * and cached user profile. Single source of truth for auth state.
+ * DataStore-based secure storage for device ID and cached user profile.
+ * Auth state is determined by FirebaseAuth.currentUser.
+ * Single source of truth for user profile data.
  */
 @Singleton
 class TokenManager @Inject constructor(
@@ -27,13 +28,8 @@ class TokenManager @Inject constructor(
 ) {
     private val dataStore = context.dataStore
 
-    val baseUrl: String = BuildConfig.BASE_URL
-
     // ── Keys ─────────────────────────────────────────────────────────────
     private object Keys {
-        val ACCESS_TOKEN = stringPreferencesKey("access_token")
-        val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
-        val FIREBASE_TOKEN = stringPreferencesKey("firebase_token")
         val DEVICE_ID = stringPreferencesKey("device_id")
 
         // User profile fields
@@ -59,10 +55,7 @@ class TokenManager @Inject constructor(
         val THEME_MODE = stringPreferencesKey("theme_mode")  // "system", "light", "dark"
     }
 
-    // ── Token Flows ──────────────────────────────────────────────────────
-    val accessToken: Flow<String?> = dataStore.data.map { it[Keys.ACCESS_TOKEN] }
-    val refreshToken: Flow<String?> = dataStore.data.map { it[Keys.REFRESH_TOKEN] }
-    val firebaseToken: Flow<String?> = dataStore.data.map { it[Keys.FIREBASE_TOKEN] }
+    // ── Device ID Flow ──────────────────────────────────────────────────
     val deviceId: Flow<String?> = dataStore.data.map { it[Keys.DEVICE_ID] }
 
     // ── User Profile Flow ────────────────────────────────────────────────
@@ -90,21 +83,12 @@ class TokenManager @Inject constructor(
         )
     }
 
-    /** Flow that emits true if user is logged in (has access token + userId) */
+    /** Flow that emits true if user is logged in (Firebase Auth has a current user + userId saved) */
     val isLoggedIn: Flow<Boolean> = dataStore.data.map { prefs ->
-        !prefs[Keys.ACCESS_TOKEN].isNullOrBlank() && !prefs[Keys.USER_ID].isNullOrBlank()
+        FirebaseAuth.getInstance().currentUser != null && !prefs[Keys.USER_ID].isNullOrBlank()
     }
 
     // ── Save Methods ─────────────────────────────────────────────────────
-
-    /** Save JWT + Firebase tokens (used by login and refresh) */
-    suspend fun saveTokens(accessToken: String, refreshToken: String, firebaseToken: String) {
-        dataStore.edit { prefs ->
-            prefs[Keys.ACCESS_TOKEN] = accessToken
-            prefs[Keys.REFRESH_TOKEN] = refreshToken
-            prefs[Keys.FIREBASE_TOKEN] = firebaseToken
-        }
-    }
 
     /** Save device ID (generated once on first launch) */
     suspend fun saveDeviceId(deviceId: String) {
@@ -134,6 +118,40 @@ class TokenManager @Inject constructor(
             prefs[Keys.ADMISSION_DATE] = userDto.admissionDate ?: ""
             prefs[Keys.PARENT_DB_KEY] = userDto.parentDbKey ?: ""
             prefs[Keys.SESSION] = userDto.session ?: ""
+        }
+    }
+
+    /** Save user profile directly from a User object (used by new Firebase Auth login flow) */
+    suspend fun saveUserDirect(user: User) {
+        dataStore.edit { prefs ->
+            prefs[Keys.USER_ID] = user.userId
+            prefs[Keys.USER_NAME] = user.name
+            prefs[Keys.USER_EMAIL] = user.email
+            prefs[Keys.USER_PHONE] = user.phone
+            prefs[Keys.USER_ROLE] = user.role
+            prefs[Keys.SCHOOL_ID] = user.schoolId
+            prefs[Keys.SCHOOL_DISPLAY_NAME] = user.schoolDisplayName
+            prefs[Keys.PROFILE_PIC] = user.profilePic
+            prefs[Keys.CLASS_NAME] = user.className
+            prefs[Keys.SECTION] = user.section
+            prefs[Keys.ROLL_NO] = user.rollNo
+            prefs[Keys.FATHER_NAME] = user.fatherName
+            prefs[Keys.MOTHER_NAME] = user.motherName
+            prefs[Keys.DOB] = user.dob
+            prefs[Keys.GENDER] = user.gender
+            prefs[Keys.ADMISSION_DATE] = user.admissionDate
+            prefs[Keys.PARENT_DB_KEY] = user.parentDbKey
+            prefs[Keys.SESSION] = user.session
+            prefs[Keys.SCHOOL_CODE] = user.schoolCode
+        }
+    }
+
+    /** Save school info (schoolCode, displayName, session) */
+    suspend fun saveSchoolInfo(schoolCode: String, schoolDisplayName: String, session: String) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SCHOOL_CODE] = schoolCode
+            prefs[Keys.SCHOOL_DISPLAY_NAME] = schoolDisplayName
+            prefs[Keys.SESSION] = session
         }
     }
 
@@ -167,12 +185,4 @@ class TokenManager @Inject constructor(
         dataStore.edit { it.clear() }
     }
 
-    /** Clear only tokens (keeps user profile for display on login screen) */
-    suspend fun clearTokens() {
-        dataStore.edit { prefs ->
-            prefs.remove(Keys.ACCESS_TOKEN)
-            prefs.remove(Keys.REFRESH_TOKEN)
-            prefs.remove(Keys.FIREBASE_TOKEN)
-        }
-    }
 }

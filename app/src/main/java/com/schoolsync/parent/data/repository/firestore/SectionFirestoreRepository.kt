@@ -85,7 +85,7 @@ class SectionFirestoreRepository @Inject constructor(
             ) { ref ->
                 ref.whereEqualTo("schoolId", schoolCode)
                     .whereEqualTo("session", session)
-                    .whereEqualTo("className", className)
+                    .whereEqualTo("className", Constants.Firebase.classKey(className))
             }
             Result.success(sections)
         } catch (e: Exception) {
@@ -104,7 +104,7 @@ class SectionFirestoreRepository @Inject constructor(
             .map { user ->
                 val code = user.schoolCode.takeIf { it.isNotBlank() }
                 val sess = user.session.takeIf { it.isNotBlank() }
-                if (code != null && sess != null) "${code}_${sess}_${className}_${section}" else null
+                if (code != null && sess != null) "${code}_${sess}_${Constants.Firebase.classKey(className)}_${Constants.Firebase.sectionKey(section)}" else null
             }
             .flatMapLatest { docId ->
                 if (docId == null) {
@@ -125,11 +125,11 @@ class SectionFirestoreRepository @Inject constructor(
     private suspend fun buildSectionDocId(className: String, section: String): String? {
         val schoolCode = getSchoolCode() ?: return null
         val session = getSession() ?: return null
-        return "${schoolCode}_${session}_${className}_${section}"
+        return "${schoolCode}_${session}_${Constants.Firebase.classKey(className)}_${Constants.Firebase.sectionKey(section)}"
     }
 
     private suspend fun getSchoolCode(): String? {
-        return tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
+        return tokenManager.user.firstOrNull()?.schoolId?.takeIf { it.isNotBlank() }
     }
 
     private suspend fun getSession(): String? {

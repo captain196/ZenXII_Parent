@@ -1,8 +1,6 @@
 package com.schoolsync.parent.data.model.firestore
 
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
-import com.google.firebase.firestore.ServerTimestamp
 
 data class AttendanceDoc(
     @DocumentId
@@ -15,8 +13,7 @@ data class AttendanceDoc(
     val studentName: String = "",
     val status: String = "",         // P, A, L, H, T, V
     val markedBy: String = "",       // staffId who marked
-    @ServerTimestamp
-    val markedAt: Timestamp? = null,
+    val markedAt: Any? = null,
     val late: Boolean = false,
     val lateMinutes: Int = 0,
     val notified: Boolean = false

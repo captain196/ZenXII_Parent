@@ -4,9 +4,22 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group android:translateX="22" android:translateY="22">
+
+    <!-- ZENZ logo — bold Z letter, green top+diagonal, dark bottom bar -->
+    <!-- Safe zone: 24-84 (60x60), centered in 108x108 -->
+    <group
+        android:translateX="24"
+        android:translateY="24">
+
+        <!-- Green: top bar + diagonal stroke (one connected piece) -->
         <path
-            android:fillColor="#14B8A6"
-            android:pathData="M32,4C16.536,4 4,16.536 4,32s12.536,28 28,28s28,-12.536 28,-28S47.464,4 32,4zM32,12c4.418,0 8,3.582 8,8s-3.582,8 -8,8s-8,-3.582 -8,-8S27.582,12 32,12zM32,52c-7,0 -13.19,-3.58 -16.82,-9.01C15.44,38.56 24,35.34 32,35.34s16.56,3.22 16.82,7.65C45.19,48.42 39,52 32,52z" />
+            android:fillColor="#2DB87A"
+            android:pathData="M4,2 L56,2 L56,16 L40,16 L16,44 L4,44 Z" />
+
+        <!-- Dark: bottom bar -->
+        <path
+            android:fillColor="#1E2D3D"
+            android:pathData="M4,44 L56,44 L56,58 L4,58 Z" />
+
     </group>
 </vector>

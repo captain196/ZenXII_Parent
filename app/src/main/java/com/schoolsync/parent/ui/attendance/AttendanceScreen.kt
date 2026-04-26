@@ -35,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -53,6 +54,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.schoolsync.parent.data.model.AttendanceData
 import com.schoolsync.parent.data.model.AttendanceStatus
@@ -66,10 +70,35 @@ import java.util.Locale
 @Composable
 fun AttendanceScreen(
     onBack: () -> Unit,
+    onNavigateToLeave: () -> Unit = {},
     viewModel: AttendanceViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val colors = LocalAppColors.current
+
+    // Refresh on background → foreground only. The viewmodel's init {}
+    // already performs the initial load, and the lifecycle observer below
+    // would otherwise fire ON_RESUME synchronously on first registration
+    // (the lifecycle is already RESUMED when this composition runs),
+    // causing a triple-load + UI flicker on screen open.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        var skippedFirstResume = false
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (!skippedFirstResume) {
+                    skippedFirstResume = true
+                    return@LifecycleEventObserver
+                }
+                viewModel.loadAttendance()
+                viewModel.refreshExtras()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -86,6 +115,10 @@ fun AttendanceScreen(
             colors = colors
         )
 
+        com.schoolsync.parent.ui.common.PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.pullRefresh() }
+        ) {
         if (uiState.isLoading && uiState.attendanceData == null) {
             Box(
                 modifier = Modifier
@@ -186,7 +219,7 @@ fun AttendanceScreen(
                 item {
                     Spacer(modifier = Modifier.height(4.dp))
                     Button(
-                        onClick = { /* TODO: Navigate to leave application */ },
+                        onClick = onNavigateToLeave,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
@@ -225,6 +258,7 @@ fun AttendanceScreen(
 
                 item { Spacer(modifier = Modifier.height(16.dp)) }
             }
+        }
         }
     }
 }
@@ -274,7 +308,7 @@ private fun AttendanceHeader(
             )
             if (className.isNotBlank()) {
                 Text(
-                    text = "$studentName  ·  Class $className-$section",
+                    text = "$studentName  ·  $className - $section",
                     fontSize = 11.sp,
                     color = colors.textSecondary
                 )
@@ -306,7 +340,7 @@ private fun TodayStatusBanner(
         AttendanceStatus.ABSENT -> "Absent today"
         AttendanceStatus.LEAVE -> "On leave today"
         AttendanceStatus.HOLIDAY -> "Holiday today"
-        AttendanceStatus.TRIP -> "Trip today"
+        AttendanceStatus.TRIP -> "Late arrival today"
         AttendanceStatus.VACATION -> "Vacation"
         null -> "No status yet"
     }
@@ -479,6 +513,13 @@ private fun StatsCard(
                         colors = colors,
                         modifier = Modifier.weight(1f)
                     )
+                    StatGridItem(
+                        count = stats.tardy,
+                        label = "Tardy",
+                        dotColor = colors.attVacation,
+                        colors = colors,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -498,6 +539,8 @@ private fun StatsCard(
                         colors = colors,
                         modifier = Modifier.weight(1f)
                     )
+                    // Spacer to keep the 3-column grid aligned with row 1.
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -730,27 +773,34 @@ private fun CalendarDayCell(
     colors: AppColors,
     modifier: Modifier = Modifier
 ) {
+    // Phase 10: future days still show Leave (L) and Holiday (H)
+    // dots so approved leaves and holidays are visible on the
+    // calendar even before the date arrives. Only Vacant (V) and
+    // unmarked (null) are suppressed on future days.
+    val hasPresetStatus = status == AttendanceStatus.LEAVE || status == AttendanceStatus.HOLIDAY
+    val showStatus = !isFuture || hasPresetStatus
+
     val bgColor = when {
-        isFuture -> colors.glass.copy(alpha = 0.1f)
+        !showStatus -> colors.glass.copy(alpha = 0.1f)
         else -> when (status) {
             AttendanceStatus.PRESENT -> colors.attPresent.copy(alpha = 0.2f)
             AttendanceStatus.ABSENT -> colors.attAbsent.copy(alpha = 0.2f)
             AttendanceStatus.LEAVE -> colors.warning.copy(alpha = 0.2f)
             AttendanceStatus.HOLIDAY -> colors.textTertiary.copy(alpha = 0.1f)
-            AttendanceStatus.TRIP, AttendanceStatus.VACATION -> colors.attVacation.copy(alpha = 0.1f)
-            null -> Color.Transparent
+            AttendanceStatus.TRIP -> colors.attVacation.copy(alpha = 0.2f)
+            AttendanceStatus.VACATION, null -> Color.Transparent  // V = unrecorded, no bg
         }
     }
 
     val dotColor = when {
-        isFuture -> null
+        !showStatus -> null
         else -> when (status) {
             AttendanceStatus.PRESENT -> colors.attPresent
             AttendanceStatus.ABSENT -> colors.attAbsent
             AttendanceStatus.LEAVE -> colors.warning
             AttendanceStatus.HOLIDAY -> colors.textTertiary
-            AttendanceStatus.TRIP, AttendanceStatus.VACATION -> colors.attVacation
-            null -> null
+            AttendanceStatus.TRIP -> colors.attVacation
+            AttendanceStatus.VACATION, null -> null  // V = unrecorded, no dot
         }
     }
 
@@ -954,25 +1004,61 @@ private fun RecentDayCard(
                     color = colors.textTertiary
                 )
             }
+
+            // Status label, plus a "+N min late" suffix on tardy days when
+            // we have a recorded arrival time.
+            val lateMinutes = day.arrivalTime?.let { computeLateMinutes(it) }
+            val statusLabel = when {
+                day.status == AttendanceStatus.TRIP && lateMinutes != null && lateMinutes > 0 ->
+                    "Tardy · +${lateMinutes} min"
+                else -> day.status.label
+            }
             Text(
-                text = day.status.label,
+                text = statusLabel,
                 fontSize = 10.sp,
                 color = statusColor
             )
         }
 
-        // In/Out times placeholder
+        // Arrival time (real, when admin recorded it for tardy days).
+        // Falls back to a simple placeholder for non-tardy days so the
+        // layout doesn't shift.
         Column(horizontalAlignment = Alignment.End) {
+            val arrivalLabel = day.arrivalTime ?: when (day.status) {
+                AttendanceStatus.PRESENT -> "On time"
+                AttendanceStatus.ABSENT -> "—"
+                AttendanceStatus.LEAVE -> "Leave"
+                AttendanceStatus.HOLIDAY -> "Holiday"
+                AttendanceStatus.VACATION -> "Vacation"
+                AttendanceStatus.TRIP -> "Tardy"
+            }
             Text(
-                text = "In: 8:00",
+                text = arrivalLabel,
                 fontSize = 10.sp,
-                color = colors.textSecondary
-            )
-            Text(
-                text = "Out: 2:30",
-                fontSize = 10.sp,
-                color = colors.textSecondary
+                fontFamily = if (day.arrivalTime != null) FontFamily.Monospace else FontFamily.Default,
+                color = if (day.arrivalTime != null) statusColor else colors.textSecondary
             )
         }
     }
+}
+
+/**
+ * Compute minutes late vs. the school's late threshold.
+ * Phase 10f: threshold comes from [lateThreshold] param (default "08:30"),
+ * read from school config via the ViewModel.
+ */
+private fun computeLateMinutes(arrivalTime: String, lateThreshold: String = "08:30"): Int? {
+    val parts = arrivalTime.split(":")
+    if (parts.size != 2) return null
+    val hh = parts[0].toIntOrNull() ?: return null
+    val mm = parts[1].toIntOrNull() ?: return null
+    val arrivalMin = hh * 60 + mm
+
+    val cutoffParts = lateThreshold.split(":")
+    val cutoffH = cutoffParts.getOrNull(0)?.toIntOrNull() ?: 8
+    val cutoffM = cutoffParts.getOrNull(1)?.toIntOrNull() ?: 30
+    val cutoffMin = cutoffH * 60 + cutoffM
+
+    val diff = arrivalMin - cutoffMin
+    return if (diff > 0) diff else null
 }

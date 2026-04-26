@@ -1,31 +1,41 @@
 package com.schoolsync.parent.data.model.firestore
 
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
-import com.google.firebase.firestore.ServerTimestamp
 
 data class StudentDoc(
     @DocumentId
     val id: String = "",
     val userId: String = "",
+    val studentId: String = "",
     val name: String = "",
     val email: String = "",
     val phone: String = "",
+    val phoneNumber: String = "",
     val schoolId: String = "",
+    val schoolCode: String = "",
     val className: String = "",
     val section: String = "",
+    val sectionKey: String = "",
     val rollNo: String = "",
     val fatherName: String = "",
+    val fatherOccupation: String = "",
     val motherName: String = "",
+    val motherOccupation: String = "",
+    val guardContact: String = "",
+    val guardRelation: String = "",
     val dob: String = "",
     val gender: String = "",
+    val category: String = "",
+    val bloodGroup: String = "",
+    val religion: String = "",
+    val nationality: String = "",
     val admissionDate: String = "",
+    val preClass: String = "",
+    val preSchool: String = "",
+    val preMarks: String = "",
     val parentDbKey: String = "",
     val profilePic: String = "",
     val status: String = "",
     val session: String = "",
-    @ServerTimestamp
-    val createdAt: Timestamp? = null,
-    @ServerTimestamp
-    val updatedAt: Timestamp? = null
+    val updatedAt: String = "",
 )

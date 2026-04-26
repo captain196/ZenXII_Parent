@@ -114,51 +114,54 @@ data class PendingFees(
     val rawData: Map<String, Any?> = emptyMap()
 ) {
     companion object {
+        private val MONTH_NAMES = listOf(
+            "January","February","March","April","May","June",
+            "July","August","September","October","November","December"
+        )
+        fun formatMonthKey(key: String): String {
+            val num = key.trimStart('0').toIntOrNull()
+            return if (num != null && num in 1..12) MONTH_NAMES[num - 1] else key
+        }
+
         fun fromMap(studentId: String, data: Map<String, Any?>): PendingFees {
             val pendingMonths = mutableListOf<PendingMonth>()
             var total = 0.0
 
             data.forEach { (key, value) ->
-                val displayMonth = PendingMonth.formatMonthKey(key)
+                val displayMonth = formatMonthKey(key)
                 when (value) {
                     is Map<*, *> -> {
                         @Suppress("UNCHECKED_CAST")
                         val monthData = value as Map<String, Any?>
-                        val amount = monthData["amount"].toSafeDouble()
+                        val amt = monthData["amount"].toSafeDouble()
                         val dueDate = (monthData["due_date"] ?: "").toString()
                         val status = (monthData["status"] ?: "Pending").toString()
                         pendingMonths.add(
                             PendingMonth(
                                 month = displayMonth,
-                                amount = amount,
+                                totalAmount = amt,
+                                balanceAmount = amt,
                                 dueDate = dueDate,
                                 status = status
                             )
                         )
-                        if (status.equals("Pending", ignoreCase = true) ||
-                            status.equals("Overdue", ignoreCase = true)
-                        ) {
-                            total += amount
+                        if (status.equals("Pending", true) || status.equals("Overdue", true)) {
+                            total += amt
                         }
                     }
                     is Number -> {
                         pendingMonths.add(
-                            PendingMonth(
-                                month = displayMonth,
-                                amount = value.toDouble(),
-                                dueDate = "",
-                                status = "Pending"
-                            )
+                            PendingMonth(month = displayMonth, totalAmount = value.toDouble(), balanceAmount = value.toDouble())
                         )
                         total += value.toDouble()
                     }
                     is String -> {
-                        val amount = value.toDoubleOrNull() ?: 0.0
-                        if (amount > 0) {
+                        val amt = value.toDoubleOrNull() ?: 0.0
+                        if (amt > 0) {
                             pendingMonths.add(
-                                PendingMonth(month = displayMonth, amount = amount, dueDate = "", status = "Pending")
+                                PendingMonth(month = displayMonth, totalAmount = amt, balanceAmount = amt)
                             )
-                            total += amount
+                            total += amt
                         }
                     }
                 }
@@ -184,9 +187,27 @@ data class PendingFees(
 
 data class PendingMonth(
     val month: String,
-    val amount: Double,
+    val totalAmount: Double = 0.0,
+    val paidAmount: Double = 0.0,
+    val balanceAmount: Double = 0.0,
     val dueDate: String = "",
-    val status: String = "Pending"  // Pending, Paid, Overdue
+    val status: String = "Pending",
+    val feeHeads: List<FeeHeadDue> = emptyList(),
+    /** Days past the grace window for this period. 0 = on time or not
+     *  yet due. Computed in FeesViewModel.mapDemandsToPendingFees from
+     *  the demand's period + session year. Drives the red "Overdue" chip
+     *  on PendingFeeCard. */
+    val overdueDays: Int = 0
+) {
+    val amount: Double get() = totalAmount
+}
+
+data class FeeHeadDue(
+    val name: String,
+    val netAmount: Double = 0.0,
+    val paidAmount: Double = 0.0,
+    val balance: Double = 0.0,
+    val status: String = "unpaid"
 ) {
     companion object {
         private val MONTH_NAMES = listOf(
@@ -250,6 +271,8 @@ data class FeeOverview(
     val feeStructure: FeeStructure = FeeStructure(),
     val pendingFees: PendingFees = PendingFees(),
     val paymentHistory: List<FeePayment> = emptyList(),
+    val carryForwardDues: Double = 0.0,
+    val scholarshipAmount: Double = 0.0,
     val transportFee: TransportFee? = null,
     val hostelFee: HostelFee? = null,
     val libraryFines: List<LibraryFine> = emptyList(),

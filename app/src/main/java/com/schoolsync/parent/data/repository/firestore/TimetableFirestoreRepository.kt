@@ -1,10 +1,12 @@
 package com.schoolsync.parent.data.repository.firestore
 
+import android.util.Log
 import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.DayTimetable
 import com.schoolsync.parent.data.model.Timetable
 import com.schoolsync.parent.data.model.TimetableSlot
+import com.schoolsync.parent.data.model.firestore.StaffDoc
 import com.schoolsync.parent.data.model.firestore.TimetableDoc
 import com.schoolsync.parent.util.Constants
 import kotlinx.coroutines.flow.firstOrNull
@@ -23,6 +25,7 @@ class TimetableFirestoreRepository @Inject constructor(
     private val firestoreService: FirestoreService,
     private val tokenManager: TokenManager
 ) {
+    companion object { private const val TAG = "TimetableRepo" }
 
     /**
      * Fetch the full weekly timetable for the student's class/section.
@@ -39,35 +42,150 @@ class TimetableFirestoreRepository @Inject constructor(
         val sectionKey = "$cls/$sec"
 
         return try {
-            val docs = firestoreService.queryDocumentsAs<TimetableDoc>(
+            // Query by schoolId + sectionKey (schoolId required by security rules)
+            // Filter session client-side to avoid 3-field composite index
+            val allDocs = firestoreService.queryDocumentsAs<TimetableDoc>(
                 Constants.Firestore.TIMETABLES
             ) { ref ->
                 ref.whereEqualTo("schoolId", schoolCode)
-                    .whereEqualTo("session", session)
                     .whereEqualTo("sectionKey", sectionKey)
+            }
+            val docs = allDocs.filter { it.session == session }
+
+            // Defensive teacher-name resolution: most timetable documents
+            // already store the teacher's full name in `period.teacher`, but
+            // legacy or partially-migrated rows have only `teacherId`. Collect
+            // the unique ids that need a name, fetch each staff doc once, and
+            // use the resulting map as a fallback during slot mapping.
+            val unresolvedTeacherIds = docs
+                .flatMap { it.periods }
+                .filter { it.teacher.isBlank() && it.teacherId.isNotBlank() }
+                .map { it.teacherId }
+                .distinct()
+            val teacherNameById = if (unresolvedTeacherIds.isEmpty()) {
+                emptyMap()
+            } else {
+                resolveTeacherNames(schoolCode, unresolvedTeacherIds)
             }
 
             val days = mutableMapOf<String, DayTimetable>()
             for (doc in docs) {
                 val slots = doc.periods.map { period ->
-                    TimetableSlot(
+                    val resolvedTeacher = period.teacher.ifBlank {
+                        teacherNameById[period.teacherId].orEmpty()
+                    }
+                    val isBrk = period.type == "break" || period.type == "lunch"
+                    val subj = if (isBrk) "" else period.subject
+                    // Skip empty class periods entirely — parents only need to
+                    // see actual classes and real breaks, not "Free Period" rows
+                    val isFree = !isBrk && subj.isBlank()
+                    if (isFree) null  // filtered out below
+                    else TimetableSlot(
                         periodKey = period.periodNumber.toString(),
                         time = if (period.startTime.isNotBlank() && period.endTime.isNotBlank())
                             "${period.startTime} - ${period.endTime}" else "",
-                        subject = if (period.type == "break" || period.type == "lunch") "" else period.subject,
-                        teacher = period.teacher,
+                        subject = subj,
+                        teacher = resolvedTeacher,
                         room = period.room,
-                        isBreak = period.type == "break" || period.type == "lunch"
+                        isBreak = isBrk
                     )
-                }.sortedBy { it.sortOrder }
+                }.filterNotNull().sortedBy { it.sortOrder }
 
                 days[doc.day] = DayTimetable(dayName = doc.day, slots = slots)
             }
+
+            // Overlay substitute teachers for today
+            try {
+                val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                    .format(java.util.Date())
+                val todayDay = java.text.SimpleDateFormat("EEEE", java.util.Locale.getDefault())
+                    .format(java.util.Date())
+
+                // Query by date only — filter schoolId client-side to avoid composite index
+                val subsSnapshot = firestoreService.queryDocuments("substitutes") { ref ->
+                    ref.whereEqualTo("date", todayStr)
+                }
+
+                val todayTimetable = days[todayDay]
+                if (todayTimetable != null && !subsSnapshot.isEmpty) {
+                    val updatedSlots = todayTimetable.slots.map { slot ->
+                        val periodNum = slot.periodKey.toIntOrNull() ?: -1
+                        var newTeacher = slot.teacher
+                        for (doc in subsSnapshot.documents) {
+                            val sub = doc.data ?: continue
+                            if ((sub["schoolId"]?.toString() ?: "") != schoolCode) continue
+                            if ((sub["status"]?.toString() ?: "") == "cancelled") continue
+
+                            val absentName = sub["absent_teacher_name"]?.toString() ?: ""
+
+                            // New format: assignments[] array
+                            @Suppress("UNCHECKED_CAST")
+                            val assignments = sub["assignments"] as? List<Map<String, Any>>
+
+                            if (assignments != null && assignments.isNotEmpty()) {
+                                for (a in assignments) {
+                                    val pn = (a["periodNumber"] as? Number)?.toInt() ?: continue
+                                    val aSubName = a["substitute_teacher_name"]?.toString() ?: ""
+                                    if (pn == periodNum && slot.teacher.isNotBlank()
+                                        && slot.teacher.equals(absentName, ignoreCase = true)) {
+                                        newTeacher = "$aSubName (Substitute)"
+                                    }
+                                }
+                            } else {
+                                // Legacy flat format
+                                @Suppress("UNCHECKED_CAST")
+                                val periods = (sub["periods"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList()
+                                val subName = sub["substitute_teacher_name"]?.toString() ?: ""
+                                if (periods.contains(periodNum) && slot.teacher.isNotBlank()
+                                    && slot.teacher.equals(absentName, ignoreCase = true)) {
+                                    newTeacher = "$subName (Substitute)"
+                                }
+                            }
+                        }
+                        if (newTeacher != slot.teacher) {
+                            TimetableSlot(
+                                periodKey = slot.periodKey,
+                                time = slot.time,
+                                subject = slot.subject,
+                                teacher = newTeacher,
+                                room = slot.room,
+                                isBreak = slot.isBreak
+                            )
+                        } else slot
+                    }
+                    days[todayDay] = DayTimetable(dayName = todayDay, slots = updatedSlots)
+                }
+            } catch (_: Exception) { /* substitute overlay is best-effort */ }
 
             Result.success(Timetable(days = days))
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /**
+     * Fetch each teacher's display name from `staff/{schoolId}_{teacherId}`.
+     * Returns a teacherId → name map. Failed lookups are silently dropped
+     * so a single broken doc never blocks the whole timetable from rendering.
+     */
+    private suspend fun resolveTeacherNames(
+        schoolId: String,
+        teacherIds: List<String>
+    ): Map<String, String> {
+        val out = mutableMapOf<String, String>()
+        for (id in teacherIds) {
+            try {
+                val staff = firestoreService.getDocumentAs<StaffDoc>(
+                    Constants.Firestore.STAFF,
+                    "${schoolId}_$id"
+                )
+                val name = staff?.name?.takeIf { it.isNotBlank() }
+                if (name != null) out[id] = name
+            } catch (e: Exception) {
+                Log.w(TAG, "resolveTeacherNames failed for $id", e)
+            }
+        }
+        return out
     }
 
     /**

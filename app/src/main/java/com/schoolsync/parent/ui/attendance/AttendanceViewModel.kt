@@ -36,6 +36,7 @@ data class AttendanceStats(
     val absent: Int = 0,
     val leave: Int = 0,
     val holiday: Int = 0,
+    val tardy: Int = 0,
     val percentage: Float = 0f
 )
 
@@ -48,11 +49,14 @@ data class RecentDay(
     val dayName: String,
     val dateStr: String,
     val status: AttendanceStatus,
-    val dayOfMonth: Int
+    val dayOfMonth: Int,
+    /** Recorded arrival time ("HH:mm") on tardy days; null otherwise. */
+    val arrivalTime: String? = null
 )
 
 data class AttendanceUiState(
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val months: List<MonthOption> = emptyList(),
     val selectedMonthIndex: Int = 0,
     val attendanceData: AttendanceData? = null,
@@ -65,7 +69,9 @@ data class AttendanceUiState(
     val recentDays: List<RecentDay> = emptyList(),
     val user: User = User.empty(),
     val dayOfYear: Int = 0,
-    val totalSchoolDays: Int = 0
+    val totalSchoolDays: Int = 0,
+    /** Late threshold in "HH:mm" format from school config. Default 08:30. */
+    val lateThreshold: String = "08:30"
 )
 
 @HiltViewModel
@@ -76,6 +82,12 @@ class AttendanceViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(AttendanceUiState())
     val uiState: StateFlow<AttendanceUiState> = _uiState.asStateFlow()
+
+    /** In-flight loads — cancelled before a new one starts so concurrent
+     *  triggers (lifecycle resume, month switch, pull-refresh) don't race
+     *  to overwrite the UI state with stale month data. */
+    private var loadAttendanceJob: kotlinx.coroutines.Job? = null
+    private var loadExtrasJob: kotlinx.coroutines.Job? = null
 
     init {
         loadUser()
@@ -125,8 +137,25 @@ class AttendanceViewModel @Inject constructor(
         val state = _uiState.value
         val month = state.months.getOrNull(state.selectedMonthIndex) ?: return
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        loadAttendanceJob?.cancel()
+        loadAttendanceJob = viewModelScope.launch {
+            // Phase 7s: clear any data from the previously-selected month
+            // BEFORE we hit the network, so the screen never renders one
+            // month's percentages on top of another month's recent-day
+            // list (which was happening when switching to a month that
+            // has no Firestore doc and the failure handler kept the
+            // stale state).
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    attendanceData = null,
+                    stats = AttendanceStats(),
+                    todayStatus = null,
+                    recentDays = emptyList(),
+                    totalSchoolDays = 0
+                )
+            }
 
             // Primary: load from Firestore
             val user = tokenManager.user.firstOrNull() ?: User.empty()
@@ -145,13 +174,24 @@ class AttendanceViewModel @Inject constructor(
                             rawString = summaryDoc.dayWise
                         )
 
+                        // Phase 9b: re-derive percentage from the doc's
+                        // counts instead of trusting the stored field.
+                        // The stored `percentage` may be stale if the doc
+                        // was last written by old code that didn't include
+                        // tardy in the formula.
+                        val working = summaryDoc.present + summaryDoc.absent + summaryDoc.leave + summaryDoc.tardy
+                        val derivedPct = if (working > 0) {
+                            (summaryDoc.present + summaryDoc.tardy).toFloat() / working * 100f
+                        } else 0f
+
                         val stats = AttendanceStats(
                             totalDays = summaryDoc.totalDays,
                             present = summaryDoc.present,
                             absent = summaryDoc.absent,
                             leave = summaryDoc.leave,
                             holiday = summaryDoc.holiday,
-                            percentage = summaryDoc.percentage.toFloat()
+                            tardy = summaryDoc.tardy,
+                            percentage = derivedPct
                         )
 
                         val today = LocalDate.now()
@@ -159,7 +199,7 @@ class AttendanceViewModel @Inject constructor(
                             data.statusForDay(today.dayOfMonth)
                         } else null
 
-                        val recentDays = buildRecentDays(data, month.yearMonth)
+                        val recentDays = buildRecentDays(data, month.yearMonth, summaryDoc.lateTimes)
                         val dayOfYear = today.dayOfYear
                         val totalSchoolDays = if (summaryDoc.totalDays > 0) {
                             summaryDoc.workingDays
@@ -178,11 +218,26 @@ class AttendanceViewModel @Inject constructor(
                         }
                     },
                     onFailure = { e ->
-                        Log.e("AttendanceVM", "Firestore attendance failed", e)
+                        // Phase 7s: "no document for this month" is a
+                        // legitimate empty state, not an error worth
+                        // showing the user. Reset all the per-month
+                        // fields to defaults so the UI renders an
+                        // empty month cleanly instead of carrying
+                        // over the previous selection's numbers.
+                        Log.i("AttendanceVM", "No attendance for ${month.monthName} ${month.year}: ${e.message}")
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                errorMessage = e.message ?: "Failed to load attendance"
+                                errorMessage = null,
+                                attendanceData = AttendanceData.decodeOrEmpty(
+                                    month = month.monthName,
+                                    year = month.year,
+                                    rawString = null
+                                ),
+                                stats = AttendanceStats(),
+                                todayStatus = null,
+                                recentDays = emptyList(),
+                                totalSchoolDays = 0
                             )
                         }
                     }
@@ -200,8 +255,32 @@ class AttendanceViewModel @Inject constructor(
      * These require fetching multiple months so we do it in background.
      * Primary: Firestore, Fallback: RTDB.
      */
-    private fun loadExtras() {
+    /** Public alias so the screen can re-trigger streak/comparison loads on resume. */
+    fun refreshExtras() = loadExtras()
+
+    /** Pull-to-refresh: reload attendance + extras with min spinner time. */
+    fun pullRefresh() {
         viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            val startedAt = System.currentTimeMillis()
+            val minSpinnerMs = 600L
+            try {
+                loadAttendance()
+                loadExtras()
+            } catch (e: Exception) {
+                Log.w("AttendanceVM", "pullRefresh failed", e)
+            }
+            val elapsed = System.currentTimeMillis() - startedAt
+            if (elapsed < minSpinnerMs) {
+                kotlinx.coroutines.delay(minSpinnerMs - elapsed)
+            }
+            _uiState.update { it.copy(isRefreshing = false) }
+        }
+    }
+
+    private fun loadExtras() {
+        loadExtrasJob?.cancel()
+        loadExtrasJob = viewModelScope.launch {
             val user = tokenManager.user.firstOrNull() ?: User.empty()
             val studentId = user.userId
 
@@ -216,9 +295,14 @@ class AttendanceViewModel @Inject constructor(
 
                             for (offset in 2 downTo 0) {
                                 val ym = now.minusMonths(offset.toLong())
-                                val monthKey = "${getFullMonthName(ym.monthValue)} ${ym.year}"
+                                // Phase 7h (2026-04-08): canonical month key is "YYYY-MM";
+                                // legacy docs still carry "Month YYYY" so match either.
+                                val canonicalKey = "%d-%02d".format(ym.year, ym.monthValue)
+                                val legacyLabel = "${getFullMonthName(ym.monthValue)} ${ym.year}"
                                 val abbrev = ym.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
-                                val matchingSummary = summaries.find { it.month == monthKey }
+                                val matchingSummary = summaries.find {
+                                    it.month == canonicalKey || it.month == legacyLabel
+                                }
                                 comparisons.add(
                                     MonthlyComparison(
                                         monthAbbrev = abbrev,
@@ -228,12 +312,18 @@ class AttendanceViewModel @Inject constructor(
                             }
 
                             // Streak computation from dayWise strings
-                            val currentMonthKey = "${getFullMonthName(now.monthValue)} ${now.year}"
+                            val curCanonical = "%d-%02d".format(now.year, now.monthValue)
+                            val curLegacy = "${getFullMonthName(now.monthValue)} ${now.year}"
                             val prevMonth = now.minusMonths(1)
-                            val prevMonthKey = "${getFullMonthName(prevMonth.monthValue)} ${prevMonth.year}"
+                            val prevCanonical = "%d-%02d".format(prevMonth.year, prevMonth.monthValue)
+                            val prevLegacy = "${getFullMonthName(prevMonth.monthValue)} ${prevMonth.year}"
 
-                            val currentDayWise = summaries.find { it.month == currentMonthKey }?.dayWise ?: ""
-                            val prevDayWise = summaries.find { it.month == prevMonthKey }?.dayWise ?: ""
+                            val currentDayWise = summaries.find {
+                                it.month == curCanonical || it.month == curLegacy
+                            }?.dayWise ?: ""
+                            val prevDayWise = summaries.find {
+                                it.month == prevCanonical || it.month == prevLegacy
+                            }?.dayWise ?: ""
 
                             val combinedStatuses = mutableListOf<AttendanceStatus>()
                             prevDayWise.forEach { combinedStatuses.add(AttendanceStatus.fromCode(it)) }
@@ -309,7 +399,11 @@ class AttendanceViewModel @Inject constructor(
     /**
      * Build a list of recent days (up to last 7 recorded days) from the attendance data.
      */
-    private fun buildRecentDays(data: AttendanceData, yearMonth: YearMonth): List<RecentDay> {
+    private fun buildRecentDays(
+        data: AttendanceData,
+        yearMonth: YearMonth,
+        lateTimes: Map<String, Map<String, String>> = emptyMap()
+    ): List<RecentDay> {
         if (data.dailyStatus.isEmpty()) return emptyList()
 
         val today = LocalDate.now()
@@ -326,12 +420,16 @@ class AttendanceViewModel @Inject constructor(
             if (result.size >= 7) break
             val status = data.statusForDay(day) ?: continue
             val date = yearMonth.atDay(day)
+            val arrivalTime = if (status == AttendanceStatus.TRIP) {
+                lateTimes[day.toString()]?.get("time")?.takeIf { it.isNotBlank() }
+            } else null
             result.add(
                 RecentDay(
                     dayName = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()),
                     dateStr = "%02d/%02d/%d".format(date.dayOfMonth, date.monthValue, date.year),
                     status = status,
-                    dayOfMonth = day
+                    dayOfMonth = day,
+                    arrivalTime = arrivalTime
                 )
             )
         }

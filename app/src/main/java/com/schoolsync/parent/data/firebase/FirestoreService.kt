@@ -141,7 +141,11 @@ class FirestoreService @Inject constructor(
         val query = queryBuilder(firestore.collection(collection))
         val registration = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                cancel("Error observing query on $collection", error)
+                // close() propagates the error to downstream .catch {}.
+                // The previous cancel() raised CancellationException which
+                // .catch deliberately doesn't catch, so listener errors
+                // (rules rejection, missing index) silently killed the flow.
+                close(error)
                 return@addSnapshotListener
             }
             if (snapshot != null) {

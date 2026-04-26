@@ -53,6 +53,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.schoolsync.parent.data.model.GalleryAlbum
+import com.schoolsync.parent.ui.components.bouncyClickable
 import com.schoolsync.parent.ui.theme.AppColors
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
@@ -95,77 +96,84 @@ fun GalleryScreen(
             )
         }
 
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = c.accent)
-                }
-            }
-
-            uiState.albums.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Filled.PhotoLibrary,
-                            contentDescription = null,
-                            tint = c.textTertiary,
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No Photos Yet",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = c.textSecondary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "School photos and event galleries will appear here.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = c.textTertiary,
-                            textAlign = TextAlign.Center
-                        )
+        com.schoolsync.parent.ui.common.PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.pullRefresh() }
+        ) {
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = c.accent)
                     }
                 }
-            }
 
-            else -> {
-                // Category filter chips
-                if (uiState.categories.size > 2) {
-                    CategoryChips(
-                        categories = uiState.categories,
-                        selected = uiState.selectedCategory,
-                        onSelect = { viewModel.selectCategory(it) }
-                    )
+                uiState.albums.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Filled.PhotoLibrary,
+                                contentDescription = null,
+                                tint = c.textTertiary,
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "No Photos Yet",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = c.textSecondary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "School photos and event galleries will appear here.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = c.textTertiary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
                 }
 
-                // Albums grid
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = uiState.filteredAlbums,
-                        key = { it.albumId }
-                    ) { album ->
-                        AlbumCard(
-                            album = album,
-                            onClick = { onAlbumClick(album.albumId) }
-                        )
-                    }
+                else -> {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Category filter chips
+                        if (uiState.categories.size > 2) {
+                            CategoryChips(
+                                categories = uiState.categories,
+                                selected = uiState.selectedCategory,
+                                onSelect = { viewModel.selectCategory(it) }
+                            )
+                        }
 
-                    item(span = { GridItemSpan(2) }) {
-                        Spacer(modifier = Modifier.height(24.dp))
+                        // Albums grid
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(
+                                items = uiState.filteredAlbums,
+                                key = { it.albumId }
+                            ) { album ->
+                                AlbumCard(
+                                    album = album,
+                                    onClick = { onAlbumClick(album.albumId) }
+                                )
+                            }
+
+                            item(span = { GridItemSpan(2) }) {
+                                Spacer(modifier = Modifier.height(24.dp))
+                            }
+                        }
                     }
                 }
             }
@@ -242,7 +250,7 @@ private fun AlbumCard(
         modifier = Modifier
             .fillMaxWidth()
             .glassCard(14.dp)
-            .clickable(onClick = onClick)
+            .bouncyClickable(onClick = onClick)
             .animateContentSize()
     ) {
         // Cover image

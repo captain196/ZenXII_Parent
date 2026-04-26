@@ -23,5 +23,17 @@
     public static int v(...);
 }
 
+# Razorpay checkout
+-keepattributes *Annotation*,Signature
+-keepclassmembers class * {
+    @proguard.annotation.Keep *;
+    @proguard.annotation.KeepClassMembers *;
+}
+-keep class com.razorpay.** { *; }
+-keep class proguard.annotation.Keep
+-keep class proguard.annotation.KeepClassMembers
+-dontwarn com.razorpay.**
+-dontwarn proguard.annotation.**
+
 # Better obfuscation
 -repackageclasses ''

@@ -3,7 +3,7 @@ package com.schoolsync.parent.ui.gallery
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.model.GalleryAlbum
-import com.schoolsync.parent.data.repository.GalleryRepository
+import com.schoolsync.parent.data.repository.firestore.GalleryFirestoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +38,7 @@ data class AlbumDetailUiState(
 
 @HiltViewModel
 class GalleryViewModel @Inject constructor(
-    private val galleryRepository: GalleryRepository
+    private val galleryRepository: GalleryFirestoreRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GalleryUiState())
@@ -92,6 +92,27 @@ class GalleryViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message) }
             }
+        }
+    }
+
+    /** Pull-to-refresh: reload albums with min spinner time. */
+    fun pullRefresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            val startedAt = System.currentTimeMillis()
+            val minSpinnerMs = 600L
+            try {
+                val albums = galleryRepository.getAlbums()
+                _uiState.update { it.copy(albums = albums) }
+            } catch (e: Exception) {
+                android.util.Log.w("GalleryVM", "pullRefresh failed", e)
+                _uiState.update { it.copy(errorMessage = e.message) }
+            }
+            val elapsed = System.currentTimeMillis() - startedAt
+            if (elapsed < minSpinnerMs) {
+                kotlinx.coroutines.delay(minSpinnerMs - elapsed)
+            }
+            _uiState.update { it.copy(isRefreshing = false) }
         }
     }
 }

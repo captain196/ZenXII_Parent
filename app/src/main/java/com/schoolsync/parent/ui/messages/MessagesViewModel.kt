@@ -9,6 +9,7 @@ import com.schoolsync.parent.data.model.ReplyInfo
 import com.schoolsync.parent.data.model.User
 import com.schoolsync.parent.data.repository.MessageRepository
 import com.schoolsync.parent.data.local.TokenManager
+import com.schoolsync.parent.util.ChatLauncher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
@@ -41,8 +42,14 @@ data class MessagesUiState(
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
     private val messageRepository: MessageRepository,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val chatLauncher: ChatLauncher,
+    private val badgeBus: com.schoolsync.parent.util.BadgeBus,
 ) : ViewModel() {
+
+    private fun publishMessagesBadge(inbox: List<InboxMessage>) {
+        badgeBus.setCount("messages", inbox.sumOf { it.unreadCount })
+    }
 
     private val _uiState = MutableStateFlow(MessagesUiState())
     val uiState: StateFlow<MessagesUiState> = _uiState.asStateFlow()
@@ -64,6 +71,26 @@ class MessagesViewModel @Inject constructor(
     init {
         loadCurrentUser()
         loadInbox()
+        observeChatLaunchRequests()
+    }
+
+    /**
+     * Listens for `ChatLauncher.requestOpenChat(...)` calls from anywhere
+     * else in the app and opens (or bootstraps) the requested conversation.
+     * Each request is consumed exactly once so revisiting the Messages tab
+     * doesn't reopen a stale chat.
+     */
+    private fun observeChatLaunchRequests() {
+        viewModelScope.launch {
+            chatLauncher.requests.collect { req ->
+                chatLauncher.consumeRequest()
+                openConversationWithTeacher(
+                    teacherId = req.teacherId,
+                    teacherName = req.teacherName,
+                    teacherProfilePic = req.teacherProfilePic,
+                )
+            }
+        }
     }
 
     private fun loadCurrentUser() {
@@ -94,6 +121,7 @@ class MessagesViewModel @Inject constructor(
                 // Fast one-time fetch so the list appears immediately.
                 val initial = messageRepository.getInbox()
                 fullInbox = initial
+                publishMessagesBadge(initial)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -102,9 +130,14 @@ class MessagesViewModel @Inject constructor(
                 }
 
                 // Then subscribe to real-time changes.
+                // NOTE: Inbox node is keyed by `schoolId` (the resolved school
+                // node name e.g. "Demo" or "SCH_XXXXXX"), NOT `schoolCode`
+                // (the login code e.g. "10004"). Using the wrong field here
+                // returned an empty list and overwrote the working
+                // one-time fetch — the bug behind "No messages yet".
                 val user = cachedUser
-                if (user.isLoggedIn && user.schoolCode.isNotBlank() && user.parentDbKey.isNotBlank()) {
-                    messageRepository.observeInbox(user.schoolCode, user.parentDbKey)
+                if (user.isLoggedIn && user.schoolId.isNotBlank() && user.parentDbKey.isNotBlank()) {
+                    messageRepository.observeInbox(user.schoolId, user.parentDbKey)
                         .catch { e ->
                             _uiState.update {
                                 it.copy(errorMessage = e.message ?: "Failed to observe inbox")
@@ -112,6 +145,7 @@ class MessagesViewModel @Inject constructor(
                         }
                         .collect { messages ->
                             fullInbox = messages
+                            publishMessagesBadge(messages)
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
@@ -128,6 +162,60 @@ class MessagesViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    // ── 1.5. Open or create conversation with a specific teacher ─────────
+
+    /**
+     * Triggered when the user taps "Message Teacher" on the My Teachers
+     * screen. Bootstraps a 1:1 conversation (idempotent — no duplicates if
+     * one already exists), then opens it in the chat view exactly as if the
+     * user had tapped that conversation in the inbox list.
+     *
+     * The teacher info is needed up-front because the conversation may not
+     * yet exist in the inbox, so we synthesize an [InboxMessage] for the
+     * chat screen header.
+     */
+    fun openConversationWithTeacher(
+        teacherId: String,
+        teacherName: String,
+        teacherProfilePic: String = "",
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+            val result = messageRepository.startConversationWithTeacher(
+                teacherId = teacherId,
+                teacherName = teacherName,
+                teacherProfilePic = teacherProfilePic,
+            )
+
+            result.fold(
+                onSuccess = { convId ->
+                    val synthetic = InboxMessage(
+                        messageId = convId,
+                        conversationId = convId,
+                        otherName = teacherName,
+                        otherProfilePic = teacherProfilePic,
+                        studentName = cachedUser.name,
+                        studentClass = "${cachedUser.className} ${cachedUser.section}".trim(),
+                        lastMessage = "",
+                        lastMessageType = "text",
+                        timestamp = 0L,
+                        unreadCount = 0,
+                    )
+                    openConversation(synthetic)
+                },
+                onFailure = { e ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = e.message ?: "Failed to open chat",
+                        )
+                    }
+                }
+            )
         }
     }
 
@@ -175,10 +263,11 @@ class MessagesViewModel @Inject constructor(
             }
 
             // Real-time observer via callbackFlow.
+            // Same schoolId vs schoolCode caveat as observeInbox above.
             val user = cachedUser
-            if (user.isLoggedIn && user.schoolCode.isNotBlank()) {
+            if (user.isLoggedIn && user.schoolId.isNotBlank()) {
                 try {
-                    messageRepository.observeChat(user.schoolCode, message.conversationId)
+                    messageRepository.observeChat(user.schoolId, message.conversationId)
                         .catch { e ->
                             _uiState.update {
                                 it.copy(errorMessage = e.message ?: "Lost real-time connection")
@@ -453,6 +542,40 @@ class MessagesViewModel @Inject constructor(
         }
     }
 
+    // ── Delete conversation (per-user) ───────────────────────────────────
+
+    /**
+     * "Delete chat" — removes only this parent's inbox stub. The shared
+     * Conversations doc + chat history stay intact for the other side.
+     * If the deleted conversation is currently open, exits the chat view.
+     */
+    fun deleteConversation(conversationId: String) {
+        viewModelScope.launch {
+            val result = messageRepository.deleteConversationForMe(conversationId)
+            result.onSuccess {
+                // Optimistic: drop locally so the inbox updates instantly.
+                fullInbox = fullInbox.filterNot { it.conversationId == conversationId }
+                publishMessagesBadge(fullInbox)
+                _uiState.update {
+                    val stillInOpenChat = it.selectedConversation?.conversationId == conversationId
+                    it.copy(
+                        inbox = applySearchFilter(fullInbox, it.searchQuery),
+                        // If the deleted convo was the one being viewed, close it.
+                        isInChatView = if (stillInOpenChat) false else it.isInChatView,
+                        selectedConversation = if (stillInOpenChat) null else it.selectedConversation,
+                        chatMessages = if (stillInOpenChat) emptyList() else it.chatMessages,
+                    )
+                }
+                // Re-attach the inbox observer if we exited a chat.
+                if (!_uiState.value.isInChatView) loadInbox()
+            }.onFailure { e ->
+                _uiState.update {
+                    it.copy(errorMessage = e.message ?: "Failed to delete conversation")
+                }
+            }
+        }
+    }
+
     // ── 15. Search Inbox ─────────────────────────────────────────────────
 
     fun searchInbox(query: String) {
@@ -501,8 +624,11 @@ class MessagesViewModel @Inject constructor(
     // ── Private Helpers ──────────────────────────────────────────────────
 
     /**
-     * Filter the inbox list by a search query.
-     * Matches against the teacher name, student name, and last message preview.
+     * Filter the inbox list by search query. Stubs created by
+     * [MessageRepository.startConversationWithTeacher] (empty lastMessage,
+     * timestamp == 0L) are intentionally KEPT visible — the user opened the
+     * chat from "Message Teacher", so it should appear in their inbox even
+     * before the first message is exchanged.
      */
     private fun applySearchFilter(
         inbox: List<InboxMessage>,

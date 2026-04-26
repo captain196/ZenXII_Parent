@@ -19,6 +19,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,6 +54,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.schoolsync.parent.data.model.Event
+import com.schoolsync.parent.ui.components.bouncyClickable
+import com.schoolsync.parent.ui.components.staggerIn
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
@@ -61,6 +64,13 @@ import com.schoolsync.parent.ui.theme.gradientBackground
 fun EventsScreen(
     onBack: () -> Unit,
     onEventClick: (String) -> Unit = {},
+    /**
+     * Called when the user taps a row whose category is `"ptm"`. PTMs are
+     * surfaced in the same list as regular events but route to the PTM
+     * detail screen so the parent can RSVP — they're not generic event
+     * detail content. Defaults to no-op so older callers compile.
+     */
+    onPtmClick: (String) -> Unit = {},
     viewModel: EventsViewModel = hiltViewModel()
 ) {
     val c = LocalAppColors.current
@@ -94,64 +104,80 @@ fun EventsScreen(
             )
         }
 
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = c.accent)
-                }
-            }
-
-            uiState.events.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Filled.EventNote,
-                            contentDescription = null,
-                            tint = c.textTertiary,
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No Upcoming Events",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = c.textSecondary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Upcoming events will appear here when published by the school.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = c.textTertiary,
-                            textAlign = TextAlign.Center
-                        )
+        com.schoolsync.parent.ui.common.PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.pullRefresh() }
+        ) {
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = c.accent)
                     }
                 }
-            }
 
-            else -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item { Spacer(modifier = Modifier.height(4.dp)) }
-
-                    items(uiState.events, key = { it.eventId }) { event ->
-                        EventListCard(
-                            event = event,
-                            onClick = { onEventClick(event.eventId) }
-                        )
+                uiState.events.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Filled.EventNote,
+                                contentDescription = null,
+                                tint = c.textTertiary,
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "No Upcoming Events",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = c.textSecondary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Upcoming events will appear here when published by the school.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = c.textTertiary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
+                }
 
-                    item { Spacer(modifier = Modifier.height(24.dp)) }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item { Spacer(modifier = Modifier.height(4.dp)) }
+
+                        itemsIndexed(
+                            items = uiState.events,
+                            key = { _, it -> it.eventId }
+                        ) { index, event ->
+                            Box(modifier = Modifier.staggerIn(index)) {
+                                EventListCard(
+                                    event = event,
+                                    onClick = {
+                                        if (event.category.equals("ptm", ignoreCase = true)) {
+                                            onPtmClick(event.eventId)
+                                        } else {
+                                            onEventClick(event.eventId)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        item { Spacer(modifier = Modifier.height(24.dp)) }
+                    }
                 }
             }
         }
@@ -188,7 +214,7 @@ private fun EventListCard(
         modifier = Modifier
             .fillMaxWidth()
             .glassCard(16.dp)
-            .clickable(onClick = onClick)
+            .bouncyClickable(onClick = onClick)
             .animateContentSize()
     ) {
         // Gradient accent bar at top
@@ -405,6 +431,9 @@ private fun getCategoryColors(category: String, c: com.schoolsync.parent.ui.them
         "academic" -> CategoryColorSet(c.info, c.banner1Start, c.banner1End)
         "exam" -> CategoryColorSet(c.error, c.error.copy(alpha = 0.5f), c.error.copy(alpha = 0.2f))
         "holiday" -> CategoryColorSet(c.warning, c.warning.copy(alpha = 0.5f), c.warning.copy(alpha = 0.2f))
+        // PTM = synthesized event from `ptmEvents`. Distinct dark-blue tint
+        // so the row visibly reads as a meeting and not a regular event.
+        "ptm" -> CategoryColorSet(Color(0xFF1565C0), Color(0xFF1565C0).copy(alpha = 0.5f), Color(0xFF1565C0).copy(alpha = 0.2f))
         else -> CategoryColorSet(c.accent, c.banner1Start, c.banner1End)
     }
 }

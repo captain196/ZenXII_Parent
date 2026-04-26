@@ -2,61 +2,10 @@ package com.schoolsync.parent.data.model
 
 import com.google.gson.annotations.SerializedName
 
-data class LoginResponse(
-    @SerializedName("success")
-    val success: Boolean,
-
-    @SerializedName("accessToken")
-    val accessToken: String,
-
-    @SerializedName("refreshToken")
-    val refreshToken: String,
-
-    @SerializedName("firebaseToken")
-    val firebaseToken: String,
-
-    @SerializedName("user")
-    val user: UserDto
-)
-
-data class RefreshResponse(
-    @SerializedName("success")
-    val success: Boolean,
-
-    @SerializedName("accessToken")
-    val accessToken: String,
-
-    @SerializedName("refreshToken")
-    val refreshToken: String,
-
-    @SerializedName("firebaseToken")
-    val firebaseToken: String
-)
-
-data class LogoutResponse(
-    @SerializedName("success")
-    val success: Boolean,
-
-    @SerializedName("message")
-    val message: String? = null
-)
-
-data class ChangePasswordResponse(
-    @SerializedName("success")
-    val success: Boolean,
-
-    @SerializedName("message")
-    val message: String? = null
-)
-
-data class RegisterFcmResponse(
-    @SerializedName("success")
-    val success: Boolean,
-
-    @SerializedName("message")
-    val message: String? = null
-)
-
+/**
+ * User data transfer object — used by TokenManager.saveUser() for backward
+ * compatibility. New login flow constructs User objects directly from Firebase RTDB data.
+ */
 data class UserDto(
     @SerializedName("userId")
     val userId: String,

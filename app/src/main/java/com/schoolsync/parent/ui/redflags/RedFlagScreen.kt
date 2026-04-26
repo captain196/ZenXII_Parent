@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.schoolsync.parent.data.model.StudentFlag
+import com.schoolsync.parent.ui.components.staggerIn
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
@@ -81,7 +83,7 @@ fun RedFlagScreen(
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Alerts",
+                        text = "Red Flags",
                         style = MaterialTheme.typography.headlineMedium,
                         color = c.textPrimary,
                         fontWeight = FontWeight.Bold
@@ -158,15 +160,41 @@ fun RedFlagScreen(
             ) {
                 CircularProgressIndicator(color = c.accent, modifier = Modifier.size(40.dp))
             }
-        } else if (uiState.filteredFlags.isEmpty()) {
+        } else if (uiState.activeFlags.isEmpty() && uiState.resolvedFlags.isEmpty()) {
             EmptyFlagsState()
         } else {
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(uiState.filteredFlags) { flag ->
-                    FlagCard(flag = flag)
+                if (uiState.activeFlags.isNotEmpty()) {
+                    item {
+                        SectionHeader(
+                            title = "Active",
+                            count = uiState.activeFlags.size,
+                            tint = c.error
+                        )
+                    }
+                    itemsIndexed(uiState.activeFlags) { index, flag ->
+                        Box(modifier = Modifier.staggerIn(index)) {
+                            FlagCard(flag = flag)
+                        }
+                    }
+                }
+                if (uiState.resolvedFlags.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SectionHeader(
+                            title = "Resolved",
+                            count = uiState.resolvedFlags.size,
+                            tint = c.textTertiary
+                        )
+                    }
+                    itemsIndexed(uiState.resolvedFlags) { index, flag ->
+                        Box(modifier = Modifier.staggerIn(index)) {
+                            FlagCard(flag = flag)
+                        }
+                    }
                 }
                 item { Spacer(modifier = Modifier.height(8.dp)) }
             }
@@ -292,15 +320,38 @@ private fun FlagCard(flag: StudentFlag) {
             }
 
             // Timestamp
-            if (flag.timestamp > 0) {
+            if (flag.createdAtMs > 0) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = formatTimestamp(flag.timestamp),
+                    text = formatTimestamp(flag.createdAtMs),
                     style = MaterialTheme.typography.labelSmall,
                     color = c.textTertiary
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String, count: Int, tint: Color) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = tint,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = "($count)",
+            style = MaterialTheme.typography.labelSmall,
+            color = tint
+        )
     }
 }
 
@@ -322,13 +373,13 @@ private fun EmptyFlagsState() {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "No Alerts",
+                text = "No Red Flags",
                 style = MaterialTheme.typography.titleLarge,
                 color = c.textSecondary
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "No active flags or alerts for your child.",
+                text = "No active red flags raised by teachers for your child.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textTertiary,
                 textAlign = TextAlign.Center

@@ -1,8 +1,6 @@
 package com.schoolsync.parent.data.model.firestore
 
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
-import com.google.firebase.firestore.ServerTimestamp
 
 /**
  * Represents a school event in Firestore.
@@ -21,9 +19,8 @@ data class EventDoc(
     val startDate: String = "",       // "2026-04-15"
     val endDate: String = "",
     val location: String = "",
-    val status: String = "upcoming",  // "upcoming", "ongoing", "completed", "cancelled"
+    val status: String = "scheduled", // canonical: scheduled / ongoing / completed / cancelled
     val mediaUrls: List<String> = emptyList(),
     val createdBy: String = "",
-    @ServerTimestamp
-    val createdAt: Timestamp? = null
+    val createdAt: Any? = null
 )

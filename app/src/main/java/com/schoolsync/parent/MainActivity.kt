@@ -1,32 +1,56 @@
 package com.schoolsync.parent
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import com.razorpay.Checkout
+import com.razorpay.PaymentData
+import com.razorpay.PaymentResultWithDataListener
+import android.content.Intent
 import com.schoolsync.parent.data.local.TokenManager
+import com.schoolsync.parent.data.payment.PaymentBridge
 import com.schoolsync.parent.ui.navigation.AppNavGraph
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.SchoolSyncTheme
+import com.schoolsync.parent.util.DeepLinkBridge
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
     @Inject
     lateinit var tokenManager: TokenManager
 
+    /** Android 13+ runtime permission request for push notifications. */
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* granted or denied — either way the app proceeds */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        requestNotificationPermissionIfNeeded()
+        // Preload Razorpay UI assets — cuts cold-start latency on the
+        // first Pay tap. Safe to call multiple times.
+        Checkout.preload(applicationContext)
+        // Phase 8: if the Activity was launched from an FCM-tapped
+        // notification, route the user to the relevant screen after
+        // the nav graph settles. See DeepLinkBridge + NavGraph consumer.
+        publishDeepLinkFromIntent(intent)
 
         setContent {
             val themeMode by tokenManager.themeMode.collectAsState(initial = "system")
@@ -47,5 +71,72 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // If the app was already running and the user taps a fresh
+        // notification, the intent arrives here instead of onCreate.
+        publishDeepLinkFromIntent(intent)
+    }
+
+    /**
+     * Map FCM intent extras (set by FCMService.showNotification) onto a
+     * Route-string that AppNavGraph consumes via DeepLinkBridge. Quiet
+     * no-op when extras don't contain a supported 'type'.
+     */
+    private fun publishDeepLinkFromIntent(intent: Intent?) {
+        if (intent == null) return
+        val type = intent.getStringExtra("type") ?: return
+        val target = when (type) {
+            "fee_reminder", "fee_defaulter_alert", "fee_payment_confirmed" -> "fees"
+            "student_absent", "student_late", "attendance_update"         -> "attendance"
+            "leave_approved", "leave_rejected"                            -> "leave"
+            "homework_assigned", "homework_reminder"                      -> "homework"
+            "result_published", "exam_scheduled"                          -> "results"
+            "event", "event_created"                                      -> {
+                // Deep-link straight to the EventDetail screen when the payload
+                // carries an eventId; otherwise drop back to the events list.
+                val eventId = intent.getStringExtra("eventId")?.takeIf { it.isNotBlank() }
+                if (eventId != null) "event_detail/$eventId" else "events"
+            }
+            "birthday_wish"                                                -> "notices"
+            else -> null
+        } ?: return
+        DeepLinkBridge.publish(target)
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    // ── Razorpay callbacks ───────────────────────────────────────────────
+    // Razorpay invokes these on the Activity that called Checkout.open();
+    // we forward the result to PaymentBridge so the calling ViewModel
+    // (FeesViewModel) can finish the verify-payment handshake.
+
+    override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: PaymentData?) {
+        PaymentBridge.emit(
+            PaymentBridge.Event.Success(
+                razorpayPaymentId = razorpayPaymentId ?: paymentData?.paymentId ?: "",
+                razorpayOrderId = paymentData?.orderId ?: "",
+                razorpaySignature = paymentData?.signature ?: ""
+            )
+        )
+    }
+
+    override fun onPaymentError(code: Int, description: String?, paymentData: PaymentData?) {
+        PaymentBridge.emit(
+            PaymentBridge.Event.Failure(
+                code = code,
+                description = description ?: "Payment failed"
+            )
+        )
     }
 }

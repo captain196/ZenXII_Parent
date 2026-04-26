@@ -80,6 +80,11 @@ fun LeaveScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val dateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy") }
+    // Phase 9b: use theme-aware colors instead of hardcoded DarkColors constants
+    val c = LocalAppColors.current
+    val Accent = c.accent
+    val TextPrimary = c.textPrimary
+    val TextSecondary = c.textSecondary
 
     // Snackbar for success
     LaunchedEffect(uiState.submitSuccess) {
@@ -137,46 +142,52 @@ fun LeaveScreen(
             }
 
             // Leave history
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Accent)
-                }
-            } else if (uiState.leaveHistory.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Filled.CalendarMonth,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = TextSecondary.copy(alpha = 0.5f)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No leave applications yet",
-                            color = TextSecondary,
-                            textAlign = TextAlign.Center
-                        )
+            com.schoolsync.parent.ui.common.PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { viewModel.pullRefresh() }
+            ) {
+                if (uiState.isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Accent)
                     }
-                }
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(uiState.leaveHistory, key = { it.id }) { leave ->
-                        LeaveHistoryCard(
-                            leave = leave,
-                            dateFormatter = dateFormatter,
-                            onCancel = { viewModel.cancelLeave(leave.id) }
-                        )
+                } else if (uiState.leaveHistory.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Filled.CalendarMonth,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = TextSecondary.copy(alpha = 0.5f)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "No leave applications yet",
+                                color = TextSecondary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(uiState.leaveHistory, key = { it.id }) { leave ->
+                            LeaveHistoryCard(
+                                leave = leave,
+                                dateFormatter = dateFormatter,
+                                onCancel = { viewModel.cancelLeave(leave.id) }
+                            )
+                        }
                     }
                 }
             }
@@ -205,7 +216,7 @@ fun LeaveScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(16.dp),
-                containerColor = Color(0xFF2E7D32)
+                containerColor = c.success
             ) {
                 Text("Leave application submitted successfully!")
             }
@@ -217,7 +228,7 @@ fun LeaveScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(16.dp),
-                containerColor = Color(0xFFC62828),
+                containerColor = c.error,
                 action = {
                     TextButton(onClick = viewModel::clearError) {
                         Text("Dismiss", color = Color.White)
@@ -242,6 +253,12 @@ private fun LeaveApplyForm(
     onSubmit: () -> Unit,
     onCancel: () -> Unit
 ) {
+    // Phase 9b: theme-aware colors (same pattern as LeaveScreen + LeaveHistoryCard)
+    val c = LocalAppColors.current
+    val Accent = c.accent
+    val TextPrimary = c.textPrimary
+    val TextSecondary = c.textSecondary
+
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
 
@@ -440,11 +457,15 @@ private fun LeaveHistoryCard(
     dateFormatter: DateTimeFormatter,
     onCancel: () -> Unit
 ) {
+    val c = LocalAppColors.current
+    val TextPrimary = c.textPrimary
+    val TextSecondary = c.textSecondary
+    val Accent = c.accent
     val statusColor = when (leave.status) {
-        "approved" -> Color(0xFF4CAF50)
-        "rejected" -> Color(0xFFF44336)
-        "cancelled" -> Color(0xFF9E9E9E)
-        else -> Color(0xFFFFA726)  // pending
+        "approved" -> c.success
+        "rejected" -> c.error
+        "cancelled" -> c.textSecondary
+        else -> c.warning  // pending
     }
 
     val statusIcon = when (leave.status) {
@@ -542,7 +563,7 @@ private fun LeaveHistoryCard(
             Spacer(modifier = Modifier.height(8.dp))
             TextButton(
                 onClick = onCancel,
-                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFF44336))
+                colors = ButtonDefaults.textButtonColors(contentColor = c.error)
             ) {
                 Icon(Icons.Filled.Cancel, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))

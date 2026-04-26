@@ -26,6 +26,7 @@ import javax.inject.Inject
 
 data class LibraryUiState(
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val error: String? = null,
     val selectedTab: Int = 0,  // 0=Current Books, 1=History, 2=Fines, 3=Catalog
     val currentBooks: List<LibraryIssueDoc> = emptyList(),
@@ -120,6 +121,25 @@ class LibraryViewModel @Inject constructor(
 
     fun refresh() {
         loadLibraryData()
+    }
+
+    /** Pull-to-refresh: reload library data with min spinner time. */
+    fun pullRefresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            val startedAt = System.currentTimeMillis()
+            val minSpinnerMs = 600L
+            try {
+                loadLibraryData()
+            } catch (e: Exception) {
+                Log.w("LibraryVM", "pullRefresh failed", e)
+            }
+            val elapsed = System.currentTimeMillis() - startedAt
+            if (elapsed < minSpinnerMs) {
+                kotlinx.coroutines.delay(minSpinnerMs - elapsed)
+            }
+            _uiState.update { it.copy(isRefreshing = false) }
+        }
     }
 
     // ── Tab switching ───────────────────────────────────────────────────────

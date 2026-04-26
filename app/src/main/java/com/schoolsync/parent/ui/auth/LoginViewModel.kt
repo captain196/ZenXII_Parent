@@ -5,6 +5,7 @@ import android.content.Context
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.schoolsync.parent.data.local.DevPrefs
 import com.schoolsync.parent.data.repository.AuthRepository
 import com.schoolsync.parent.data.repository.AuthResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,7 +29,13 @@ data class LoginUiState(
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    @ApplicationContext private val appContext: Context
+    @ApplicationContext private val appContext: Context,
+    /**
+     * Exposed to the screen so the hidden Dev Settings dialog
+     * (long-press the app title) can read/write the BASE_URL override
+     * without going through a separate VM. Dev-only surface.
+     */
+    val devPrefs: DevPrefs
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())

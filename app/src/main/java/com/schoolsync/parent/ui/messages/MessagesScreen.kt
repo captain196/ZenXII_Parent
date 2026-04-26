@@ -1,10 +1,14 @@
 package com.schoolsync.parent.ui.messages
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,51 +19,89 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import com.schoolsync.parent.R
 import com.schoolsync.parent.data.model.ChatMessage
 import com.schoolsync.parent.data.model.InboxMessage
-import com.schoolsync.parent.ui.theme.*
+import com.schoolsync.parent.ui.components.staggerIn
+import com.schoolsync.parent.ui.theme.LocalAppColors
+import com.schoolsync.parent.ui.theme.glassCard
+import com.schoolsync.parent.ui.theme.gradientBackground
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 @Composable
 fun MessagesScreen(
-    viewModel: MessagesViewModel = hiltViewModel()
+    viewModel: MessagesViewModel = hiltViewModel(),
+    /**
+     * Notifies the parent navigation that we've entered/left the chat view
+     * so it can hide the global bottom bar — otherwise the chat input is
+     * covered by the floating nav bar.
+     */
+    onChatViewChange: (Boolean) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(uiState.isInChatView) { onChatViewChange(uiState.isInChatView) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { onChatViewChange(false) }
+    }
 
     if (uiState.isInChatView) {
         BackHandler { viewModel.goBackToList() }
@@ -72,61 +114,154 @@ fun MessagesScreen(
             currentUserId = uiState.currentUserId,
             onMessageTextChange = viewModel::onMessageTextChange,
             onSend = viewModel::sendMessage,
-            onBack = viewModel::goBackToList
+            onBack = viewModel::goBackToList,
+            onDelete = { id -> viewModel.deleteConversation(id) },
+            formatRelative = viewModel::formatTimestamp
         )
     } else {
         InboxListView(
             inbox = uiState.inbox,
             isLoading = uiState.isLoading,
+            searchQuery = uiState.searchQuery,
+            onSearchChange = viewModel::searchInbox,
             onMessageClick = viewModel::openConversation,
-            errorMessage = uiState.errorMessage
+            onDeleteConversation = { id -> viewModel.deleteConversation(id) },
+            errorMessage = uiState.errorMessage,
+            formatRelative = viewModel::formatTimestamp
         )
     }
 }
+
+// ─── Inbox list ──────────────────────────────────────────────────────────────
 
 @Composable
 private fun InboxListView(
     inbox: List<InboxMessage>,
     isLoading: Boolean,
+    searchQuery: String,
+    onSearchChange: (String) -> Unit,
     onMessageClick: (InboxMessage) -> Unit,
-    errorMessage: String?
+    onDeleteConversation: (String) -> Unit,
+    errorMessage: String?,
+    formatRelative: (Long) -> String
 ) {
+    val c = LocalAppColors.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .gradientBackground()
             .statusBarsPadding()
     ) {
-        Text(
-            text = "Messages",
-            style = MaterialTheme.typography.headlineLarge,
-            color = TextPrimary,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.messages_title),
+                style = MaterialTheme.typography.headlineMedium,
+                color = c.textPrimary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            if (inbox.isNotEmpty()) {
+                val totalUnread = inbox.sumOf { it.unreadCount }
+                if (totalUnread > 0) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(c.accent.copy(alpha = 0.18f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.messages_unread_badge_format, totalUnread),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = c.accent,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+
+        // Search bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchChange,
+            placeholder = {
+                Text(stringResource(R.string.messages_search_placeholder), color = c.textTertiary)
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = null,
+                    tint = c.textSecondary
+                )
+            },
+            trailingIcon = {
+                if (searchQuery.isNotBlank()) {
+                    IconButton(onClick = { onSearchChange("") }) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.cd_clear),
+                            tint = c.textSecondary
+                        )
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(28.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = c.textPrimary,
+                unfocusedTextColor = c.textPrimary,
+                cursorColor = c.accent,
+                focusedBorderColor = c.accent.copy(alpha = 0.6f),
+                unfocusedBorderColor = c.glassBorder,
+                focusedContainerColor = c.glass,
+                unfocusedContainerColor = c.glass
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
         )
 
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Teal, modifier = Modifier.size(40.dp))
-            }
-        } else if (inbox.isEmpty()) {
-            EmptyMessagesState()
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                items(inbox, key = { it.messageId }) { message ->
-                    InboxItem(
-                        message = message,
-                        onClick = { onMessageClick(message) }
-                    )
-                    HorizontalDivider(color = GlassBorder.copy(alpha = 0.3f))
+        Spacer(Modifier.height(12.dp))
+
+        Crossfade(
+            targetState = isLoading && inbox.isEmpty(),
+            animationSpec = tween(220),
+            label = "messages-loading"
+        ) { loading ->
+            when {
+                loading -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = c.accent, modifier = Modifier.size(40.dp))
                 }
-                item { Spacer(modifier = Modifier.height(8.dp)) }
+                inbox.isEmpty() -> EmptyMessagesState(searchQuery.isNotBlank())
+                else -> LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    itemsIndexed(
+                        items = inbox,
+                        key = { _, it -> it.messageId }
+                    ) { index, message ->
+                        Box(modifier = Modifier.staggerIn(index)) {
+                            InboxItem(
+                                message = message,
+                                formatRelative = formatRelative,
+                                onClick = { onMessageClick(message) },
+                                onDelete = { onDeleteConversation(message.conversationId) }
+                            )
+                        }
+                    }
+                    item { Spacer(modifier = Modifier.height(12.dp)) }
+                }
             }
         }
 
@@ -135,42 +270,79 @@ private fun InboxListView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(ErrorRedBg)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(c.errorBg)
+                    .border(1.dp, c.error.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
                     .padding(12.dp)
             ) {
-                Text(text = error, color = ErrorRed, style = MaterialTheme.typography.bodySmall)
+                Text(text = error, color = c.error, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun InboxItem(
     message: InboxMessage,
-    onClick: () -> Unit
+    formatRelative: (Long) -> String,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
 ) {
+    val c = LocalAppColors.current
+    val unread = message.unreadCount > 0
+    var menuExpanded by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+
+    if (confirmDelete) {
+        DeleteConversationDialog(
+            otherName = message.otherName,
+            onConfirm = {
+                confirmDelete = false
+                onDelete()
+            },
+            onDismiss = { confirmDelete = false }
+        )
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .glassCard(18.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { menuExpanded = true }
+            )
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Avatar
+        // Avatar — profile pic if available, otherwise colored initials circle
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(52.dp)
                 .clip(CircleShape)
-                .background(SlateBlue),
+                .background(c.accent.copy(alpha = 0.18f))
+                .border(
+                    width = if (unread) 2.dp else 0.dp,
+                    color = if (unread) c.accent else c.glassBorder,
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = message.otherName.take(1).uppercase(),
-                style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
-                fontWeight = FontWeight.Bold
-            )
+            if (message.otherProfilePic.isNotBlank()) {
+                AsyncImage(
+                    model = message.otherProfilePic,
+                    contentDescription = message.otherName,
+                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                )
+            } else {
+                Text(
+                    text = message.initials,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = c.accent,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(14.dp))
@@ -182,18 +354,39 @@ private fun InboxItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = message.otherName.ifBlank { "Unknown" },
+                    text = message.otherName.ifBlank { stringResource(R.string.generic_unknown) },
                     style = MaterialTheme.typography.titleSmall,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
+                    color = c.textPrimary,
+                    fontWeight = if (unread) FontWeight.Bold else FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = formatTimestamp(message.timestamp),
+                    text = formatRelative(message.timestamp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextTertiary
+                    color = if (unread) c.accent else c.textTertiary,
+                    fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Normal
+                )
+            }
+
+            if (message.studentName.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                val reText = if (message.studentClass.isNotBlank()) {
+                    stringResource(
+                        R.string.messages_re_with_class_format,
+                        message.studentName,
+                        message.studentClass
+                    )
+                } else {
+                    stringResource(R.string.messages_re_format, message.studentName)
+                }
+                Text(
+                    text = reText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = c.textTertiary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
@@ -205,36 +398,93 @@ private fun InboxItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = message.lastMessage.ifBlank { message.studentName },
+                    text = message.lastMessage.ifBlank { stringResource(R.string.messages_tap_to_chat) },
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary,
+                    color = if (unread) c.textPrimary else c.textSecondary,
+                    fontWeight = if (unread) FontWeight.Medium else FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
 
-                if (message.unreadCount > 0) {
+                if (unread) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
-                            .size(22.dp)
+                            .widthIn(min = 22.dp)
+                            .height(22.dp)
                             .clip(CircleShape)
-                            .background(Teal),
+                            .background(c.accent)
+                            .padding(horizontal = 6.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "${message.unreadCount}",
+                            text = if (message.unreadCount > 99) "99+" else "${message.unreadCount}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextPrimary,
+                            color = c.pillText,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp
+                            fontSize = 11.sp
                         )
                     }
                 }
             }
+
+            // Long-press menu — anchored to the right side of the row.
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Delete chat", color = c.error) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Filled.DeleteOutline,
+                            contentDescription = null,
+                            tint = c.error
+                        )
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        confirmDelete = true
+                    }
+                )
+            }
         }
     }
 }
+
+@Composable
+private fun DeleteConversationDialog(
+    otherName: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val c = LocalAppColors.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete chat", color = c.textPrimary) },
+        text = {
+            Text(
+                "Delete this conversation with ${otherName.ifBlank { "this contact" }}? " +
+                    "It will be removed from your inbox only — the other person will still see it.",
+                color = c.textSecondary
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Delete", color = c.error, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = c.textSecondary)
+            }
+        },
+        containerColor = c.bgMid
+    )
+}
+
+// ─── Chat view ───────────────────────────────────────────────────────────────
 
 @Composable
 private fun ChatView(
@@ -246,11 +496,25 @@ private fun ChatView(
     currentUserId: String,
     onMessageTextChange: (String) -> Unit,
     onSend: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onDelete: (String) -> Unit,
+    formatRelative: (Long) -> String
 ) {
+    val c = LocalAppColors.current
     val listState = rememberLazyListState()
+    var confirmDelete by remember { mutableStateOf(false) }
 
-    // Scroll to bottom when new messages arrive
+    if (confirmDelete && conversation != null) {
+        DeleteConversationDialog(
+            otherName = conversation.otherName,
+            onConfirm = {
+                confirmDelete = false
+                onDelete(conversation.conversationId)
+            },
+            onDismiss = { confirmDelete = false }
+        )
+    }
+
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
@@ -262,139 +526,196 @@ private fun ChatView(
             .fillMaxSize()
             .gradientBackground()
             .statusBarsPadding()
+            .windowInsetsPadding(WindowInsets.navigationBars)
             .imePadding()
     ) {
-        // Chat header
+        // ── Chat header ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .glassCard(0.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .glassCard(22.dp)
                 .padding(horizontal = 8.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = TextPrimary
+                    contentDescription = stringResource(R.string.cd_back),
+                    tint = c.textPrimary
                 )
             }
 
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
-                    .background(SlateBlue),
+                    .background(c.accent.copy(alpha = 0.18f))
+                    .border(1.dp, c.glassBorder, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = (conversation?.otherName?.take(1) ?: "?").uppercase(),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold
-                )
+                if (!conversation?.otherProfilePic.isNullOrBlank()) {
+                    AsyncImage(
+                        model = conversation!!.otherProfilePic,
+                        contentDescription = conversation.otherName,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                    )
+                } else {
+                    Text(
+                        text = conversation?.initials ?: "?",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = c.accent,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
+                val chatDefault = stringResource(R.string.chat_default_title)
                 Text(
-                    text = conversation?.otherName ?: "",
+                    text = conversation?.otherName?.ifBlank { chatDefault } ?: chatDefault,
                     style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold
+                    color = c.textPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                if (conversation?.studentClass?.isNotBlank() == true) {
+                val sub = listOfNotNull(
+                    conversation?.studentName?.takeIf { it.isNotBlank() },
+                    conversation?.studentClass?.takeIf { it.isNotBlank() }
+                ).joinToString(" · ")
+                if (sub.isNotBlank()) {
                     Text(
-                        text = conversation.studentClass,
+                        text = sub,
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary
+                        color = c.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
+
+            // Delete chat (per-user) button — only enabled when we have a
+            // conversation reference to act on.
+            IconButton(
+                onClick = { confirmDelete = true },
+                enabled = conversation != null
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.DeleteOutline,
+                    contentDescription = "Delete chat",
+                    tint = c.textSecondary
+                )
+            }
         }
 
-        // Messages list
+        // ── Messages list ──
         if (isLoading) {
             Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Teal, modifier = Modifier.size(32.dp))
+                CircularProgressIndicator(color = c.accent, modifier = Modifier.size(32.dp))
+            }
+        } else if (messages.isEmpty()) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.chat_empty_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = c.textTertiary,
+                    textAlign = TextAlign.Center
+                )
             }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
                 state = listState,
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(messages, key = { it.messageId }) { message ->
-                    MessageBubble(
-                        message = message,
-                        isSentByMe = message.senderId == currentUserId
-                    )
+                var lastDateKey: String? = null
+                messages.forEachIndexed { index, msg ->
+                    val dateKey = dayKey(msg.timestamp)
+                    if (dateKey != lastDateKey) {
+                        lastDateKey = dateKey
+                        item(key = "date_$dateKey$index") {
+                            DateSeparator(label = dayLabel(msg.timestamp))
+                        }
+                    }
+                    val prev = messages.getOrNull(index - 1)
+                    val showSenderName = msg.senderId != currentUserId &&
+                        msg.senderName.isNotBlank() &&
+                        (prev == null || prev.senderId != msg.senderId)
+
+                    item(key = msg.messageId.ifBlank { "m$index" }) {
+                        MessageBubble(
+                            message = msg,
+                            isSentByMe = msg.senderId == currentUserId,
+                            showSenderName = showSenderName,
+                            formatRelative = formatRelative
+                        )
+                    }
                 }
             }
         }
 
-        // Input bar
+        // ── Input bar ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(SurfaceDark)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .glassCard(28.dp)
+                .padding(horizontal = 6.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
                 value = messageText,
                 onValueChange = onMessageTextChange,
                 placeholder = {
-                    Text("Type a message...", color = TextTertiary)
+                    Text(stringResource(R.string.chat_input_placeholder), color = c.textTertiary)
                 },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary,
-                    cursorColor = Teal,
-                    focusedBorderColor = Teal.copy(alpha = 0.5f),
-                    unfocusedBorderColor = GlassBorder,
-                    focusedContainerColor = GlassCard,
-                    unfocusedContainerColor = GlassCard
+                    focusedTextColor = c.textPrimary,
+                    unfocusedTextColor = c.textPrimary,
+                    cursorColor = c.accent,
+                    focusedBorderColor = c.glassBorder,
+                    unfocusedBorderColor = c.glassBorder,
+                    focusedContainerColor = c.glass.copy(alpha = 0.0f),
+                    unfocusedContainerColor = c.glass.copy(alpha = 0.0f)
                 ),
-                maxLines = 4,
-                singleLine = false
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+                maxLines = 4
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
 
-            IconButton(
-                onClick = onSend,
-                enabled = messageText.isNotBlank() && !isSending,
+            val canSend = messageText.isNotBlank() && !isSending
+            Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (messageText.isNotBlank() && !isSending) Teal
-                        else Teal.copy(alpha = 0.3f)
-                    )
+                    .background(if (canSend) c.accent else c.accent.copy(alpha = 0.35f))
+                    .clickable(enabled = canSend, onClick = onSend),
+                contentAlignment = Alignment.Center
             ) {
                 if (isSending) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
-                        color = TextPrimary,
+                        color = c.pillText,
                         strokeWidth = 2.dp
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Filled.Send,
-                        contentDescription = "Send",
-                        tint = TextPrimary,
+                        contentDescription = stringResource(R.string.cd_send),
+                        tint = c.pillText,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -406,68 +727,184 @@ private fun ChatView(
 @Composable
 private fun MessageBubble(
     message: ChatMessage,
-    isSentByMe: Boolean
+    isSentByMe: Boolean,
+    showSenderName: Boolean,
+    formatRelative: (Long) -> String
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (isSentByMe) Alignment.End else Alignment.Start
+    val c = LocalAppColors.current
+    val bubbleColor = if (isSentByMe) c.chatSent else c.chatReceived
+    val textColor = if (isSentByMe) c.pillText else c.textPrimary
+    val metaColor = if (isSentByMe) c.pillText.copy(alpha = 0.75f) else c.textTertiary
+
+    val shape = RoundedCornerShape(
+        topStart = 20.dp,
+        topEnd = 20.dp,
+        bottomStart = if (isSentByMe) 20.dp else 6.dp,
+        bottomEnd = if (isSentByMe) 6.dp else 20.dp
+    )
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        contentAlignment = if (isSentByMe) Alignment.CenterEnd else Alignment.CenterStart
     ) {
-        Box(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (isSentByMe) 16.dp else 4.dp,
-                        bottomEnd = if (isSentByMe) 4.dp else 16.dp
-                    )
-                )
-                .background(
-                    if (isSentByMe) ChatSent.copy(alpha = 0.85f) else ChatReceived
-                )
-                .padding(horizontal = 14.dp, vertical = 10.dp)
+        val maxBubbleWidth = maxWidth * 0.80f
+
+        Column(
+            modifier = Modifier.widthIn(max = maxBubbleWidth),
+            horizontalAlignment = if (isSentByMe) Alignment.End else Alignment.Start
         ) {
-            Column {
-                if (!isSentByMe && message.senderName.isNotBlank()) {
-                    Text(
-                        text = message.senderName,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TealLight,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                }
+            // Sender name above the bubble (received messages only) so the
+            // bubble itself stays a clean conversational unit.
+            if (showSenderName && !isSentByMe) {
                 Text(
-                    text = message.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextPrimary
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formatTimestamp(message.timestamp),
+                    text = message.senderName,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (isSentByMe) TextPrimary.copy(alpha = 0.7f) else TextTertiary,
-                    modifier = Modifier.align(Alignment.End),
-                    fontSize = 10.sp
+                    color = c.accent,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 14.dp, bottom = 4.dp)
                 )
+            }
+            Box(
+                modifier = Modifier
+                    .clip(shape)
+                    .background(bubbleColor)
+                    .border(
+                        width = if (isSentByMe) 0.dp else 1.dp,
+                        color = if (isSentByMe) bubbleColor else c.glassBorder.copy(alpha = 0.6f),
+                        shape = shape
+                    )
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                Column {
+                    Text(
+                        text = message.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = textColor,
+                        fontSize = 15.sp,
+                        lineHeight = 20.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.align(Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = clockTime(message.timestamp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = metaColor,
+                            fontSize = 10.sp
+                        )
+                        if (isSentByMe) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            val isRead = message.readBy.any { (k, v) -> v && k != message.senderId }
+                            Icon(
+                                imageVector = if (isRead) Icons.Filled.DoneAll else Icons.Filled.Check,
+                                contentDescription = stringResource(
+                                    if (isRead) R.string.chat_status_read else R.string.chat_status_sent
+                                ),
+                                tint = if (isRead) c.success else metaColor,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-private fun formatTimestamp(timestamp: Long): String {
-    if (timestamp == 0L) return ""
+@Composable
+private fun DateSeparator(label: String) {
+    val c = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(c.glass)
+                .border(1.dp, c.glassBorder, RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = c.textSecondary,
+                fontWeight = FontWeight.Medium,
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+private fun clockTime(timestamp: Long): String {
+    if (timestamp <= 0L) return ""
     return try {
-        val sdf = SimpleDateFormat("hh:mm a", Locale.getDefault())
-        sdf.format(Date(timestamp))
+        SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(timestamp))
     } catch (_: Exception) {
         ""
     }
 }
 
+private fun dayKey(timestamp: Long): String {
+    if (timestamp <= 0L) return "0"
+    val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
+    return "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.DAY_OF_YEAR)}"
+}
+
+/**
+ * Localised day label for chat date separators. The composable wrapper
+ * pulls the localised "Today" / "Yesterday" strings from resources.
+ */
 @Composable
-private fun EmptyMessagesState() {
+private fun dayLabelLocalized(timestamp: Long): String {
+    if (timestamp <= 0L) return ""
+    val msg = Calendar.getInstance().apply { timeInMillis = timestamp }
+    val now = Calendar.getInstance()
+    val diffDays = ((now.timeInMillis - msg.timeInMillis) / (1000L * 60 * 60 * 24)).toInt()
+
+    val today = stringResource(R.string.chat_day_today)
+    val yesterday = stringResource(R.string.chat_day_yesterday)
+
+    return when {
+        msg.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+            msg.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR) -> today
+        diffDays in 0..1 -> yesterday
+        diffDays in 2..6 -> SimpleDateFormat("EEEE", Locale.getDefault()).format(Date(timestamp))
+        msg.get(Calendar.YEAR) == now.get(Calendar.YEAR) ->
+            SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
+        else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestamp))
+    }
+}
+
+/** Non-composable wrapper kept for legacy callers — defaults to English. */
+private fun dayLabel(timestamp: Long): String {
+    if (timestamp <= 0L) return ""
+    val msg = Calendar.getInstance().apply { timeInMillis = timestamp }
+    val now = Calendar.getInstance()
+    val diffDays = ((now.timeInMillis - msg.timeInMillis) / (1000L * 60 * 60 * 24)).toInt()
+
+    return when {
+        msg.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+            msg.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR) -> "Today"
+        diffDays in 0..1 -> "Yesterday"
+        diffDays in 2..6 -> SimpleDateFormat("EEEE", Locale.getDefault()).format(Date(timestamp))
+        msg.get(Calendar.YEAR) == now.get(Calendar.YEAR) ->
+            SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
+        else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestamp))
+    }
+}
+
+@Composable
+private fun EmptyMessagesState(isSearchEmpty: Boolean = false) {
+    val c = LocalAppColors.current
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -475,23 +912,38 @@ private fun EmptyMessagesState() {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Filled.Chat,
-                contentDescription = null,
-                tint = TextTertiary,
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(CircleShape)
+                    .background(c.accent.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isSearchEmpty) Icons.Filled.Search else Icons.Filled.Chat,
+                    contentDescription = null,
+                    tint = c.accent,
+                    modifier = Modifier.size(44.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = "No Messages",
+                text = stringResource(
+                    if (isSearchEmpty) R.string.messages_search_empty_title
+                    else R.string.messages_empty_title
+                ),
                 style = MaterialTheme.typography.titleLarge,
-                color = TextSecondary
+                color = c.textPrimary,
+                fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Messages from teachers will appear here.",
+                text = stringResource(
+                    if (isSearchEmpty) R.string.messages_search_empty_subtitle
+                    else R.string.messages_empty_subtitle
+                ),
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextTertiary,
+                color = c.textSecondary,
                 textAlign = TextAlign.Center
             )
         }

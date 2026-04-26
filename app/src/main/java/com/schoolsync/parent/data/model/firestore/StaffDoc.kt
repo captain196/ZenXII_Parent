@@ -1,9 +1,16 @@
 package com.schoolsync.parent.data.model.firestore
 
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
-import com.google.firebase.firestore.ServerTimestamp
 
+/**
+ * Firestore staff document. Doc id format: {schoolId}_{userId}.
+ *
+ * Note: createdAt/updatedAt are typed as Any? because the PHP backend writes
+ * them as ISO strings (not Firestore Timestamps). Using Timestamp here would
+ * make every read crash with "Failed to convert value of type java.lang.String
+ * to Timestamp" — neither field is consumed by the parent UI, so accepting
+ * any payload is the safest option.
+ */
 data class StaffDoc(
     @DocumentId
     val id: String = "",
@@ -15,6 +22,7 @@ data class StaffDoc(
     val schoolId: String = "",
     val department: String = "",
     val position: String = "",
+    val designation: String = "",
     val qualification: String = "",
     val subjects: List<String> = emptyList(),
     val classesAssigned: List<String> = emptyList(),
@@ -23,8 +31,6 @@ data class StaffDoc(
     val joiningDate: String = "",
     val profilePic: String = "",
     val status: String = "",
-    @ServerTimestamp
-    val createdAt: Timestamp? = null,
-    @ServerTimestamp
-    val updatedAt: Timestamp? = null
+    val createdAt: Any? = null,
+    val updatedAt: Any? = null
 )

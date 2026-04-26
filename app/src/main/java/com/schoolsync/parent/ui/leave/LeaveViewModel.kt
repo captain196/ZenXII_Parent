@@ -19,6 +19,7 @@ import javax.inject.Inject
 
 data class LeaveUiState(
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val leaveHistory: List<LeaveApplicationDoc> = emptyList(),
     val showApplyForm: Boolean = false,
     val selectedLeaveType: String = "CL",
@@ -78,6 +79,25 @@ class LeaveViewModel @Inject constructor(
         }
     }
 
+    /** Pull-to-refresh: reload leave history with min spinner time. */
+    fun pullRefresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            val startedAt = System.currentTimeMillis()
+            val minSpinnerMs = 600L
+            try {
+                loadLeaveHistory()
+            } catch (e: Exception) {
+                android.util.Log.w("LeaveVM", "pullRefresh failed", e)
+            }
+            val elapsed = System.currentTimeMillis() - startedAt
+            if (elapsed < minSpinnerMs) {
+                kotlinx.coroutines.delay(minSpinnerMs - elapsed)
+            }
+            _uiState.update { it.copy(isRefreshing = false) }
+        }
+    }
+
     fun toggleApplyForm() {
         _uiState.update {
             it.copy(
@@ -118,6 +138,16 @@ class LeaveViewModel @Inject constructor(
         }
         val end = state.endDate ?: run {
             _uiState.update { it.copy(errorMessage = "Please select end date") }
+            return
+        }
+        // Phase 9b: date validation
+        val today = LocalDate.now()
+        if (start.isBefore(today)) {
+            _uiState.update { it.copy(errorMessage = "Start date cannot be in the past") }
+            return
+        }
+        if (end.isBefore(start)) {
+            _uiState.update { it.copy(errorMessage = "End date must be on or after start date") }
             return
         }
         if (state.reason.isBlank()) {

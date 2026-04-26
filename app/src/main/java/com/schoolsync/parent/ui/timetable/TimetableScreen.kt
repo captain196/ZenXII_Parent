@@ -138,7 +138,8 @@ fun TimetableScreen(
                 onSelectDay = viewModel::selectDay,
                 onSetViewMode = viewModel::setViewMode,
                 onSlotClick = viewModel::openDetail,
-                onWeekCellClick = viewModel::switchToDay
+                onWeekCellClick = viewModel::switchToDay,
+                onPullRefresh = { viewModel.pullRefresh() }
             )
         }
 
@@ -172,7 +173,8 @@ private fun TimetableListPage(
     onSelectDay: (Int) -> Unit,
     onSetViewMode: (TimetableViewMode) -> Unit,
     onSlotClick: (TimetableSlot) -> Unit,
-    onWeekCellClick: (String) -> Unit
+    onWeekCellClick: (String) -> Unit,
+    onPullRefresh: () -> Unit = {}
 ) {
     val c = LocalAppColors.current
 
@@ -217,7 +219,12 @@ private fun TimetableListPage(
         )
 
         // ── Content based on view mode ───────────────────────────────────
+        com.schoolsync.parent.ui.common.PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = onPullRefresh
+        ) {
         if (uiState.viewMode == TimetableViewMode.DAY) {
+            Column(modifier = Modifier.fillMaxSize()) {
             // Day pills row
             Spacer(modifier = Modifier.height(12.dp))
             DayPillsRow(
@@ -243,8 +250,8 @@ private fun TimetableListPage(
                 EmptyState()
             } else {
                 LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     // Now indicator
@@ -303,30 +310,34 @@ private fun TimetableListPage(
                     item { Spacer(modifier = Modifier.height(16.dp)) }
                 }
             }
+            }  // close DAY-view Column
         } else {
-            // Week view
-            Spacer(modifier = Modifier.height(12.dp))
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = c.accent,
-                        modifier = Modifier.size(36.dp),
-                        strokeWidth = 3.dp
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Week view
+                Spacer(modifier = Modifier.height(12.dp))
+                if (uiState.isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = c.accent,
+                            modifier = Modifier.size(36.dp),
+                            strokeWidth = 3.dp
+                        )
+                    }
+                } else {
+                    WeekGridView(
+                        weekData = uiState.weekData,
+                        dayPills = uiState.dayPills,
+                        currentSlotIndex = uiState.currentSlotIndex,
+                        currentDaySlots = uiState.slots,
+                        onCellClick = onWeekCellClick
                     )
                 }
-            } else {
-                WeekGridView(
-                    weekData = uiState.weekData,
-                    dayPills = uiState.dayPills,
-                    currentSlotIndex = uiState.currentSlotIndex,
-                    currentDaySlots = uiState.slots,
-                    onCellClick = onWeekCellClick
-                )
             }
         }
+        }  // close PullToRefreshBox
     }
 }
 
@@ -573,7 +584,8 @@ private fun SlotRow(
 ) {
     val c = LocalAppColors.current
     val subjColor = subjectColor(slot.subject)
-    val contentAlpha = if (isDone) 0.4f else 1f
+    // Softer fade for completed classes — 0.4 was too faint to read at a glance.
+    val contentAlpha = if (isDone) 0.62f else 1f
     val pulse = rememberPulseAlpha()
 
     Row(
@@ -720,32 +732,78 @@ private fun SlotRow(
 private fun BreakRow(slot: TimetableSlot) {
     val c = LocalAppColors.current
     val isLunch = slot.periodKey.equals("Lunch", ignoreCase = true) ||
-            slot.breakLabel == "Lunch"
+            slot.breakLabel.equals("Lunch", ignoreCase = true) ||
+            slot.subject.equals("Lunch", ignoreCase = true)
     val emoji = if (isLunch) "\uD83C\uDF71" else "\u2615"  // lunch box or coffee
-    val label = if (isLunch) "Lunch" else "Break"
+    val label = if (isLunch) "Lunch" else slot.breakLabel.ifBlank { "Break" }
+    // Warm amber tint — distinct from subject colors but not loud.
+    val breakTint = c.warning
+    val bgTint = breakTint.copy(alpha = 0.10f)
+    val borderTint = breakTint.copy(alpha = 0.28f)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .height(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(12.dp))
+            .background(bgTint)
+            .border(1.dp, borderTint, RoundedCornerShape(12.dp))
+            .padding(start = 0.dp, end = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        HorizontalDivider(
-            modifier = Modifier.weight(1f),
-            thickness = 1.dp,
-            color = c.glassBorder
+        // Time column — same width as SlotRow so list stays aligned.
+        Column(
+            modifier = Modifier
+                .width(50.dp)
+                .padding(vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = slot.startTime.ifBlank { "—" },
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                color = breakTint
+            )
+        }
+
+        // Accent bar — matches SlotRow structure.
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .fillMaxHeight()
+                .padding(vertical = 8.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(breakTint)
         )
-        Text(
-            text = "  $emoji $label  ${slot.time}  ",
-            fontSize = 11.sp,
-            color = c.textTertiary,
-            fontWeight = FontWeight.Medium
-        )
-        HorizontalDivider(
-            modifier = Modifier.weight(1f),
-            thickness = 1.dp,
-            color = c.glassBorder
-        )
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Text(text = emoji, fontSize = 18.sp)
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 10.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = c.textPrimary
+            )
+            if (slot.time.isNotBlank()) {
+                Text(
+                    text = slot.time,
+                    fontSize = 11.sp,
+                    color = c.textSecondary,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
     }
 }
 
@@ -819,24 +877,46 @@ private fun WeekGridView(
 
         // Grid rows
         uniqueTimes.forEach { timeStr ->
-            val isBreakTime = allSlots.any { it.time == timeStr && it.isBreak }
+            val breakSlots = allSlots.filter { it.time == timeStr && it.isBreak }
+            val isBreakTime = breakSlots.isNotEmpty()
 
             if (isBreakTime) {
-                // Break row spanning full width
+                // Unified break row spanning full grid width — amber pill with
+                // lunch/coffee icon + label so it reads as a structured row,
+                // not a section separator.
+                val isLunch = breakSlots.any {
+                    it.periodKey.equals("Lunch", ignoreCase = true) ||
+                        it.breakLabel.equals("Lunch", ignoreCase = true) ||
+                        it.subject.equals("Lunch", ignoreCase = true)
+                }
+                val emoji = if (isLunch) "\uD83C\uDF71" else "\u2615"
+                val label = if (isLunch) "Lunch" else "Break"
+                val breakTint = c.warning
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                        .padding(vertical = 4.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(breakTint.copy(alpha = 0.10f))
+                        .border(1.dp, breakTint.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    HorizontalDivider(modifier = Modifier.weight(1f), color = c.glassBorder)
+                    Text(text = emoji, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "  \u2615  ",
+                        text = label,
                         fontSize = 10.sp,
-                        color = c.textTertiary
+                        fontWeight = FontWeight.SemiBold,
+                        color = breakTint,
+                        modifier = Modifier.weight(1f)
                     )
-                    HorizontalDivider(modifier = Modifier.weight(1f), color = c.glassBorder)
+                    Text(
+                        text = timeStr,
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = c.textSecondary
+                    )
                 }
             } else {
                 Row(
@@ -1177,37 +1257,11 @@ private fun DetailInfoRow(
 
 @Composable
 private fun EmptyState() {
-    val c = LocalAppColors.current
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Filled.Schedule,
-                contentDescription = null,
-                tint = c.textTertiary,
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "No Timetable",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = c.textSecondary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Timetable for this day is not available.",
-                fontSize = 14.sp,
-                color = c.textTertiary,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
+    com.schoolsync.parent.ui.components.EmptyStatePro(
+        icon = Icons.Filled.Schedule,
+        title = "No Timetable",
+        description = "Timetable for this day is not available yet.",
+    )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

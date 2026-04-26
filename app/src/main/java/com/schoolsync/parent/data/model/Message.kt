@@ -55,6 +55,7 @@ data class ChatMessage(
     val messageId: String = "",
     val senderId: String = "",
     val senderName: String = "",
+    val senderRole: String = "",        // "admin" | "teacher" | "parent"
     val text: String = "",
     val timestamp: Long = 0L,
     val type: String = "text",          // text, image, video, file
@@ -73,10 +74,14 @@ data class ChatMessage(
     val isFile: Boolean get() = type == "file"
 
     fun toMap(): Map<String, Any?> {
+        // Canonical schema (shared with admin panel + teacher app):
+        //   senderId, senderName, senderRole, text, timestamp, type, readBy, ...
+        // The body field is `text` (NOT `message`) — admin/teacher both read `text`.
         val map = mutableMapOf<String, Any?>(
             "senderId" to senderId,
             "senderName" to senderName,
-            "message" to text,
+            "senderRole" to senderRole,
+            "text" to text,
             "timestamp" to timestamp,
             "type" to type,
             "readBy" to readBy,
@@ -119,7 +124,8 @@ data class ChatMessage(
                 messageId = messageId,
                 senderId = (data["senderId"] ?: data["sender_id"] ?: data["from"] ?: "").toString(),
                 senderName = (data["senderName"] ?: data["sender_name"] ?: "").toString(),
-                text = (data["text"] ?: data["message"] ?: data["body"] ?: "").toString(),
+                senderRole = (data["senderRole"] ?: data["sender_role"] ?: "").toString(),
+                text = (data["text"] ?: data["message"] ?: data["message_text"] ?: data["body"] ?: "").toString(),
                 timestamp = when (val ts = data["timestamp"] ?: data["Timestamp"]) {
                     is Number -> ts.toLong()
                     is String -> ts.toLongOrNull() ?: 0L

@@ -84,16 +84,29 @@ private fun StoryAvatar(
             modifier = Modifier.size(62.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Ring
-            val ringModifier = if (group.hasUnviewed) {
+            // Ring — Phase C: admin posts get a red→gold gradient so
+            // school-wide announcements stand out against teacher
+            // avatars. Teacher posts use the existing teal gradient.
+            val isAdmin = group.authorType == "admin"
+            val isHighPri = isAdmin && group.priority == "high"
+            val ringBrush = when {
+                isHighPri -> Brush.linearGradient(
+                    colors = listOf(Color(0xFFE53935), Color(0xFFFFC107))   // bold red→gold for pinned
+                )
+                isAdmin -> Brush.linearGradient(
+                    colors = listOf(Color(0xFFE53935), Color(0xFFFF8F00))   // softer red→amber
+                )
+                else -> Brush.linearGradient(
+                    colors = listOf(c.accent, c.accentSecondary)            // teal teacher gradient
+                )
+            }
+            val ringModifier = if (group.hasUnviewed || isAdmin) {
                 Modifier
                     .size(62.dp)
                     .clip(CircleShape)
                     .border(
-                        width = 2.5.dp,
-                        brush = Brush.linearGradient(
-                            colors = listOf(c.accent, c.accentSecondary)
-                        ),
+                        width = if (isHighPri) 3.dp else 2.5.dp,
+                        brush = ringBrush,
                         shape = CircleShape
                     )
             } else {

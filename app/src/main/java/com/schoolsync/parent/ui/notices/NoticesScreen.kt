@@ -1,6 +1,8 @@
 package com.schoolsync.parent.ui.notices
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -51,6 +54,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.schoolsync.parent.R
 import com.schoolsync.parent.data.model.Notice
+import com.schoolsync.parent.ui.components.bouncyClickable
+import com.schoolsync.parent.ui.components.staggerIn
 import com.schoolsync.parent.ui.theme.AppColors
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.Motion
@@ -108,39 +113,51 @@ fun NoticesScreen(
         }
 
         // ── Body ────────────────────────────────────────────────────
-        when {
-            uiState.isLoading && uiState.notices.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = c.accent, modifier = Modifier.size(40.dp))
-                }
-            }
-            uiState.notices.isEmpty() -> {
-                EmptyNoticesState(
-                    onRefresh = { viewModel.refresh() }
-                )
-            }
-            else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(
-                        items = uiState.notices,
-                        key = { it.noticeId }
-                    ) { notice ->
-                        NoticeCard(
-                            notice = notice,
-                            isExpanded = uiState.expandedNoticeId == notice.noticeId,
-                            onClick = { viewModel.toggleExpanded(notice.noticeId) }
-                        )
+        com.schoolsync.parent.ui.common.PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.pullRefresh() }
+        ) {
+            Crossfade(
+                targetState = uiState.isLoading && uiState.notices.isEmpty(),
+                animationSpec = tween(220),
+                label = "notices-loading"
+            ) { loading ->
+            when {
+                loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = c.accent, modifier = Modifier.size(40.dp))
                     }
-
-                    item { Spacer(modifier = Modifier.height(8.dp)) }
                 }
+                uiState.notices.isEmpty() -> {
+                    EmptyNoticesState(
+                        onRefresh = { viewModel.refresh() }
+                    )
+                }
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        itemsIndexed(
+                            items = uiState.notices,
+                            key = { _, n -> n.noticeId }
+                        ) { index, notice ->
+                            NoticeCard(
+                                notice = notice,
+                                isExpanded = uiState.expandedNoticeId == notice.noticeId,
+                                onClick = { viewModel.toggleExpanded(notice.noticeId) },
+                                modifier = Modifier.staggerIn(index)
+                            )
+                        }
+
+                        item { Spacer(modifier = Modifier.height(8.dp)) }
+                    }
+                }
+            }
             }
         }
 
@@ -169,16 +186,17 @@ fun NoticesScreen(
 private fun NoticeCard(
     notice: Notice,
     isExpanded: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val c = LocalAppColors.current
     val catColor = getCategoryColor(notice.category.ifBlank { "General" }, c)
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .glassCard(14.dp)
-            .clickable(onClick = onClick)
+            .bouncyClickable(onClick = onClick)
     ) {
         // Left color strip — ERP-style category/priority accent
         Box(

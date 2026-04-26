@@ -268,6 +268,13 @@ object Constants {
         const val FEE_DEFAULTERS = "feeDefaulters"
         const val FEE_RECEIPTS = "feeReceipts"
         const val PAYMENT_INTENTS = "paymentIntents"
+        const val FEE_ONLINE_ORDERS = "feeOnlineOrders"
+        const val FEE_ONLINE_PAYMENTS = "feeOnlinePayments"
+        const val FEE_CARRY_FORWARD = "feeCarryForward"
+        const val STUDENT_DISCOUNTS = "studentDiscounts"
+        const val SCHOLARSHIP_AWARDS = "scholarshipAwards"
+        const val FEE_RECEIPT_ALLOCATIONS = "feeReceiptAllocations"
+        const val FEE_REFUND_VOUCHERS = "feeRefundVouchers"
         const val CIRCULARS = "circulars"
         const val NOTICES_FS = "notices"  // Admin Notice Board writes here (type=notice)
         const val CIRCULAR_READS = "circularReads"
@@ -329,6 +336,9 @@ object Constants {
         const val DASHBOARDS = "dashboards"
         const val AUDIT_LOG = "auditLogs"
         const val RBAC_ROLES = "rbacRoles"
+
+        // Phase B (RTDB elimination): Student Red Flags
+        const val STUDENT_FLAGS = "studentFlags"
     }
 
     /** Attendance status character codes */

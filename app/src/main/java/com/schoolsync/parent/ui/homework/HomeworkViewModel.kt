@@ -7,6 +7,9 @@ import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.Homework
 import com.schoolsync.parent.data.model.User
 import com.schoolsync.parent.data.repository.firestore.HomeworkFirestoreRepository
+import com.schoolsync.parent.util.Constants
+import com.schoolsync.parent.util.toDateOrNull
+import com.schoolsync.parent.util.toEpochMillisOrNull
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,6 +76,7 @@ enum class Priority { HIGH, MEDIUM, LOW }
 // ── UI State ────────────────────────────────────────────────────────────────
 data class HomeworkUiState(
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val allHomework: List<Homework> = emptyList(),
     val filteredHomework: List<Homework> = emptyList(),
     val subjects: List<String> = emptyList(),
@@ -86,13 +90,15 @@ data class HomeworkUiState(
     val className: String = "",
     val section: String = "",
     val errorMessage: String? = null,
-    val markingDone: Boolean = false
+    val markingDone: Boolean = false,
+    val showSubmitDialog: Boolean = false
 )
 
 @HiltViewModel
 class HomeworkViewModel @Inject constructor(
     private val homeworkFirestoreRepo: HomeworkFirestoreRepository,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val badgeBus: com.schoolsync.parent.util.BadgeBus,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeworkUiState())
@@ -102,6 +108,17 @@ class HomeworkViewModel @Inject constructor(
     init {
         loadUserInfo()
         startLiveListener()
+    }
+
+    /** Auto-select the best default tab based on what data exists. */
+    private fun autoSelectTab() {
+        val state = _uiState.value
+        if (state.pendingCount > 0) return // already on "pending", has items
+        // If nothing is pending, show "all" so the screen isn't empty
+        if (state.selectedTab == "pending" && state.pendingCount == 0 && state.allHomework.isNotEmpty()) {
+            _uiState.update { it.copy(selectedTab = "all") }
+            applyFilters()
+        }
     }
 
     private fun loadUserInfo() {
@@ -135,13 +152,14 @@ class HomeworkViewModel @Inject constructor(
 
                         // Map HomeworkDoc → existing Homework model, checking submission status
                         val items = homeworkDocs.map { doc ->
-                            // Check submission status for this student
-                            val submissionStatus = if (studentId.isNotBlank()) {
-                                try {
-                                    val subResult = homeworkFirestoreRepo.getSubmissionStatus(doc.id, studentId)
-                                    subResult.getOrNull()?.status ?: "pending"
-                                } catch (_: Exception) { "pending" }
-                            } else "pending"
+                            // Check submission status for this student.
+                            // Uses direct doc read (not query) to avoid
+                            // PERMISSION_DENIED on queries without schoolId.
+                            val submissionDoc = if (studentId.isNotBlank()) {
+                                homeworkFirestoreRepo.getSubmissionStatus(doc.id, studentId)
+                                    .getOrNull()
+                            } else null
+                            val submissionStatus = submissionDoc?.status ?: "pending"
 
                             Homework(
                                 homeworkId = doc.id,
@@ -151,16 +169,18 @@ class HomeworkViewModel @Inject constructor(
                                 subject = doc.subject,
                                 teacherName = doc.teacherName,
                                 teacherId = doc.teacherId,
-                                date = doc.createdAt?.toDate()?.let {
+                                date = doc.createdAt.toDateOrNull()?.let {
                                     SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it)
                                 } ?: "",
                                 dueDate = doc.dueDate,
-                                timestamp = doc.createdAt?.toDate()?.time ?: 0L,
+                                timestamp = doc.createdAt.toEpochMillisOrNull() ?: 0L,
                                 className = doc.className,
                                 section = doc.section,
                                 studentStatus = submissionStatus,
                                 isFromNewPath = true,
-                                attachments = doc.attachments
+                                attachments = doc.attachments,
+                                score = submissionDoc?.score ?: -1,
+                                feedback = submissionDoc?.remark ?: ""
                             )
                         }
 
@@ -197,6 +217,25 @@ class HomeworkViewModel @Inject constructor(
         startLiveListener()
     }
 
+    /** Pull-to-refresh: re-trigger listener with min spinner time. */
+    fun pullRefresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            val startedAt = System.currentTimeMillis()
+            val minSpinnerMs = 600L
+            try {
+                startLiveListener()
+            } catch (e: Exception) {
+                Log.w("HomeworkVM", "pullRefresh failed", e)
+            }
+            val elapsed = System.currentTimeMillis() - startedAt
+            if (elapsed < minSpinnerMs) {
+                kotlinx.coroutines.delay(minSpinnerMs - elapsed)
+            }
+            _uiState.update { it.copy(isRefreshing = false) }
+        }
+    }
+
     // ── Tab switching ───────────────────────────────────────────────────────
     fun setTab(tab: String) {
         _uiState.update { it.copy(selectedTab = tab) }
@@ -214,38 +253,59 @@ class HomeworkViewModel @Inject constructor(
         _uiState.update { it.copy(selectedHomework = homework) }
     }
 
-    // ── Mark as done ────────────────────────────────────────────────────────
-    fun markAsDone(homework: Homework) {
+    // ── Submit homework with text response ──────────────────────────────────
+    fun markAsDone(homework: Homework, submissionText: String = "") {
         viewModelScope.launch {
             _uiState.update { it.copy(markingDone = true) }
             try {
                 val user = tokenManager.user.firstOrNull() ?: User.empty()
                 if (user.isLoggedIn && user.schoolCode.isNotBlank()) {
-                    // Write submission to Firestore 'submissions' collection
                     homeworkFirestoreRepo.submitHomework(
                         homeworkId = homework.hwId,
                         studentId = user.userId,
                         studentName = user.name,
-                        className = user.className,
-                        section = user.section,
-                        text = "",
+                        sectionKey = "${Constants.Firebase.classKey(user.className)}/${Constants.Firebase.sectionKey(user.section)}",
+                        text = submissionText,
                         files = emptyList()
                     ).fold(
                         onSuccess = {
-                            Log.d("HomeworkVM", "Marked ${homework.hwId} as Submitted for ${user.userId}")
-                            _uiState.update { it.copy(selectedHomework = null, markingDone = false) }
+                            Log.d("HomeworkVM", "Submitted ${homework.hwId} for ${user.userId}")
+                            // Update local state so UI reflects "submitted" immediately
+                            // without waiting for the homework live listener to re-fire
+                            _uiState.update { state ->
+                                val updated = state.allHomework.map { hw ->
+                                    if (hw.hwId == homework.hwId) {
+                                        hw.copy(studentStatus = "submitted")
+                                    } else hw
+                                }
+                                state.copy(
+                                    allHomework = updated,
+                                    selectedHomework = null,
+                                    markingDone = false,
+                                    showSubmitDialog = false
+                                )
+                            }
+                            recomputeAll()
                         },
                         onFailure = { e ->
                             Log.e("HomeworkVM", "Failed to submit homework", e)
-                            _uiState.update { it.copy(markingDone = false, errorMessage = "Failed to update status") }
+                            _uiState.update { it.copy(markingDone = false, errorMessage = "Failed to submit") }
                         }
                     )
                 }
             } catch (e: Exception) {
                 Log.e("HomeworkVM", "Failed to mark as done", e)
-                _uiState.update { it.copy(markingDone = false, errorMessage = "Failed to update status") }
+                _uiState.update { it.copy(markingDone = false, errorMessage = "Failed to submit") }
             }
         }
+    }
+
+    fun showSubmitDialog(homework: Homework) {
+        _uiState.update { it.copy(showSubmitDialog = true, selectedHomework = homework) }
+    }
+
+    fun hideSubmitDialog() {
+        _uiState.update { it.copy(showSubmitDialog = false) }
     }
 
     // ── Backward compatibility ──────────────────────────────────────────────
@@ -261,6 +321,7 @@ class HomeworkViewModel @Inject constructor(
     private fun recomputeAll() {
         computeStats()
         computeCounts()
+        autoSelectTab()
         applyFilters()
     }
 
@@ -317,35 +378,31 @@ class HomeworkViewModel @Inject constructor(
     }
 
     private fun computeCounts() {
-        _uiState.update { state ->
-            val all = state.allHomework
-            state.copy(
-                pendingCount = all.count { it.studentStatus.lowercase().trim() == "pending" },
-                completedCount = all.count {
-                    val s = it.studentStatus.lowercase().trim()
-                    s == "complete" || s == "submitted"
-                }
-            )
+        val all = _uiState.value.allHomework
+        val pending = all.count { it.studentStatus.lowercase().trim() == "pending" }
+        val completed = all.count {
+            val s = it.studentStatus.lowercase().trim()
+            s == "complete" || s == "submitted" || s == "reviewed"
         }
+        badgeBus.setCount("homework", pending)
+        _uiState.update { it.copy(pendingCount = pending, completedCount = completed) }
     }
 
     private fun applyFilters() {
         _uiState.update { state ->
             var filtered = state.allHomework
 
-            // Tab filter — each tab matches its exact status
+            // Tab filter
             filtered = when (state.selectedTab) {
                 "pending" -> filtered.filter {
                     it.studentStatus.lowercase().trim() == "pending"
                 }
-                "incomplete" -> filtered.filter {
-                    it.studentStatus.lowercase().trim() == "incomplete"
-                }
-                "complete" -> filtered.filter {
-                    it.studentStatus.lowercase().trim() == "complete"
-                }
                 "submitted" -> filtered.filter {
                     it.studentStatus.lowercase().trim() == "submitted"
+                }
+                "graded" -> filtered.filter {
+                    val s = it.studentStatus.lowercase().trim()
+                    s == "reviewed" || s == "complete"
                 }
                 else -> filtered // "all"
             }
@@ -404,7 +461,7 @@ class HomeworkViewModel @Inject constructor(
 
         fun isCompleted(homework: Homework): Boolean {
             val s = homework.studentStatus.lowercase().trim()
-            return s == "complete" || s == "submitted" || s == "done" || s == "pending review"
+            return s == "complete" || s == "submitted" || s == "done" || s == "reviewed"
         }
 
         /**

@@ -1,8 +1,6 @@
 package com.schoolsync.parent.data.model.firestore
 
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
-import com.google.firebase.firestore.ServerTimestamp
 
 data class RecruitmentDoc(
     @DocumentId
@@ -22,6 +20,5 @@ data class RecruitmentDoc(
     val totalApplications: Int = 0,
     val shortlisted: Int = 0,
     val selected: Int = 0,
-    @ServerTimestamp
-    val createdAt: Timestamp? = null
+    val createdAt: Any? = null
 )

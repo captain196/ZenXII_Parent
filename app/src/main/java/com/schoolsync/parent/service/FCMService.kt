@@ -164,6 +164,26 @@ class FCMService : FirebaseMessagingService() {
                         data = message.data
                     )
                 }
+                "event", "event_created" -> {
+                    // Backend sends title = "New Event: {…}", body = "{startDate} | {location}".
+                    // We keep the server-provided strings but guard against blanks so the
+                    // notification always has usable text even on a malformed payload.
+                    showNotification(
+                        title = title.ifBlank { "New Event" },
+                        body  = body.ifBlank  { "Tap to view details" },
+                        data  = message.data
+                    )
+                }
+                "birthday_wish" -> {
+                    // Admin-sent birthday wish. Also written to the `notices`
+                    // collection as an inbox entry for persistence if the
+                    // push is swiped away.
+                    showNotification(
+                        title = title.ifBlank { "🎂 Happy Birthday!" },
+                        body  = body.ifBlank  { "Wishing you a wonderful year ahead!" },
+                        data  = message.data
+                    )
+                }
                 else -> {
                     if (body.isNotBlank()) {
                         showNotification(title = title, body = body, data = message.data)

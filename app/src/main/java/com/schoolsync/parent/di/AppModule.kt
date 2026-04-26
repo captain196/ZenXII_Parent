@@ -9,15 +9,15 @@ import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.remote.ApiService
 import com.schoolsync.parent.data.remote.AuthInterceptor
+import com.schoolsync.parent.data.remote.FeesApi
 import com.schoolsync.parent.data.repository.AttendanceRepository
 import com.schoolsync.parent.data.repository.AuthRepository
+import com.schoolsync.parent.data.repository.DataRepository
 import com.schoolsync.parent.data.repository.EventRepository
-import com.schoolsync.parent.data.repository.GalleryRepository
 import com.schoolsync.parent.data.repository.HomeworkRepository
 import com.schoolsync.parent.data.repository.MessageRepository
 import com.schoolsync.parent.data.repository.NoticeRepository
 import com.schoolsync.parent.data.repository.RedFlagRepository
-import com.schoolsync.parent.data.repository.StoryRepository
 import com.schoolsync.parent.data.repository.StudentRepository
 import com.schoolsync.parent.data.repository.firestore.AttendanceFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.ChatRtdbRepository
@@ -34,6 +34,7 @@ import com.schoolsync.parent.data.repository.firestore.HRFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.AdmissionFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.InventoryFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.LeaveFirestoreRepository
+import com.schoolsync.parent.data.repository.firestore.MyTeachersFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.LibraryFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.AnalyticsFirestoreRepository
 import com.schoolsync.parent.util.NetworkMonitor
@@ -65,22 +66,28 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAuthInterceptor(
-        tokenManager: TokenManager
-    ): AuthInterceptor {
-        return AuthInterceptor(tokenManager)
+    fun provideAuthInterceptor(): AuthInterceptor {
+        return AuthInterceptor()
     }
 
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        authInterceptor: AuthInterceptor
+        authInterceptor: AuthInterceptor,
+        baseUrlInterceptor: com.schoolsync.parent.data.remote.BaseUrlInterceptor
     ): OkHttpClient {
         val builder = OkHttpClient.Builder()
+            // BaseUrlInterceptor must run BEFORE AuthInterceptor so the
+            // bearer header is attached to the rewritten host (and so
+            // logging shows the actual host hit, not the BuildConfig one).
+            .addInterceptor(baseUrlInterceptor)
             .addInterceptor(authInterceptor)
+            // Payment verify can take 30–60s because the server does a
+            // round-trip to Razorpay's API for signature/amount checks
+            // before writing the full receipt + allocation.
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(90, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
 
         if (BuildConfig.DEBUG) {
             val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -112,6 +119,14 @@ object AppModule {
         return retrofit.create(ApiService::class.java)
     }
 
+    @Provides
+    @Singleton
+    fun provideFeesApi(
+        retrofit: Retrofit
+    ): FeesApi {
+        return retrofit.create(FeesApi::class.java)
+    }
+
     // ── Firebase ─────────────────────────────────────────────────────────
 
     @Provides
@@ -129,7 +144,7 @@ object AppModule {
     @Provides
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore {
-        return FirebaseFirestore.getInstance("schoolsync")
+        return FirebaseFirestore.getInstance()
     }
 
     @Provides
@@ -145,58 +160,53 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAuthRepository(
-        apiService: ApiService,
         tokenManager: TokenManager,
         firebaseAuthManager: FirebaseAuthManager,
-        firebaseService: FirebaseService
+        firebaseService: FirebaseService,
+        firestoreService: FirestoreService
     ): AuthRepository {
-        return AuthRepository(apiService, tokenManager, firebaseAuthManager, firebaseService)
+        return AuthRepository(tokenManager, firebaseAuthManager, firebaseService, firestoreService)
     }
+
+    @Provides
+    @Singleton
+    fun provideDataRepository(
+        firestoreService: FirestoreService,
+        firebaseService: FirebaseService,
+        tokenManager: TokenManager
+    ): DataRepository = DataRepository(firestoreService, firebaseService, tokenManager)
 
     @Provides
     @Singleton
     fun provideStudentRepository(
         firebaseService: FirebaseService,
+        firestoreService: FirestoreService,
+        feeFirestoreRepository: FeeFirestoreRepository,
         tokenManager: TokenManager
     ): StudentRepository {
-        return StudentRepository(firebaseService, tokenManager)
+        return StudentRepository(firebaseService, firestoreService, feeFirestoreRepository, tokenManager)
     }
 
     @Provides
     @Singleton
     fun provideMessageRepository(
         firebaseService: FirebaseService,
+        firestoreService: FirestoreService,
         tokenManager: TokenManager
     ): MessageRepository {
-        return MessageRepository(firebaseService, tokenManager)
+        return MessageRepository(firebaseService, firestoreService, tokenManager)
     }
 
-    @Provides
-    @Singleton
-    fun provideRedFlagRepository(
-        firebaseService: FirebaseService,
-        tokenManager: TokenManager
-    ): RedFlagRepository {
-        return RedFlagRepository(firebaseService, tokenManager)
-    }
+    // RedFlagRepository: resolved via its @Inject constructor (FirestoreService,
+    // TokenManager, FirebaseAuth) — no manual @Provides needed.
 
-    @Provides
-    @Singleton
-    fun provideStoryRepository(
-        firebaseService: FirebaseService,
-        tokenManager: TokenManager
-    ): StoryRepository {
-        return StoryRepository(firebaseService, tokenManager)
-    }
+    // Legacy RTDB-backed StoryRepository removed —
+    // see StoryFirestoreRepository for the canonical, real-time
+    // single-store replacement.
 
-    @Provides
-    @Singleton
-    fun provideGalleryRepository(
-        firebaseService: FirebaseService,
-        tokenManager: TokenManager
-    ): GalleryRepository {
-        return GalleryRepository(firebaseService, tokenManager)
-    }
+    // GalleryRepository (RTDB) removed in Phase C-2 (2026-04-26).
+    // GalleryFirestoreRepository is now the canonical reader; Hilt resolves
+    // it via its @Inject constructor — no explicit @Provides needed.
 
     @Provides
     @Singleton
@@ -228,10 +238,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAttendanceRepository(
-        firebaseService: FirebaseService,
+        firestoreRepo: AttendanceFirestoreRepository,
         tokenManager: TokenManager
     ): AttendanceRepository {
-        return AttendanceRepository(firebaseService, tokenManager)
+        return AttendanceRepository(firestoreRepo, tokenManager)
     }
 
     // ── Firestore Repositories ────────────────────────────────────────────
@@ -311,10 +321,12 @@ object AppModule {
     @Provides
     @Singleton
     fun provideChatRtdbRepository(
-        firebaseService: FirebaseService,
+        firestoreService: FirestoreService,
         tokenManager: TokenManager
     ): ChatRtdbRepository {
-        return ChatRtdbRepository(firebaseService, tokenManager)
+        // Phase 5 — name kept for DI back-compat, backing store is now
+        // Firestore (notifBadges / presence collections).
+        return ChatRtdbRepository(firestoreService, tokenManager)
     }
 
     // ── Phase 7–12 Firestore Repositories ────────────────────────────────
@@ -378,9 +390,10 @@ object AppModule {
     @Singleton
     fun provideLeaveFirestoreRepository(
         firestoreService: FirestoreService,
+        firebaseService: FirebaseService,
         tokenManager: TokenManager
     ): LeaveFirestoreRepository {
-        return LeaveFirestoreRepository(firestoreService, tokenManager)
+        return LeaveFirestoreRepository(firestoreService, firebaseService, tokenManager)
     }
 
     @Provides
@@ -391,6 +404,14 @@ object AppModule {
     ): AnalyticsFirestoreRepository {
         return AnalyticsFirestoreRepository(firestoreService, tokenManager)
     }
+
+    @Provides
+    @Singleton
+    fun provideMyTeachersFirestoreRepository(
+        firestoreService: FirestoreService,
+        tokenManager: TokenManager
+    ): MyTeachersFirestoreRepository =
+        MyTeachersFirestoreRepository(firestoreService, tokenManager)
 
     // ── Utility ───────────────────────────────────────────────────────────
 

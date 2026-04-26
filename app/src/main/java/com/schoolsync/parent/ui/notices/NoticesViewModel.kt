@@ -28,7 +28,8 @@ data class NoticesUiState(
 
 @HiltViewModel
 class NoticesViewModel @Inject constructor(
-    private val communicationFirestoreRepo: CommunicationFirestoreRepository
+    private val communicationFirestoreRepo: CommunicationFirestoreRepository,
+    private val badgeBus: com.schoolsync.parent.util.BadgeBus,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NoticesUiState())
@@ -39,6 +40,13 @@ class NoticesViewModel @Inject constructor(
         observeNotices()
     }
 
+    /** Notices newer than 24h are surfaced as the "new" badge count. */
+    private fun publishBadge(notices: List<Notice>) {
+        val cutoff = System.currentTimeMillis() - 24L * 60 * 60 * 1000
+        val recent = notices.count { it.timestamp > cutoff }
+        badgeBus.setCount("notices", recent)
+    }
+
     private fun loadNotices() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
@@ -46,6 +54,7 @@ class NoticesViewModel @Inject constructor(
             communicationFirestoreRepo.getCirculars().fold(
                 onSuccess = { circulars ->
                     val notices = circulars.map { it.toNotice() }
+                    publishBadge(notices)
                     _uiState.update { it.copy(isLoading = false, notices = notices) }
                 },
                 onFailure = { e ->
@@ -66,6 +75,7 @@ class NoticesViewModel @Inject constructor(
             try {
                 communicationFirestoreRepo.observeCirculars().collect { circulars ->
                     val notices = circulars.map { it.toNotice() }
+                    publishBadge(notices)
                     _uiState.update { it.copy(notices = notices, isLoading = false) }
                 }
             } catch (e: Exception) {
@@ -97,6 +107,34 @@ class NoticesViewModel @Inject constructor(
                     }
                 }
             )
+        }
+    }
+
+    /** Pull-to-refresh: reload notices with min spinner time. */
+    fun pullRefresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            val startedAt = System.currentTimeMillis()
+            val minSpinnerMs = 600L
+            try {
+                communicationFirestoreRepo.getCirculars().fold(
+                    onSuccess = { circulars ->
+                        val notices = circulars.map { it.toNotice() }
+                        _uiState.update { it.copy(notices = notices) }
+                    },
+                    onFailure = { e ->
+                        Log.w("NoticesVM", "pullRefresh failed", e)
+                        _uiState.update { it.copy(errorMessage = e.message) }
+                    }
+                )
+            } catch (e: Exception) {
+                Log.w("NoticesVM", "pullRefresh failed", e)
+            }
+            val elapsed = System.currentTimeMillis() - startedAt
+            if (elapsed < minSpinnerMs) {
+                kotlinx.coroutines.delay(minSpinnerMs - elapsed)
+            }
+            _uiState.update { it.copy(isRefreshing = false) }
         }
     }
 

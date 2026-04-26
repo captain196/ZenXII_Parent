@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -58,9 +61,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.schoolsync.parent.ui.components.bouncyClickable
+import com.schoolsync.parent.ui.theme.AppColors
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
@@ -73,11 +82,24 @@ fun ProfileScreen(
     val c = LocalAppColors.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // Phase 9b: refresh attendance % every time Profile is shown
+    // so it stays in sync with the Attendance tab and Dashboard.
+    LaunchedEffect(Unit) {
+        viewModel.refreshAttendance()
+    }
+
     LaunchedEffect(uiState.logoutSuccess) {
         if (uiState.logoutSuccess) onLogout()
     }
 
     val user = uiState.user
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var profileExpanded by remember { mutableStateOf(false) }
+    var helpExpanded by remember { mutableStateOf(false) }
+    var contactExpanded by remember { mutableStateOf(false) }
+    var aboutExpanded by remember { mutableStateOf(false) }
 
     // ── Logout confirmation dialog ──────────────────────────────────────
     if (uiState.showLogoutDialog) {
@@ -103,6 +125,7 @@ fun ProfileScreen(
             }
         } else {
             LazyColumn(
+                state = listState,
                 contentPadding = PaddingValues(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -185,33 +208,7 @@ fun ProfileScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // "Edit profile" pill
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(c.accentBg)
-                                .clickable { /* TODO */ }
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Edit,
-                                contentDescription = null,
-                                tint = c.accent,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Edit profile",
-                                style = TextStyle(
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = c.accent
-                                )
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
                 }
 
@@ -250,75 +247,94 @@ fun ProfileScreen(
                     }
                 }
 
-                // ── 4. Student Detail Card ──────────────────────────────
+                // ── 4. Student Detail Card (expandable) ────────────────
                 item {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .glassCard(16.dp)
-                            .clickable { /* TODO */ }
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Left: 40dp rounded rect avatar with gradient + initial
-                        Box(
+                        // Header row (always visible)
+                        Row(
                             modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(
-                                    Brush.linearGradient(listOf(c.accent, c.accentSecondary))
-                                ),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .clickable { profileExpanded = !profileExpanded }
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = (user?.name?.firstOrNull()?.uppercase() ?: "?"),
-                                style = TextStyle(
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (c.isDark) c.bgStart else Color.White
-                                )
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        // Middle: student name + class/section/roll
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = user?.name ?: "",
-                                style = TextStyle(
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = c.textPrimary
-                                )
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            val classSection = buildString {
-                                val cls = user?.className?.takeIf { it.isNotBlank() }
-                                val sec = user?.section?.takeIf { it.isNotBlank() }
-                                val roll = user?.rollNo?.takeIf { it.isNotBlank() }
-                                if (cls != null) append("Class $cls")
-                                if (sec != null) append("-$sec")
-                                if (roll != null) append("  \u00B7  Roll #$roll")
-                            }
-                            if (classSection.isNotBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Brush.linearGradient(listOf(c.accent, c.accentSecondary))),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text(
-                                    text = classSection,
-                                    style = TextStyle(
-                                        fontSize = 11.sp,
-                                        color = c.textSecondary
-                                    )
+                                    text = (user?.name?.firstOrNull()?.uppercase() ?: "?"),
+                                    style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (c.isDark) c.bgStart else Color.White)
                                 )
                             }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = user?.name ?: "",
+                                    style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                val classSection = buildString {
+                                    val cls = user?.className?.takeIf { it.isNotBlank() }
+                                    val sec = user?.section?.takeIf { it.isNotBlank() }
+                                    val roll = user?.rollNo?.takeIf { it.isNotBlank() }
+                                    if (cls != null) append(cls)
+                                    if (sec != null) append(" - $sec")
+                                    if (roll != null) append("  \u00B7  Roll #$roll")
+                                }
+                                if (classSection.isNotBlank()) {
+                                    Text(text = classSection, style = TextStyle(fontSize = 11.sp, color = c.textSecondary))
+                                }
+                            }
+                            Icon(
+                                imageVector = if (profileExpanded) Icons.Filled.Visibility else Icons.Filled.ChevronRight,
+                                contentDescription = if (profileExpanded) "Collapse" else "Expand",
+                                tint = c.textTertiary,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
 
-                        // Right: chevron
-                        Icon(
-                            imageVector = Icons.Filled.ChevronRight,
-                            contentDescription = null,
-                            tint = c.textTertiary,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        // Expanded student details
+                        AnimatedVisibility(visible = profileExpanded, enter = expandVertically(), exit = shrinkVertically()) {
+                            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+                                // Personal Information
+                                ProfileSectionHeader(text = "Personal Information", color = c.accent)
+                                ProfileDetailRow(label = "Date of Birth", value = user?.dob, color = c)
+                                ProfileDetailRow(label = "Gender", value = user?.gender, color = c)
+                                ProfileDetailRow(label = "Admission Date", value = user?.admissionDate, color = c)
+                                ProfileDetailRow(label = "Student ID", value = user?.userId, color = c)
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Contact Information
+                                ProfileSectionHeader(text = "Contact Information", color = c.accent)
+                                ProfileDetailRow(label = "Phone", value = user?.phone, color = c)
+                                ProfileDetailRow(label = "Email", value = user?.email, color = c)
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Family Information
+                                ProfileSectionHeader(text = "Family Information", color = c.accent)
+                                ProfileDetailRow(label = "Father's Name", value = user?.fatherName, color = c)
+                                ProfileDetailRow(label = "Mother's Name", value = user?.motherName, color = c)
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // School Information
+                                ProfileSectionHeader(text = "School Information", color = c.accent)
+                                ProfileDetailRow(label = "School", value = user?.schoolDisplayName, color = c)
+                                ProfileDetailRow(label = "Session", value = user?.session, color = c)
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
                     }
                 }
 
@@ -329,12 +345,28 @@ fun ProfileScreen(
                             .fillMaxWidth()
                             .glassCard(16.dp)
                     ) {
-                        // Notifications row
+                        // Notifications row — opens the OS app-notification
+                        // settings page so the parent can toggle channels.
                         SettingsRow(
                             emoji = "\uD83D\uDD14",
                             label = "Notifications",
                             subtitle = "Manage alerts",
-                            onClick = { /* TODO */ }
+                            onClick = {
+                                val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                                try {
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    // Fallback: open app details page.
+                                    val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                    }
+                                    context.startActivity(fallback)
+                                }
+                            }
                         )
 
                         SettingsDivider()
@@ -362,16 +394,6 @@ fun ProfileScreen(
                                 onModeChange = viewModel::setThemeMode
                             )
                         }
-
-                        SettingsDivider()
-
-                        // Language row
-                        SettingsRow(
-                            emoji = "\uD83C\uDF10",
-                            label = "Language",
-                            subtitle = "English",
-                            onClick = { /* TODO */ }
-                        )
                     }
                 }
 
@@ -412,33 +434,70 @@ fun ProfileScreen(
 
                         SettingsDivider()
 
-                        // Help & FAQ row
+                        // Help & FAQ row — expands with common questions.
                         SettingsRow(
                             emoji = "\u2753",
                             label = "Help & FAQ",
                             subtitle = "Common questions",
-                            onClick = { /* TODO */ }
+                            onClick = { helpExpanded = !helpExpanded }
                         )
+                        AnimatedVisibility(
+                            visible = helpExpanded,
+                            enter = expandVertically(),
+                            exit = shrinkVertically()
+                        ) {
+                            HelpFaqContent()
+                        }
 
                         SettingsDivider()
 
-                        // Contact school row
+                        // Contact school row — expands with school details
+                        // and quick call/email actions.
                         SettingsRow(
                             emoji = "\uD83D\uDCDE",
                             label = "Contact school",
-                            subtitle = "Call or email",
-                            onClick = { /* TODO */ }
+                            subtitle = user?.schoolDisplayName?.takeIf { it.isNotBlank() } ?: "Call or email",
+                            onClick = { contactExpanded = !contactExpanded }
                         )
+                        AnimatedVisibility(
+                            visible = contactExpanded,
+                            enter = expandVertically(),
+                            exit = shrinkVertically()
+                        ) {
+                            ContactSchoolContent(
+                                schoolName = user?.schoolDisplayName ?: "",
+                                schoolId = user?.schoolId ?: user?.schoolCode ?: "",
+                                onCall = { phone ->
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone")).apply {
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                    }
+                                    try { context.startActivity(intent) } catch (_: Exception) {}
+                                },
+                                onEmail = { email ->
+                                    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email")).apply {
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                    }
+                                    try { context.startActivity(intent) } catch (_: Exception) {}
+                                }
+                            )
+                        }
 
                         SettingsDivider()
 
-                        // About row
+                        // About row — expands with app information.
                         SettingsRow(
                             emoji = "\uD83D\uDCC4",
                             label = "About",
-                            subtitle = "v1.0",
-                            onClick = { /* TODO */ }
+                            subtitle = "SchoolSync Parent v1.0",
+                            onClick = { aboutExpanded = !aboutExpanded }
                         )
+                        AnimatedVisibility(
+                            visible = aboutExpanded,
+                            enter = expandVertically(),
+                            exit = shrinkVertically()
+                        ) {
+                            AboutContent()
+                        }
                     }
                 }
 
@@ -555,7 +614,7 @@ private fun SettingsRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .bouncyClickable(onClick = onClick, pressedScale = 0.985f)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -901,5 +960,280 @@ private fun LogoutDialog(
                 }
             }
         }
+    }
+}
+
+// ─── Profile Detail Helpers ──────────────────────────────────────────────────
+
+@Composable
+private fun ProfileSectionHeader(text: String, color: Color) {
+    Text(
+        text = text,
+        style = TextStyle(
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = color,
+            letterSpacing = 0.8.sp
+        ),
+        modifier = Modifier.padding(bottom = 6.dp, top = 2.dp)
+    )
+}
+
+@Composable
+private fun ProfileDetailRow(label: String, value: String?, color: AppColors) {
+    if (!value.isNullOrBlank()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = label,
+                style = TextStyle(fontSize = 12.sp, color = color.textTertiary),
+                modifier = Modifier.weight(0.4f)
+            )
+            Text(
+                text = value,
+                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = color.textPrimary),
+                modifier = Modifier.weight(0.6f)
+            )
+        }
+    }
+}
+
+// ─── Help & FAQ (inline expanded content) ────────────────────────────────────
+
+@Composable
+private fun HelpFaqContent() {
+    val c = LocalAppColors.current
+    val faqs = listOf(
+        "How do I pay school fees?" to
+            "Open the Fees tab from the bottom bar, tap any pending fee head and " +
+            "select Pay to launch Razorpay secure checkout. Receipts appear under " +
+            "Paid Fees the moment payment succeeds.",
+        "Why is my child's attendance not updating?" to
+            "Attendance is marked by teachers and usually appears the same day " +
+            "after 2 PM. If a day looks missing, pull down to refresh the " +
+            "Attendance screen \u2014 if it's still blank, contact the class teacher.",
+        "Where can I see homework and results?" to
+            "Tap the Academics tab in the bottom bar \u2014 Homework, Results, " +
+            "Timetable and Exam schedule all live there.",
+        "I didn't receive a push notification for a notice." to
+            "Make sure Notifications are enabled in Settings \u2192 Notifications. " +
+            "Notices from your school also appear in the Notices tab even if " +
+            "the push was missed.",
+        "How do I change my password?" to
+            "Scroll up on this Profile tab, open \"Change password\", enter your " +
+            "current password and a new one of 6+ characters, then tap Update."
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(bottom = 12.dp)
+    ) {
+        faqs.forEachIndexed { index, (q, a) ->
+            if (index > 0) Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = q,
+                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
+            )
+            if (a.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = a,
+                    style = TextStyle(fontSize = 11.sp, color = c.textSecondary, lineHeight = 15.sp)
+                )
+            }
+        }
+    }
+}
+
+// ─── Contact School (inline expanded content) ────────────────────────────────
+
+@Composable
+private fun ContactSchoolContent(
+    schoolName: String,
+    schoolId: String,
+    onCall: (String) -> Unit,
+    onEmail: (String) -> Unit
+) {
+    val c = LocalAppColors.current
+    // Fetch school contact info from Firestore once the expansion opens.
+    var phone by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(schoolId.isNotBlank()) }
+
+    LaunchedEffect(schoolId) {
+        if (schoolId.isBlank()) { loading = false; return@LaunchedEffect }
+        try {
+            val snap = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection("schools").document(schoolId).get()
+            snap.addOnSuccessListener { doc ->
+                phone = doc.getString("phone")
+                    ?: doc.getString("contactPhone")
+                    ?: doc.getString("contact_phone") ?: ""
+                email = doc.getString("email")
+                    ?: doc.getString("contactEmail")
+                    ?: doc.getString("contact_email") ?: ""
+                address = doc.getString("address") ?: ""
+                loading = false
+            }.addOnFailureListener { loading = false }
+        } catch (_: Exception) { loading = false }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(bottom = 12.dp)
+    ) {
+        if (schoolName.isNotBlank()) {
+            Text(
+                text = schoolName,
+                style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+        if (address.isNotBlank()) {
+            Text(
+                text = address,
+                style = TextStyle(fontSize = 11.sp, color = c.textSecondary)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        when {
+            loading -> {
+                Text(
+                    "Loading contact details…",
+                    style = TextStyle(fontSize = 11.sp, color = c.textTertiary)
+                )
+            }
+            phone.isBlank() && email.isBlank() -> {
+                Text(
+                    "Contact details aren't on file. Please reach the school " +
+                        "office in person or via the school website.",
+                    style = TextStyle(fontSize = 11.sp, color = c.textSecondary, lineHeight = 15.sp)
+                )
+            }
+            else -> {
+                if (phone.isNotBlank()) {
+                    ContactActionRow(
+                        emoji = "\uD83D\uDCDE",
+                        label = "Call office",
+                        value = phone,
+                        onClick = { onCall(phone) }
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+                if (email.isNotBlank()) {
+                    ContactActionRow(
+                        emoji = "\u2709\uFE0F",
+                        label = "Email office",
+                        value = email,
+                        onClick = { onEmail(email) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContactActionRow(
+    emoji: String,
+    label: String,
+    value: String,
+    onClick: () -> Unit
+) {
+    val c = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(c.accentBg)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = emoji, style = TextStyle(fontSize = 14.sp))
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium, color = c.textTertiary)
+            )
+            Text(
+                text = value,
+                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = c.accent)
+            )
+        }
+        Icon(
+            imageVector = Icons.Filled.ChevronRight,
+            contentDescription = null,
+            tint = c.accent,
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
+
+// ─── About (inline expanded content) ─────────────────────────────────────────
+
+@Composable
+private fun AboutContent() {
+    val c = LocalAppColors.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(bottom = 14.dp)
+    ) {
+        Text(
+            text = "SchoolSync Parent",
+            style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = "Version 1.0 \u00B7 Build 2026.04",
+            style = TextStyle(fontSize = 10.sp, color = c.textTertiary, letterSpacing = 0.3.sp)
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = "SchoolSync is your direct line to your child's school. Track " +
+                "attendance, pay fees securely, view homework and results, read " +
+                "circulars, and stay informed of every event \u2014 all in one place.",
+            style = TextStyle(fontSize = 11.sp, color = c.textSecondary, lineHeight = 16.sp)
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        AboutLine("\uD83D\uDCDD", "Real-time attendance, results & homework")
+        AboutLine("\uD83D\uDCB3", "Secure fee payments via Razorpay")
+        AboutLine("\uD83D\uDCE2", "Notices, events & birthday wishes")
+        AboutLine("\uD83D\uDD10", "Private \u2014 data stored on your school's " +
+            "Firebase project, never shared with third parties")
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = "\u00A9 2026 SchoolSync. Built for Indian schools.",
+            style = TextStyle(fontSize = 10.sp, color = c.textTertiary)
+        )
+    }
+}
+
+@Composable
+private fun AboutLine(emoji: String, text: String) {
+    val c = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(text = emoji, style = TextStyle(fontSize = 11.sp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = text,
+            style = TextStyle(fontSize = 11.sp, color = c.textSecondary, lineHeight = 15.sp)
+        )
     }
 }

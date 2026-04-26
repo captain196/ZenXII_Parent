@@ -1,8 +1,6 @@
 package com.schoolsync.parent.data.model.firestore
 
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
-import com.google.firebase.firestore.ServerTimestamp
 
 data class SalarySlipDoc(
     @DocumentId
@@ -26,8 +24,6 @@ data class SalarySlipDoc(
     val arrears: Double = 0.0,
     val status: String = "generated",      // generated, approved, disbursed
     val bankRefNo: String = "",
-    @ServerTimestamp
-    val disbursedAt: Timestamp? = null,
-    @ServerTimestamp
-    val generatedAt: Timestamp? = null
+    val disbursedAt: Any? = null,
+    val generatedAt: Any? = null
 )

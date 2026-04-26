@@ -12,7 +12,7 @@ enum class AttendanceStatus(val code: Char, val label: String) {
     ABSENT('A', "Absent"),
     LEAVE('L', "Leave"),
     HOLIDAY('H', "Holiday"),
-    TRIP('T', "Trip"),
+    TRIP('T', "Tardy"),
     VACATION('V', "Vacation");
 
     companion object {
@@ -42,14 +42,27 @@ data class AttendanceData(
     val leaveCount: Int get() = countOf(AttendanceStatus.LEAVE)
     val holidayCount: Int get() = countOf(AttendanceStatus.HOLIDAY)
 
-    /** Working days = total - holidays - vacations - trips */
+    /**
+     * Working days = total − holidays − vacations.
+     *
+     * Tardy days (TRIP) DO count as working days — the student was at
+     * school, just arrived late. Excluding them would shrink the
+     * denominator and double-count their non-attendance.
+     */
     val workingDays: Int get() = totalDays - countOf(AttendanceStatus.HOLIDAY) -
-            countOf(AttendanceStatus.VACATION) - countOf(AttendanceStatus.TRIP)
+            countOf(AttendanceStatus.VACATION)
 
-    /** Attendance percentage based on working days */
+    /**
+     * Attendance percentage = (present + tardy) / working × 100.
+     *
+     * Matches the Firestore-side formula written by
+     * `save_student_attendance` in the admin panel so the local
+     * getter and the server-stored `percentage` field stay in sync.
+     */
     val attendancePercentage: Float get() {
+        val tardyCount = countOf(AttendanceStatus.TRIP)
         return if (workingDays > 0) {
-            (presentCount.toFloat() / workingDays.toFloat()) * 100f
+            ((presentCount + tardyCount).toFloat() / workingDays.toFloat()) * 100f
         } else {
             0f
         }
@@ -111,11 +124,13 @@ data class AttendanceSummary(
     val totalPresent: Int,
     val totalAbsent: Int,
     val totalLeave: Int,
+    val totalTardy: Int = 0,
     val totalWorkingDays: Int
 ) {
+    /** (present + tardy) / working × 100 — matches all other screens. */
     val overallPercentage: Float get() {
         return if (totalWorkingDays > 0) {
-            (totalPresent.toFloat() / totalWorkingDays.toFloat()) * 100f
+            ((totalPresent + totalTardy).toFloat() / totalWorkingDays.toFloat()) * 100f
         } else {
             0f
         }
@@ -128,6 +143,7 @@ data class AttendanceSummary(
                 totalPresent = months.sumOf { it.presentCount },
                 totalAbsent = months.sumOf { it.absentCount },
                 totalLeave = months.sumOf { it.leaveCount },
+                totalTardy = months.sumOf { it.countOf(AttendanceStatus.TRIP) },
                 totalWorkingDays = months.sumOf { it.workingDays }
             )
         }

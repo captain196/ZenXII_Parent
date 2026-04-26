@@ -3,60 +3,98 @@ package com.schoolsync.parent.ui.dashboard
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.tasks.await
+import com.schoolsync.parent.data.local.TokenManager
+import com.schoolsync.parent.data.model.DayTimetable
 import com.schoolsync.parent.data.model.Event
 import com.schoolsync.parent.data.model.Notice
-import com.schoolsync.parent.data.model.TeacherStoryGroup
 import com.schoolsync.parent.data.model.User
-import com.schoolsync.parent.data.repository.DashboardSummary
-import com.schoolsync.parent.data.repository.EventRepository
-import com.schoolsync.parent.data.repository.HomeworkRepository
-import com.schoolsync.parent.data.repository.NoticeRepository
-import com.schoolsync.parent.data.repository.RedFlagRepository
-import com.schoolsync.parent.data.repository.StoryRepository
+import com.schoolsync.parent.data.model.firestore.AttendanceSummaryDoc
+import com.schoolsync.parent.data.model.firestore.HomeworkDoc
+import com.schoolsync.parent.data.model.firestore.PtmEventDoc
+import com.schoolsync.parent.data.model.firestore.ResultDoc
 import com.schoolsync.parent.data.repository.StudentRepository
 import com.schoolsync.parent.data.repository.firestore.AttendanceFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.CommunicationFirestoreRepository
+import com.schoolsync.parent.data.repository.firestore.EventFirestoreRepository
+import com.schoolsync.parent.data.repository.firestore.ExamFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.FeeFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.HomeworkFirestoreRepository
+import com.schoolsync.parent.data.repository.firestore.PtmFirestoreRepository
+import com.schoolsync.parent.data.repository.firestore.StudentFirestoreRepository
+import com.schoolsync.parent.data.repository.firestore.TimetableFirestoreRepository
 import com.schoolsync.parent.util.NetworkMonitor
+import com.schoolsync.parent.util.toDateOrNull
+import com.schoolsync.parent.util.toEpochMillisOrNull
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** Lightweight sibling summary used by the Dashboard switcher. */
+data class SiblingSummary(
+    val studentId: String,
+    val name: String,
+    val className: String,
+    val section: String,
+    val rollNo: String
+)
+
 data class DashboardUiState(
     val isLoading: Boolean = true,
+    /** True while a pull-to-refresh gesture is in progress; the
+     *  spinner overlays existing content rather than swapping it. */
+    val isRefreshing: Boolean = false,
     val user: User? = null,
+    val schoolName: String = "",
     val todayAttendance: String? = null,
     val attendancePercentage: Float = 0f,
     val attendanceChange: Float? = null,
     val pendingFeeAmount: Double = 0.0,
+    /** True when the fees fetch failed — UI shows a retry prompt
+     *  instead of the green "All cleared" state, which would be
+     *  misleading when data never loaded. */
+    val feesLoadFailed: Boolean = false,
     val pendingHomeworkCount: Int = 0,
+    /** Top 5 active homework items for the dashboard preview list. */
+    val homeworkPreview: List<HomeworkDoc> = emptyList(),
     val recentNotices: List<Notice> = emptyList(),
     val upcomingEvents: List<Event> = emptyList(),
-    val activeFlagCount: Int = 0,
-    val storyGroups: List<TeacherStoryGroup> = emptyList(),
+    /** Today's class schedule (ordered slots). null while loading or on error. */
+    val todaySchedule: DayTimetable? = null,
+    /** Current month's attendance summary — drives the calendar strip. */
+    val attendanceMonthSummary: AttendanceSummaryDoc? = null,
+    /** Most recent published result for the student. */
+    val latestResult: ResultDoc? = null,
+    /** Next upcoming PTM the student is invited to (if any). */
+    val nextPtm: PtmEventDoc? = null,
+    /** Other students under the same parent (parentDbKey / phone /
+     *  father+mother name match). Empty when no siblings or lookup
+     *  failed. Sorted alphabetically by name. */
+    val siblings: List<SiblingSummary> = emptyList(),
     val errorMessage: String? = null
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val studentRepository: StudentRepository,
-    private val noticeRepository: NoticeRepository,
-    private val eventRepository: EventRepository,
-    private val homeworkRepository: HomeworkRepository,
-    private val redFlagRepository: RedFlagRepository,
-    private val storyRepository: StoryRepository,
     private val attendanceFirestoreRepo: AttendanceFirestoreRepository,
     private val feeFirestoreRepo: FeeFirestoreRepository,
     private val communicationFirestoreRepo: CommunicationFirestoreRepository,
     private val homeworkFirestoreRepo: HomeworkFirestoreRepository,
+    private val eventFirestoreRepo: EventFirestoreRepository,
+    private val timetableFirestoreRepo: TimetableFirestoreRepository,
+    private val examFirestoreRepo: ExamFirestoreRepository,
+    private val ptmFirestoreRepo: PtmFirestoreRepository,
+    private val studentFirestoreRepo: StudentFirestoreRepository,
+    private val tokenManager: TokenManager,
     networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
@@ -74,110 +112,343 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            // Load user from DataStore
-            val user = studentRepository.currentUser.firstOrNull()
+            val initialUser = studentRepository.currentUser.firstOrNull()
+            // Self-heal: if the cached user profile is missing class/section
+            // (e.g. saved before the Firestore canonical schema existed),
+            // re-fetch from `students/{schoolId}_{uid}` and persist it
+            // back to DataStore so every subsequent screen has it.
+            val user = healUserProfileIfNeeded(initialUser)
+            Log.d("DashboardVM", "user=${user?.userId} class='${user?.className}' sec='${user?.section}' schoolId='${user?.schoolId}'")
             _uiState.update { it.copy(user = user) }
 
-            // Primary: load from Firestore
-            loadFromFirestore(user)
+            // Fetch school name directly from Firestore schools collection
+            val sid = user?.schoolId ?: user?.schoolCode ?: ""
+            if (sid.isNotBlank()) {
+                try {
+                    val schoolSnap = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        .collection("schools").document(sid).get().await()
+                    val sName = schoolSnap?.getString("name") ?: ""
+                    Log.d("DashboardVM", "School name from Firestore: '$sName' (docId=$sid)")
+                    if (sName.isNotBlank()) {
+                        _uiState.update { it.copy(schoolName = sName) }
+                    }
+                } catch (e: Exception) {
+                    Log.w("DashboardVM", "Failed to fetch school name for $sid", e)
+                }
+            }
 
-            // Load upcoming events (no Firestore equivalent yet, keep RTDB)
-            try {
-                val events = eventRepository.getEvents(withMedia = true)
-                _uiState.update { it.copy(upcomingEvents = events) }
-            } catch (_: Exception) { }
-
-            // Load active flag count (no Firestore equivalent yet, keep RTDB)
-            try {
-                val flagCount = redFlagRepository.getActiveFlagCount()
-                _uiState.update { it.copy(activeFlagCount = flagCount) }
-            } catch (_: Exception) { }
-
-            // Load stories (no Firestore equivalent yet, keep RTDB)
-            try {
-                val stories = storyRepository.getAllActiveStories()
-                _uiState.update { it.copy(storyGroups = stories) }
-            } catch (_: Exception) { }
+            // Each loader is independent — there are no data dependencies
+            // between them. Running sequentially meant Events was the 5th
+            // round-trip in line and appeared visibly later than other
+            // tiles. coroutineScope launches them concurrently and waits
+            // for all to complete before flipping isLoading off.
+            // Each loader updates _uiState.copy independently;
+            // MutableStateFlow's atomic update handles the concurrent edits.
+            coroutineScope {
+                launch { loadAttendance(user) }
+                launch { loadFees(user) }
+                launch { loadNotices() }
+                launch { loadHomework(user) }
+                launch { loadEvents() }
+                launch { loadSiblings(user) }
+                launch { loadTodaySchedule(user) }
+                launch { loadLatestResult(user) }
+                launch { loadNextPtm(user) }
+            }
 
             _uiState.update { it.copy(isLoading = false) }
         }
     }
 
-    // TODO: Remove RTDB fallback after Firestore validation
-    private suspend fun loadFromFirestore(user: User?) {
-        val studentId = user?.userId ?: return
-        val className = user.className
-        val section = user.section
-
-        // ── Attendance percentage from Firestore ──
+    /**
+     * Find siblings under the same parent. Populates the switcher in
+     * the top bar when a parent has multiple children enrolled.
+     */
+    private suspend fun loadSiblings(user: User?) {
+        if (user?.userId.isNullOrBlank()) return
         try {
-            val summaryResult = attendanceFirestoreRepo.getAttendanceSummary(studentId)
-            summaryResult.fold(
-                onSuccess = { summaries ->
-                    val totalPresent = summaries.sumOf { it.present }
-                    val totalWorking = summaries.sumOf { it.workingDays }
-                    val overallPercent = if (totalWorking > 0) {
-                        (totalPresent.toFloat() / totalWorking.toFloat()) * 100f
-                    } else 0f
+            // Build a StudentDoc-ish primary record from the User object
+            val primary = com.schoolsync.parent.data.model.firestore.StudentDoc(
+                id         = "${user!!.schoolId}_${user.userId}",
+                studentId  = user.userId,
+                userId     = user.userId,
+                schoolId   = user.schoolId,
+                name       = user.name,
+                className  = user.className,
+                section    = user.section,
+                rollNo     = user.rollNo,
+                fatherName = user.fatherName,
+                motherName = user.motherName,
+                phone      = user.phone,
+                parentDbKey= user.parentDbKey
+            )
+            val res = studentFirestoreRepo.findSiblings(primary)
+            val list = res.getOrNull().orEmpty().map { doc ->
+                SiblingSummary(
+                    studentId = doc.userId.ifBlank { doc.studentId }.ifBlank { doc.id },
+                    name      = doc.name,
+                    className = doc.className,
+                    section   = doc.section,
+                    rollNo    = doc.rollNo
+                )
+            }
+            _uiState.update { it.copy(siblings = list) }
+            Log.d("DashboardVM", "siblings=${list.size} for ${user.userId}")
+        } catch (e: Exception) {
+            Log.w("DashboardVM", "Sibling lookup failed", e)
+        }
+    }
 
-                    // Determine today's attendance from the current month summary
-                    val now = java.time.YearMonth.now()
-                    val currentMonthSummary = summaries.find {
-                        it.month.contains(now.month.name, ignoreCase = true) ||
-                            it.month.contains("${now.monthValue}", ignoreCase = false)
+    /**
+     * Switch the active student to one of the siblings. Saves the new
+     * User profile to DataStore so every screen reading
+     * `tokenManager.user` automatically sees the switch. A reload of
+     * dashboard data follows.
+     */
+    fun switchToSibling(studentId: String) {
+        if (studentId.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val result = studentFirestoreRepo.getStudent(studentId)
+                val doc = result.getOrNull() ?: run {
+                    _uiState.update { it.copy(errorMessage = "Couldn't load that child's profile.") }
+                    return@launch
+                }
+                val current = _uiState.value.user ?: User.empty()
+                // Rebuild the User with the sibling's details, keeping
+                // school + parent context from the signed-in account.
+                val next = current.copy(
+                    userId        = doc.userId.ifBlank { doc.studentId }.ifBlank { studentId },
+                    name          = doc.name,
+                    className     = doc.className,
+                    section       = doc.section,
+                    rollNo        = doc.rollNo,
+                    fatherName    = doc.fatherName,
+                    motherName    = doc.motherName,
+                    dob           = doc.dob,
+                    gender        = doc.gender,
+                    admissionDate = doc.admissionDate,
+                    profilePic    = doc.profilePic,
+                    email         = doc.email.ifBlank { current.email },
+                    phone         = current.phone // parent contact stays the same
+                )
+                tokenManager.saveUserDirect(next)
+                _uiState.update { it.copy(user = next) }
+                // Reload per-student data so KPI tiles reflect the new kid.
+                loadAttendance(next)
+                loadFees(next)
+                loadHomework(next)
+                loadTodaySchedule(next)
+                loadLatestResult(next)
+                loadNextPtm(next)
+            } catch (e: Exception) {
+                Log.e("DashboardVM", "switchToSibling failed", e)
+                _uiState.update { it.copy(errorMessage = e.message ?: "Failed to switch.") }
+            }
+        }
+    }
+
+    private suspend fun healUserProfileIfNeeded(user: User?): User? {
+        if (user == null) return null
+        // Always read the Firestore student doc on dashboard load — cheap
+        // single-doc read — so fields that can change admin-side (dob,
+        // className on promotion, etc.) stay fresh. Previously we gated
+        // on "if any field blank" which left cached DOB stale forever
+        // after admin edited it → birthday banner never appeared.
+        return try {
+            val result = studentFirestoreRepo.getStudent(user.userId)
+            val doc = result.getOrNull() ?: return user
+            var healed = user.copy(
+                className = user.className.ifBlank { doc.className },
+                section   = user.section.ifBlank   { doc.section   },
+                rollNo    = user.rollNo.ifBlank    { doc.rollNo    },
+                fatherName = user.fatherName.ifBlank { doc.fatherName },
+                motherName = user.motherName.ifBlank { doc.motherName },
+                // DOB always prefers Firestore's current value — admin edits
+                // propagate to the parent app on the next dashboard load.
+                dob       = if (doc.dob.isNotBlank()) doc.dob else user.dob
+            )
+            // Also heal school display name from Firestore schools collection
+            if (healed.schoolDisplayName.isBlank() && healed.schoolId.isNotBlank()) {
+                try {
+                    val schoolDoc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        .collection("schools").document(healed.schoolId).get().await()
+                    val schoolName = schoolDoc?.getString("name") ?: ""
+                    if (schoolName.isNotBlank()) {
+                        healed = healed.copy(schoolDisplayName = schoolName)
                     }
+                } catch (_: Exception) {}
+            }
+            if (healed != user) {
+                Log.d("DashboardVM", "Self-heal: cached user was incomplete, rewriting from Firestore (schoolName=${healed.schoolDisplayName})")
+                tokenManager.saveUserDirect(healed)
+            }
+            healed
+        } catch (e: Exception) {
+            Log.w("DashboardVM", "Self-heal failed, keeping cached user", e)
+            user
+        }
+    }
+
+    private suspend fun loadEvents() {
+        try {
+            val result = eventFirestoreRepo.getEvents()
+            val docs = result.getOrElse {
+                Log.w("DashboardVM", "Events load failed", it)
+                return
+            }
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                .format(java.util.Date())
+            val schoolEvents = docs
+                .filter { d ->
+                    val st = d.status.lowercase()
+                    if (st == "cancelled" || st == "completed") return@filter false
+                    val sd = d.startDate
+                    if (sd.isBlank()) true else sd >= today
+                }
+                .map { d ->
+                    // Admin writes docId as `{schoolId}_{eventId}`. Strip the
+                    // schoolId prefix so navigation passes the bare eventId
+                    // (EventFirestoreRepository.getEvent re-adds the prefix).
+                    val bareId = if (d.schoolId.isNotBlank() && d.id.startsWith("${d.schoolId}_")) {
+                        d.id.removePrefix("${d.schoolId}_")
+                    } else d.id
+                    Event(
+                        eventId = bareId,
+                        title = d.title,
+                        description = d.description,
+                        category = d.category,
+                        startDate = d.startDate,
+                        endDate = d.endDate,
+                        location = d.location,
+                        status = d.status
+                    )
+                }
+
+            // Merge upcoming PTMs into the same list with category="ptm"
+            // so the dashboard's Upcoming Events section surfaces them too.
+            // The dedicated PTM dashboard tile + Academics → PTM list still
+            // exist; this is the third surface that mirrors how parents
+            // mentally bucket "things at school I should attend".
+            val ptmEvents: List<Event> = try {
+                val user = tokenManager.user.firstOrNull()
+                val cls = user?.className.orEmpty()
+                val sec = user?.section.orEmpty()
+                if (cls.isBlank() || sec.isBlank()) emptyList()
+                else ptmFirestoreRepo.getUpcomingPtms(cls, sec).getOrNull().orEmpty().map { p ->
+                    Event(
+                        eventId      = p.ptmEventId.ifBlank { p.id.removePrefix("${p.schoolId}_") },
+                        title        = p.title.ifBlank { "Parent-Teacher Meeting" },
+                        description  = p.description,
+                        category     = "ptm",
+                        startDate    = p.date,
+                        endDate      = p.date,
+                        location     = p.location,
+                        status       = p.status
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w("DashboardVM", "PTM merge into upcoming events failed", e)
+                emptyList()
+            }
+
+            val upcoming = (schoolEvents + ptmEvents).sortedBy { it.startDate }
+            Log.d("DashboardVM", "Events loaded: events=${schoolEvents.size} ptms=${ptmEvents.size} upcoming=${upcoming.size}")
+            _uiState.update { it.copy(upcomingEvents = upcoming.take(5)) }
+        } catch (e: Exception) {
+            Log.w("DashboardVM", "Events load failed", e)
+        }
+    }
+
+    private suspend fun loadAttendance(user: User?) {
+        val studentId = user?.userId ?: return
+        try {
+            val result = attendanceFirestoreRepo.getAttendanceSummary(studentId)
+            result.fold(
+                onSuccess = { summaries ->
+                    val now = java.time.YearMonth.now()
+                    val canonicalKey = "%d-%02d".format(now.year, now.monthValue)
+                    val legacyLabel  = "${now.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)} ${now.year}"
+                    val currentMonthSummary = summaries.find {
+                        it.month == canonicalKey || it.month == legacyLabel
+                    }
+                    val prevYm = now.minusMonths(1)
+                    val prevCanonical = "%d-%02d".format(prevYm.year, prevYm.monthValue)
+                    val prevLegacy    = "${prevYm.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)} ${prevYm.year}"
+                    val prevMonthSummary = summaries.find {
+                        it.month == prevCanonical || it.month == prevLegacy
+                    }
+
+                    val currentPct = currentMonthSummary?.let { s ->
+                        val w = s.present + s.absent + s.leave + s.tardy
+                        if (w > 0) (s.present + s.tardy).toFloat() / w * 100f else 0f
+                    } ?: 0f
+                    val prevPct = prevMonthSummary?.let { s ->
+                        val w = s.present + s.absent + s.leave + s.tardy
+                        if (w > 0) (s.present + s.tardy).toFloat() / w * 100f else null
+                    }
+                    val change = if (prevPct != null && currentMonthSummary != null) {
+                        currentPct - prevPct
+                    } else null
+
                     val todayDay = java.time.LocalDate.now().dayOfMonth
                     val todayStatus = currentMonthSummary?.dayWise?.getOrNull(todayDay - 1)?.let { code ->
                         when (code) {
-                            'P' -> "Present"
-                            'A' -> "Absent"
-                            'L' -> "Leave"
-                            'H' -> "Holiday"
-                            'V' -> "Vacation"
-                            'T' -> "Trip"
+                            'P' -> "Present"; 'A' -> "Absent"; 'L' -> "Leave"
+                            'H' -> "Holiday"; 'V' -> "Vacation"; 'T' -> "Tardy"
                             else -> null
                         }
                     }
 
                     _uiState.update {
                         it.copy(
-                            attendancePercentage = overallPercent,
-                            todayAttendance = todayStatus
+                            attendancePercentage = currentPct,
+                            attendanceChange = change,
+                            todayAttendance = todayStatus,
+                            attendanceMonthSummary = currentMonthSummary
                         )
                     }
                 },
                 onFailure = { e ->
-                    Log.w("DashboardVM", "Firestore attendance failed, falling back to RTDB", e)
-                    loadAttendanceFromRtdb()
+                    Log.w("DashboardVM", "Firestore attendance failed", e)
                 }
             )
         } catch (e: Exception) {
-            Log.w("DashboardVM", "Firestore attendance exception, falling back to RTDB", e)
-            loadAttendanceFromRtdb()
+            Log.w("DashboardVM", "Firestore attendance exception", e)
         }
+    }
 
-        // ── Pending fees from Firestore ──
+    private suspend fun loadFees(user: User?) {
+        val studentId = user?.userId ?: return
         try {
             val pendingResult = feeFirestoreRepo.getPendingDemands(studentId)
             pendingResult.fold(
                 onSuccess = { demands ->
                     val totalPending = demands.sumOf { it.netAmount - it.paidAmount }
-                    _uiState.update { it.copy(pendingFeeAmount = totalPending) }
+                    _uiState.update {
+                        it.copy(pendingFeeAmount = totalPending, feesLoadFailed = false)
+                    }
                 },
                 onFailure = { e ->
-                    Log.w("DashboardVM", "Firestore fees failed, falling back to RTDB", e)
-                    loadFeesFromRtdb()
+                    // Critical: a silent failure here used to render
+                    // "All cleared" on the dashboard tile, misleading
+                    // parents into thinking no dues existed. Now we
+                    // flag the load failure so the tile shows a
+                    // "Tap to retry" state instead.
+                    Log.w("DashboardVM", "Firestore fees failed", e)
+                    _uiState.update { it.copy(feesLoadFailed = true) }
                 }
             )
         } catch (e: Exception) {
-            Log.w("DashboardVM", "Firestore fees exception, falling back to RTDB", e)
-            loadFeesFromRtdb()
+            Log.w("DashboardVM", "Firestore fees exception", e)
+            _uiState.update { it.copy(feesLoadFailed = true) }
         }
+    }
 
-        // ── Notices from Firestore ──
+    private suspend fun loadNotices() {
         try {
-            val circularsResult = communicationFirestoreRepo.getCirculars(limit = 3)
-            circularsResult.fold(
+            val result = communicationFirestoreRepo.getCirculars(limit = 3)
+            result.fold(
                 onSuccess = { circulars ->
                     val notices = circulars.map { doc ->
                         Notice(
@@ -188,105 +459,156 @@ class DashboardViewModel @Inject constructor(
                             category = doc.category,
                             priority = doc.priority,
                             attachmentUrl = doc.attachmentUrl,
-                            date = doc.sentAt?.toDate()?.let {
+                            date = doc.sentAt.toDateOrNull()?.let {
                                 java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(it)
                             } ?: "",
-                            timestamp = doc.sentAt?.toDate()?.time ?: 0L
+                            timestamp = doc.sentAt.toEpochMillisOrNull() ?: 0L
                         )
                     }
                     _uiState.update { it.copy(recentNotices = notices) }
                 },
                 onFailure = { e ->
-                    Log.w("DashboardVM", "Firestore notices failed, falling back to RTDB", e)
-                    loadNoticesFromRtdb()
+                    Log.w("DashboardVM", "Firestore notices failed", e)
                 }
             )
         } catch (e: Exception) {
-            Log.w("DashboardVM", "Firestore notices exception, falling back to RTDB", e)
-            loadNoticesFromRtdb()
+            Log.w("DashboardVM", "Firestore notices exception", e)
         }
+    }
 
-        // ── Homework count from Firestore ──
+    private suspend fun loadHomework(user: User?) {
+        val className = user?.className ?: return
+        val section = user.section
+        if (className.isBlank() || section.isBlank()) return
         try {
-            if (className.isNotBlank() && section.isNotBlank()) {
-                val hwResult = homeworkFirestoreRepo.getActiveHomework(className, section)
-                hwResult.fold(
-                    onSuccess = { homeworkDocs ->
-                        // All active homework without a submission is considered pending
-                        _uiState.update { it.copy(pendingHomeworkCount = homeworkDocs.size) }
-                    },
-                    onFailure = { e ->
-                        Log.w("DashboardVM", "Firestore homework failed, falling back to RTDB", e)
-                        loadHomeworkCountFromRtdb()
+            val result = homeworkFirestoreRepo.getActiveHomework(className, section)
+            result.fold(
+                onSuccess = { homeworkDocs ->
+                    // Sort by due date ascending so the most urgent shows first.
+                    // Items without a due date sink to the bottom.
+                    val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                        .format(java.util.Date())
+                    val sorted = homeworkDocs.sortedWith(
+                        compareBy(
+                            { it.dueDate.isBlank() },
+                            { it.dueDate.takeIf { d -> d.isNotBlank() } ?: "9999-12-31" }
+                        )
+                    ).filter { d -> d.dueDate.isBlank() || d.dueDate >= today }
+                    _uiState.update {
+                        it.copy(
+                            pendingHomeworkCount = sorted.size,
+                            homeworkPreview = sorted.take(5)
+                        )
                     }
-                )
-            } else {
-                loadHomeworkCountFromRtdb()
-            }
+                },
+                onFailure = { e ->
+                    Log.w("DashboardVM", "Firestore homework failed", e)
+                }
+            )
         } catch (e: Exception) {
-            Log.w("DashboardVM", "Firestore homework exception, falling back to RTDB", e)
-            loadHomeworkCountFromRtdb()
+            Log.w("DashboardVM", "Firestore homework exception", e)
         }
     }
 
-    // TODO: Remove RTDB fallback after Firestore validation
-    private suspend fun loadAttendanceFromRtdb() {
+    private suspend fun loadTodaySchedule(user: User?) {
+        val cls = user?.className ?: return
+        val sec = user.section
+        if (cls.isBlank() || sec.isBlank()) return
         try {
-            val summary = studentRepository.getDashboardSummary()
-            _uiState.update {
-                it.copy(
-                    todayAttendance = summary.todayAttendance,
-                    attendancePercentage = summary.monthlyAttendancePercent,
-                    attendanceChange = summary.attendanceChange
-                )
-            }
+            val result = timetableFirestoreRepo.getTodaySchedule(cls, sec)
+            result.fold(
+                onSuccess = { day ->
+                    Log.d("DashboardVM", "Today schedule: ${day.dayName} slots=${day.slots.size}")
+                    _uiState.update { it.copy(todaySchedule = day) }
+                },
+                onFailure = { e ->
+                    Log.w("DashboardVM", "Today schedule failed", e)
+                }
+            )
         } catch (e: Exception) {
-            _uiState.update {
-                it.copy(errorMessage = e.message ?: "Failed to load dashboard")
-            }
+            Log.w("DashboardVM", "Today schedule exception", e)
         }
     }
 
-    // TODO: Remove RTDB fallback after Firestore validation
-    private suspend fun loadFeesFromRtdb() {
+    private suspend fun loadNextPtm(user: User?) {
+        val cls = user?.className ?: return
+        val sec = user.section
+        if (cls.isBlank() || sec.isBlank()) return
         try {
-            val summary = studentRepository.getDashboardSummary()
-            _uiState.update { it.copy(pendingFeeAmount = summary.pendingFeeAmount) }
-        } catch (_: Exception) { }
+            val res = ptmFirestoreRepo.getUpcomingPtms(cls, sec)
+            res.fold(
+                onSuccess = { list ->
+                    val next = list.firstOrNull()
+                    Log.d("DashboardVM", "PTM next=${next?.ptmEventId ?: "none"} (${list.size} upcoming)")
+                    _uiState.update { it.copy(nextPtm = next) }
+                },
+                onFailure = { e -> Log.w("DashboardVM", "PTM load failed", e) }
+            )
+        } catch (e: Exception) {
+            Log.w("DashboardVM", "PTM load exception", e)
+        }
     }
 
-    // TODO: Remove RTDB fallback after Firestore validation
-    private suspend fun loadNoticesFromRtdb() {
+    private suspend fun loadLatestResult(user: User?) {
+        val sid = user?.userId ?: return
+        if (sid.isBlank()) return
         try {
-            val notices = noticeRepository.getNotices(limit = 3)
-            _uiState.update { it.copy(recentNotices = notices) }
-        } catch (_: Exception) { }
+            val result = examFirestoreRepo.getAllResults(sid)
+            result.fold(
+                onSuccess = { results ->
+                    // Pick the most recently computed result (computedAt desc).
+                    val latest = results.maxByOrNull { r ->
+                        when (val c = r.computedAt) {
+                            is com.google.firebase.Timestamp -> c.seconds
+                            is Long -> c / 1000L
+                            is Number -> c.toLong() / 1000L
+                            else -> 0L
+                        }
+                    }
+                    Log.d("DashboardVM", "Latest result: ${latest?.examName ?: "none"} (${results.size} total)")
+                    _uiState.update { it.copy(latestResult = latest) }
+                },
+                onFailure = { e ->
+                    Log.w("DashboardVM", "Latest result failed", e)
+                }
+            )
+        } catch (e: Exception) {
+            Log.w("DashboardVM", "Latest result exception", e)
+        }
     }
 
-    // TODO: Remove RTDB fallback after Firestore validation
-    private suspend fun loadHomeworkCountFromRtdb() {
-        try {
-            val allHw = homeworkRepository.observeAllHomework().firstOrNull() ?: emptyList()
-            val pending = allHw.count {
-                val s = it.studentStatus.lowercase().trim()
-                s == "pending" || s == "not submitted" || s == ""
-            }
-            _uiState.update { it.copy(pendingHomeworkCount = pending) }
-        } catch (_: Exception) { }
-    }
+    fun refresh() = loadDashboard()
 
-    fun markStoryViewed(storyId: String) {
+    /**
+     * Pull-to-refresh entry point. Holds the spinner for ≥ 600ms so
+     * fast refreshes don't look like nothing happened.
+     */
+    fun pullRefresh() {
         viewModelScope.launch {
-            storyRepository.markAsViewed(storyId)
-            // Refresh stories to update viewed status
+            Log.d("DashboardVM", "pullRefresh: STARTED")
+            _uiState.update { it.copy(isRefreshing = true) }
+            val startedAt = System.currentTimeMillis()
+            val minSpinnerMs = 600L
             try {
-                val stories = storyRepository.getAllActiveStories()
-                _uiState.update { it.copy(storyGroups = stories) }
-            } catch (_: Exception) { }
+                val initialUser = studentRepository.currentUser.firstOrNull()
+                val user = healUserProfileIfNeeded(initialUser)
+                _uiState.update { it.copy(user = user) }
+                loadAttendance(user)
+                loadFees(user)
+                loadNotices()
+                loadHomework(user)
+                loadEvents()
+                loadSiblings(user)
+                loadTodaySchedule(user)
+                loadLatestResult(user)
+                loadNextPtm(user)
+            } catch (e: Exception) {
+                Log.w("DashboardVM", "pullRefresh failed", e)
+            }
+            val elapsed = System.currentTimeMillis() - startedAt
+            if (elapsed < minSpinnerMs) kotlinx.coroutines.delay(minSpinnerMs - elapsed)
+            _uiState.update { it.copy(isRefreshing = false) }
+            Log.d("DashboardVM", "pullRefresh: DONE in ${System.currentTimeMillis() - startedAt}ms")
         }
-    }
-
-    fun refresh() {
-        loadDashboard()
     }
 }
