@@ -35,8 +35,12 @@ import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.Grading
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.CalendarMonth
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Celebration
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.ChevronRight
@@ -84,6 +88,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -103,8 +108,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import com.schoolsync.parent.R
+import android.widget.Toast
 import com.schoolsync.parent.data.model.Event
 import com.schoolsync.parent.data.model.Notice
+import com.schoolsync.parent.data.repository.firestore.MyTeachersFirestoreRepository
 import com.schoolsync.parent.ui.components.bouncyClickable
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.MetricLarge
@@ -276,6 +283,21 @@ fun DashboardScreen(
                                 onPtm = onNavigateToPtm
                             )
                             PulseStrip(pulses = pulses)
+                        }
+
+                        // Class Teacher chip — compact contact card placed
+                        // alongside the contextual hero strips so the parent
+                        // sees their primary point of contact without scrolling
+                        // past KPIs and lists. Hidden entirely when no Active
+                        // class teacher is assigned (loader returns null).
+                        uiState.classTeacher?.let { entry ->
+                            item("class_teacher_card") {
+                                ClassTeacherCard(
+                                    entry = entry,
+                                    subjects = uiState.classTeacherSubjects,
+                                    onMessage = onNavigateToMyTeachers
+                                )
+                            }
                         }
 
                         // What's Now — shows the current period live so the
@@ -622,6 +644,243 @@ private fun KpiGrid(
                     .bouncyClickable(onClick = onNotices)
             )
         }
+    }
+}
+
+@Composable
+private fun ClassTeacherCard(
+    entry: MyTeachersFirestoreRepository.TeacherEntry,
+    subjects: List<String>,
+    onMessage: () -> Unit,
+) {
+    val c = LocalAppColors.current
+    val context = LocalContext.current
+    val staff = entry.staff
+    val assignment = entry.assignment
+
+    // Display name prefers the live staff doc; assignment.teacherName is
+    // a snapshot fallback for the rare case the staff lookup failed.
+    val displayName = staff?.name?.takeIf { it.isNotBlank() }
+        ?: assignment.teacherName.ifBlank { "Class Teacher" }
+    val photo = staff?.profilePic.orEmpty()
+    val phoneRaw = staff?.phone.orEmpty().trim()
+
+    // Two-letter initials (first + last word) — feels more "named" than
+    // a single letter, and works for "Vipul Tiwari" → "VT".
+    val initials = run {
+        val parts = displayName.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        when {
+            parts.isEmpty() -> "?"
+            parts.size == 1 -> parts[0].take(2).uppercase()
+            else -> (parts.first().take(1) + parts.last().take(1)).uppercase()
+        }
+    }
+
+    // Class/section pulled from assignment, not staff profile.
+    val classSection = listOf(assignment.className, assignment.section)
+        .filter { it.isNotBlank() }
+        .joinToString(" / ")
+    val subjectsLine = subjects.joinToString(" • ")
+
+    // Wide-shallow rectangle: avatar (left) | info column (centre, weight=1) |
+    // action icons (right). Outer horizontal padding tightened from 16dp →
+    // 10dp so the card stretches further across the screen and reads
+    // distinctly as a horizontal strip rather than a square chip.
+    //
+    // Coloring: indigo palette (was teal accent). Card-local constants so
+    // the rest of the dashboard's accent system stays unchanged — only
+    // this card uses the indigo treatment so the class-teacher tile reads
+    // as visually pinned and distinct from the surrounding tiles.
+    val cardPrimary   = Color(0xFF4F46E5)   // indigo-600
+    val cardSecondary = Color(0xFF7C3AED)   // violet-600
+    val cardShape = RoundedCornerShape(18.dp)
+    val cardBrush = Brush.horizontalGradient(
+        colors = listOf(
+            cardPrimary.copy(alpha = 0.22f),
+            cardSecondary.copy(alpha = 0.10f),
+            cardPrimary.copy(alpha = 0.04f),
+        ),
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .clip(cardShape)
+            .background(cardBrush, cardShape)
+            .border(1.dp, cardPrimary.copy(alpha = 0.28f), cardShape)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Avatar — solid indigo fill so the colored circle anchors the card
+        // visually. White initials sit on top for high contrast.
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .background(cardPrimary),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (photo.isNotBlank()) {
+                AsyncImage(
+                    model = photo,
+                    contentDescription = displayName,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                )
+            } else {
+                Text(
+                    text = initials,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    letterSpacing = 0.5.sp,
+                )
+            }
+        }
+        Spacer(Modifier.width(11.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            // Solid indigo badge — clearer signal of role.
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(cardPrimary)
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            ) {
+                Text(
+                    text = "CLASS TEACHER",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    letterSpacing = 0.6.sp,
+                )
+            }
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = displayName,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = c.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // Class / section row — School icon (indigo) + class label.
+            if (classSection.isNotBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.School,
+                        contentDescription = null,
+                        tint = cardPrimary,
+                        modifier = Modifier.size(11.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = classSection,
+                        fontSize = 11.sp,
+                        color = c.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            // Dedicated subjects row — MenuBook icon (violet) + violet
+            // "Teaches:" lead-in.
+            if (subjectsLine.isNotBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                        contentDescription = null,
+                        tint = cardSecondary,
+                        modifier = Modifier.size(11.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "Teaches: ",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = cardSecondary,
+                    )
+                    Text(
+                        text = subjectsLine,
+                        fontSize = 11.sp,
+                        color = c.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+
+        // Right-side icon-only actions — solid-fill accent circles so they
+        // pop against the gradient backdrop. Call only renders when the
+        // staff doc has a phone; both honour the runtime active check
+        // (loader filters Inactive staff but a deactivation can race with
+        // a tap).
+        Spacer(Modifier.width(8.dp))
+        if (phoneRaw.isNotBlank()) {
+            ClassTeacherIconAction(
+                icon = Icons.Filled.Call,
+                accentBg = cardPrimary,
+                iconTint = Color.White,
+                label = "Call",
+                onClick = {
+                    val isActive = staff?.status?.equals("Active", ignoreCase = true) == true
+                    if (!isActive) {
+                        Toast.makeText(context, "Class teacher is not currently active.", Toast.LENGTH_SHORT).show()
+                        return@ClassTeacherIconAction
+                    }
+                    try {
+                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phoneRaw))
+                        context.startActivity(intent)
+                    } catch (_: Exception) {
+                        Toast.makeText(context, "Could not open dialer.", Toast.LENGTH_SHORT).show()
+                    }
+                },
+            )
+            Spacer(Modifier.width(6.dp))
+        }
+        ClassTeacherIconAction(
+            icon = Icons.Filled.Chat,
+            accentBg = cardSecondary,
+            iconTint = Color.White,
+            label = "Message",
+            onClick = {
+                val isActive = staff?.status?.equals("Active", ignoreCase = true) == true
+                if (isActive) {
+                    onMessage()
+                } else {
+                    Toast.makeText(context, "Class teacher is not currently active.", Toast.LENGTH_SHORT).show()
+                }
+            },
+        )
+    }
+}
+
+/** Compact filled-circle icon button for the class-teacher card. */
+@Composable
+private fun ClassTeacherIconAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    accentBg: Color,
+    iconTint: Color,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(accentBg)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = iconTint,
+            modifier = Modifier.size(16.dp),
+        )
     }
 }
 
@@ -2237,7 +2496,8 @@ fun AcademicsHubContent(
     onNavigateToEvents: () -> Unit,
     onNavigateToGallery: () -> Unit = {},
     onNavigateToLibrary: () -> Unit = {},
-    onNavigateToPtmList: () -> Unit = {}
+    onNavigateToPtmList: () -> Unit = {},
+    onNavigateToLessons: () -> Unit = {}
 ) {
     // Wrap the menu items in a vertical scroll so the list always reaches
     // every entry on smaller phones (e.g. anything below 720dp tall) — adding
@@ -2264,6 +2524,13 @@ fun AcademicsHubContent(
         AcademicsMenuItem(Icons.AutoMirrored.Filled.Grading,       stringResource(R.string.drawer_results),    stringResource(R.string.academics_results_subtitle),    c.info,    onNavigateToResults)
         AcademicsMenuItem(Icons.AutoMirrored.Filled.MenuBook,      stringResource(R.string.drawer_homework),   stringResource(R.string.academics_homework_subtitle),   c.warning, onNavigateToHomework)
         AcademicsMenuItem(Icons.Filled.Schedule,      stringResource(R.string.drawer_timetable),  stringResource(R.string.academics_timetable_subtitle),  c.accent,  onNavigateToTimetable)
+        AcademicsMenuItem(
+            Icons.AutoMirrored.Filled.EventNote,
+            "Daily Lessons",
+            "Today's topics, notes & subject progress",
+            c.teal,
+            onNavigateToLessons
+        )
         AcademicsMenuItem(Icons.AutoMirrored.Filled.EventNote,     stringResource(R.string.drawer_events),     stringResource(R.string.academics_events_subtitle),     c.attVacation, onNavigateToEvents)
         AcademicsMenuItem(Icons.Filled.Collections,   stringResource(R.string.drawer_gallery),    stringResource(R.string.academics_gallery_subtitle),    c.coral,   onNavigateToGallery)
         AcademicsMenuItem(Icons.Filled.LocalLibrary,  stringResource(R.string.drawer_library),    stringResource(R.string.academics_library_subtitle),    c.purple,  onNavigateToLibrary)

@@ -53,6 +53,10 @@ class TokenManager @Inject constructor(
         val SESSION = stringPreferencesKey("session")
         val SCHOOL_CODE = stringPreferencesKey("school_code")  // Firebase school key
         val THEME_MODE = stringPreferencesKey("theme_mode")  // "system", "light", "dark"
+        // Phase A — persisted across app restarts so the force-change
+        // gate survives a cold-restart of the app while the flag is still
+        // true on the Firestore students doc.
+        val MUST_CHANGE_PASSWORD = androidx.datastore.preferences.core.booleanPreferencesKey("must_change_password")
     }
 
     // ── Device ID Flow ──────────────────────────────────────────────────
@@ -79,7 +83,8 @@ class TokenManager @Inject constructor(
             admissionDate = prefs[Keys.ADMISSION_DATE] ?: "",
             parentDbKey = prefs[Keys.PARENT_DB_KEY] ?: "",
             session = prefs[Keys.SESSION] ?: "",
-            schoolCode = prefs[Keys.SCHOOL_CODE] ?: ""
+            schoolCode = prefs[Keys.SCHOOL_CODE] ?: "",
+            mustChangePassword = prefs[Keys.MUST_CHANGE_PASSWORD] ?: false,
         )
     }
 
@@ -143,6 +148,7 @@ class TokenManager @Inject constructor(
             prefs[Keys.PARENT_DB_KEY] = user.parentDbKey
             prefs[Keys.SESSION] = user.session
             prefs[Keys.SCHOOL_CODE] = user.schoolCode
+            prefs[Keys.MUST_CHANGE_PASSWORD] = user.mustChangePassword
         }
     }
 

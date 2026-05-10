@@ -115,9 +115,13 @@ fun AttendanceScreen(
             colors = colors
         )
 
+        // weight(1f) so the pull-refresh gesture surface fills exactly the
+        // remaining column height. Without it the inner fillMaxSize Box can
+        // overlap the header and the indicator drifts off-screen.
         com.schoolsync.parent.ui.common.PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
-            onRefresh = { viewModel.pullRefresh() }
+            onRefresh = { viewModel.pullRefresh() },
+            modifier = Modifier.weight(1f).fillMaxWidth()
         ) {
         if (uiState.isLoading && uiState.attendanceData == null) {
             Box(

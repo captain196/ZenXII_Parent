@@ -206,10 +206,38 @@ private fun HomeworkListPage(
 
         Spacer(modifier = Modifier.height(4.dp))
 
+        // ── Live-listener error banner (top, persistent) ────────────────
+        // Lives above the list so the user sees it immediately on a stale-
+        // data condition (network drop, permission denied, missing index).
+        // Previously the banner was below the LazyColumn — a fillMaxSize
+        // list pushed it off-screen.
+        uiState.errorMessage?.let { error ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(c.errorBg)
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = "⚠ $error — data shown may be out of date.",
+                    color = c.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+
         // ── Content ─────────────────────────────────────────────────────
+        // PullToRefreshBox gets weight(1f) so the gesture surface fills
+        // exactly the remaining column height (without it the inner
+        // fillMaxSize Box wants the full column height and the pull-down
+        // indicator can land off-screen).
         com.schoolsync.parent.ui.common.PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
-            onRefresh = onPullRefresh
+            onRefresh = onPullRefresh,
+            modifier = Modifier.weight(1f).fillMaxWidth()
         ) {
             if (uiState.isLoading) {
                 Box(
@@ -218,40 +246,46 @@ private fun HomeworkListPage(
                 ) {
                     CircularProgressIndicator(color = c.accent, modifier = Modifier.size(40.dp))
                 }
-            } else if (uiState.filteredHomework.isEmpty()) {
-                EmptyHomeworkState()
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    itemsIndexed(
-                        items = uiState.filteredHomework,
-                        key = { _, it -> it.hwId.ifBlank { it.homeworkId } }
-                    ) { index, item ->
-                        Box(modifier = Modifier.staggerIn(index)) {
-                            HomeworkCard(item = item, onClick = { onHomeworkClick(item) })
+                com.schoolsync.parent.ui.common.SwipeablePagerTabs(
+                    tabs = homeworkTabKeys,
+                    selectedTab = uiState.selectedTab,
+                    onTabChange = onTabChange,
+                    modifier = Modifier.fillMaxSize()
+                ) { tabKey ->
+                    // Each page filters allHomework locally. remember()
+                    // caches per (data, tab, subject) so the pager's
+                    // adjacent-page preload doesn't recompute.
+                    val pageItems = remember(uiState.allHomework, tabKey, uiState.selectedSubject) {
+                        HomeworkViewModel.filterForTab(
+                            uiState.allHomework,
+                            tabKey,
+                            uiState.selectedSubject
+                        )
+                    }
+                    if (pageItems.isEmpty()) {
+                        EmptyHomeworkState()
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            itemsIndexed(
+                                items = pageItems,
+                                key = { _, it -> it.hwId.ifBlank { it.homeworkId } }
+                            ) { index, item ->
+                                Box(modifier = Modifier.staggerIn(index)) {
+                                    HomeworkCard(item = item, onClick = { onHomeworkClick(item) })
+                                }
+                            }
+                            item { Spacer(modifier = Modifier.height(8.dp)) }
                         }
                     }
-                    item { Spacer(modifier = Modifier.height(8.dp)) }
                 }
             }
         }
 
-        // ── Error ───────────────────────────────────────────────────────
-        uiState.errorMessage?.let { error ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(c.errorBg)
-                    .padding(12.dp)
-            ) {
-                Text(text = error, color = c.error, style = MaterialTheme.typography.bodySmall)
-            }
-        }
     }
 }
 
@@ -265,6 +299,10 @@ private val tabs = listOf(
     TabDef("submitted", "Submitted"),
     TabDef("graded", "Graded")
 )
+
+// Tab keys handed to the SwipeablePagerTabs pager — derived from `tabs`
+// so the chip row and pager can never drift out of sync.
+private val homeworkTabKeys: List<String> = tabs.map { it.key }
 
 @Composable
 private fun StatusTabChips(
@@ -346,6 +384,26 @@ private fun SubjectFilterChips(
     onSelect: (String?) -> Unit
 ) {
     val c = LocalAppColors.current
+    // Defensive normalisation \u2014 collapse common spelling variants from
+    // legacy free-text data so we don't render "Mathemactics" + "Mathematics"
+    // as separate chips. The data cleanup script handles the docs themselves;
+    // this is the second line of defence in case any legacy or in-flight
+    // homework still carries a typo.
+    val canonicalSubjects = subjects
+        .asSequence()
+        .map { canonicalSubjectName(it) }
+        .filter { it.isNotBlank() }
+        .distinctBy { it.lowercase() }
+        .sortedBy { it.lowercase() }
+        .toList()
+
+    // Hide the entire subject row if there's only one subject in the list \u2014
+    // an "All / Mathematics" choice is meaningless when Mathematics is the
+    // only option, and the empty-looking "All" duplicates the status row's
+    // All chip above. The row reappears automatically as soon as a second
+    // subject shows up.
+    if (canonicalSubjects.size <= 1) return
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -361,7 +419,7 @@ private fun SubjectFilterChips(
             color = c.accent,
             onClick = { onSelect(null) }
         )
-        subjects.forEach { subject ->
+        canonicalSubjects.forEach { subject ->
             val info = getSubjectInfo(subject)
             val color = resolveSubjectColor(info.colorKey, c)
             SubjectChip(
@@ -372,6 +430,23 @@ private fun SubjectFilterChips(
                 onClick = { onSelect(subject) }
             )
         }
+    }
+}
+
+/**
+ * Collapses common subject-name typos and aliases to a canonical form so
+ * the parent app's subject filter doesn't show duplicates from legacy
+ * free-text homework. Authoritative data is fixed by the admin/teacher
+ * dropdown + one-shot cleanup scripts; this function is the read-side
+ * safety net.
+ */
+private fun canonicalSubjectName(raw: String): String {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty()) return ""
+    return when (trimmed.lowercase()) {
+        "maths", "math", "mathmatics", "mathemactics", "mathematicss" -> "Mathematics"
+        "sci"                                                          -> "Science"
+        else -> trimmed
     }
 }
 
@@ -520,6 +595,23 @@ private fun HomeworkCard(item: Homework, onClick: () -> Unit) {
                             color = c.accent
                         )
                     }
+                }
+
+                // Teacher mark fallback \u2014 surfaces a teacher's evaluation
+                // when the student didn't submit work themselves.
+                if (item.hasTeacherMark && item.studentStatus == "pending") {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    // Trim remark before isNotBlank() so a whitespace-only
+                    // value doesn't render as "score: 7 \u00B7 " (trailing dot
+                    // with invisible body).
+                    val trimmedRemark = item.teacherMarkRemark.trim()
+                    Text(
+                        text = "Evaluated (no submission) \u2014 score: ${item.teacherMarkScore}" +
+                               if (trimmedRemark.isNotEmpty()) " \u00B7 $trimmedRemark" else "",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = c.warning
+                    )
                 }
             }
 
@@ -758,9 +850,17 @@ private fun HomeworkDetailPage(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     homework.attachments.forEach { attachment ->
-                        val fileName = attachment.substringAfterLast("/")
-                            .substringBefore("?")
-                            .ifBlank { homework.attachmentName.ifBlank { "Attachment" } }
+                        // Heuristic: pull the last path segment, strip the
+                        // query string, and only trust it if it actually
+                        // looks like a filename (has a "."). Otherwise the
+                        // path-less URL "https://example.com" would surface
+                        // "com" as the attachment label.
+                        val rawTail = attachment.substringAfterLast("/").substringBefore("?")
+                        val fileName = when {
+                            rawTail.isBlank() -> homework.attachmentName.ifBlank { "Attachment" }
+                            !rawTail.contains('.') -> homework.attachmentName.ifBlank { "Attachment" }
+                            else -> rawTail
+                        }
                         val isPdf = fileName.endsWith(".pdf", ignoreCase = true)
 
                         Row(
@@ -1085,9 +1185,12 @@ private fun SubmitHomeworkDialog(
             }
         },
         confirmButton = {
+            // Trim once — same value gets sent and gates the button so a
+            // whitespace-only submission can't slip through.
+            val trimmed = text.trim()
             androidx.compose.material3.Button(
-                onClick = { onSubmit(text) },
-                enabled = !isSubmitting,
+                onClick = { onSubmit(trimmed) },
+                enabled = !isSubmitting && trimmed.isNotEmpty(),
                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                     containerColor = c.accent
                 ),

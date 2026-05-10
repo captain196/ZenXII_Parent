@@ -33,7 +33,11 @@ data class Homework(
     val score: Int = -1,                 // -1 = not graded
     val totalMarks: Int = 10,
     val grade: String = "",
-    val feedback: String = ""
+    val feedback: String = "",
+    // ── teacherMark fallback (no submission was made) ──
+    val hasTeacherMark: Boolean = false,
+    val teacherMarkScore: Int = -1,
+    val teacherMarkRemark: String = ""
 ) {
     companion object {
         fun fromMap(homeworkId: String, data: Map<String, Any?>): Homework {

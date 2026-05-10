@@ -67,7 +67,7 @@ import com.schoolsync.parent.ui.theme.gradientBackground
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (mustChangePassword: Boolean) -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -77,7 +77,7 @@ fun LoginScreen(
     val showDevSettings = showDevSettingsState.value
 
     LaunchedEffect(uiState.loginSuccess) {
-        if (uiState.loginSuccess) onLoginSuccess()
+        if (uiState.loginSuccess) onLoginSuccess(uiState.mustChangePassword)
     }
 
     // Hidden dev override dialog — long-press the SchoolSync title to

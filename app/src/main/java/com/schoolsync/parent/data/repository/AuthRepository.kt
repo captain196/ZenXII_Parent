@@ -77,7 +77,28 @@ class AuthRepository @Inject constructor(
                 ?: loadProfileFromRtdb(userId, schoolId, schoolCode, parentDbKey, role)
                 ?: return AuthResult.Error("Student profile not found")
 
-            Log.d(TAG, "Profile loaded: name=${user.name}, source=${if (user.profilePic.isNotBlank()) "Firestore" else "RTDB"}")
+            Log.d(TAG, "Profile loaded: name=${user.name}, source=${if (user.profilePic.isNotBlank()) "Firestore" else "RTDB"}, mustChangePassword=${user.mustChangePassword}, status=${user.status}")
+
+            // ── B2 — Status gate ────────────────────────────────────
+            // Reject login for any student whose Firestore doc isn't
+            // status='Active' (TC issued, withdrawn, soft-deleted, etc).
+            // Pre-fix, a withdrawn student's parent could keep logging
+            // in indefinitely on cached credentials and continue to
+            // see fees / attendance / leave forms.
+            //
+            // We sign the Firebase Auth session OUT before returning so
+            // the credentials don't auto-rehydrate on next app open —
+            // a re-activated student (cancel_tc / Inactive→Active) gets
+            // a clean re-login.
+            if (!user.status.equals("Active", ignoreCase = true)) {
+                Log.w(TAG, "Login blocked — student status='${user.status}' for $userId")
+                try { firebaseAuthManager.signOut() } catch (_: Exception) {}
+                return AuthResult.Error(
+                    "Your student account is no longer active (status: ${user.status}). " +
+                    "Please contact the school office.",
+                    code = 403
+                )
+            }
 
             // ── Step 4: Save to TokenManager ────────────────────────
             tokenManager.saveUserDirect(user)
@@ -174,7 +195,9 @@ class AuthRepository @Inject constructor(
                 admissionDate = doc.admissionDate,
                 parentDbKey = parentDbKey,
                 session = doc.session,
-                schoolCode = schoolCode
+                schoolCode = schoolCode,
+                mustChangePassword = doc.mustChangePassword,
+                status = doc.status.ifBlank { "Active" },
             )
         } catch (e: Exception) {
             Log.w(TAG, "Firestore profile read failed for $userId", e)
@@ -243,7 +266,8 @@ class AuthRepository @Inject constructor(
 
     suspend fun changePassword(currentPassword: String, newPassword: String): AuthResult<String> {
         return try {
-            val userId = tokenManager.user.firstOrNull()?.userId
+            val cachedUser = tokenManager.user.firstOrNull()
+            val userId = cachedUser?.userId
             if (!userId.isNullOrBlank() && currentPassword.isNotBlank()) {
                 try {
                     firebaseAuthManager.signInWithEmailAndPassword(userId, currentPassword)
@@ -252,6 +276,38 @@ class AuthRepository @Inject constructor(
                 }
             }
             firebaseAuthManager.changePassword(newPassword)
+
+            // Phase A — clear `mustChangePassword` on the students doc so
+            // the next login lands on Dashboard directly. Best-effort: a
+            // failure here doesn't block the password change itself.
+            //
+            // We deliberately do NOT mirror the new password to a
+            // Firestore field. Firebase Auth has it securely (hashed);
+            // duplicating plaintext into Firestore would create an
+            // unnecessary leak surface. Admin can recover credentials
+            // via the enrollment SMS / forgot-password flow if needed.
+            val schoolId = cachedUser?.schoolId.orEmpty()
+            if (!userId.isNullOrBlank() && schoolId.isNotBlank()) {
+                try {
+                    firestoreService.updateDocument(
+                        Constants.Firestore.STUDENTS,
+                        "${schoolId}_${userId}",
+                        mapOf(
+                            "mustChangePassword" to false,
+                            "updatedAt" to java.time.OffsetDateTime.now().toString(),
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to clear mustChangePassword flag", e)
+                }
+                // Mirror to the cached user profile so MainActivity /
+                // dashboard see the cleared flag without a full re-login.
+                if (cachedUser != null && cachedUser.mustChangePassword) {
+                    try {
+                        tokenManager.saveUserDirect(cachedUser.copy(mustChangePassword = false))
+                    } catch (_: Exception) { /* best-effort */ }
+                }
+            }
             AuthResult.Success("Password changed successfully")
         } catch (e: Exception) {
             AuthResult.Error(e.message ?: "Failed to change password")

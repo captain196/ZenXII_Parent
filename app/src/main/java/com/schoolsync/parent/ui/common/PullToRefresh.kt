@@ -24,6 +24,7 @@ import com.schoolsync.parent.ui.theme.LocalAppColors
 fun PullToRefreshBox(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxSize(),
     content: @Composable () -> Unit
 ) {
     val state = rememberPullRefreshState(
@@ -31,7 +32,7 @@ fun PullToRefreshBox(
         onRefresh = onRefresh
     )
     val c = LocalAppColors.current
-    Box(modifier = Modifier.fillMaxSize().pullRefresh(state)) {
+    Box(modifier = modifier.pullRefresh(state)) {
         content()
         PullRefreshIndicator(
             refreshing = isRefreshing,

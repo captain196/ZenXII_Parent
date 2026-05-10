@@ -23,7 +23,12 @@ data class LoginUiState(
     val passwordVisible: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val loginSuccess: Boolean = false
+    val loginSuccess: Boolean = false,
+    /** Phase A — true when the just-logged-in user has the
+     *  `mustChangePassword` flag set on their students doc. The screen
+     *  routes to a force-change-password destination instead of the
+     *  normal Main destination when this is true. */
+    val mustChangePassword: Boolean = false,
 )
 
 @HiltViewModel
@@ -74,7 +79,14 @@ class LoginViewModel @Inject constructor(
 
             when (val result = authRepository.login(state.userId, state.password, deviceId)) {
                 is AuthResult.Success -> {
-                    _uiState.update { it.copy(isLoading = false, loginSuccess = true) }
+                    val mustChange = result.data.mustChangePassword
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            loginSuccess = true,
+                            mustChangePassword = mustChange,
+                        )
+                    }
                 }
                 is AuthResult.Error -> {
                     _uiState.update {

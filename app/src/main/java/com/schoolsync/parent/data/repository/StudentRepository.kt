@@ -1,6 +1,7 @@
 package com.schoolsync.parent.data.repository
 
 import android.util.Log
+import com.google.firebase.firestore.Query
 import com.schoolsync.parent.data.firebase.FirebaseService
 import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
@@ -18,13 +19,16 @@ import java.util.Calendar
 /**
  * Repository for student profile and dashboard aggregation.
  *
- * Student profile — Firestore-first with RTDB fallback (Phase 2):
- *   PRIMARY:  Firestore `students/{schoolId}_{studentId}`
- *   FALLBACK: RTDB `Users/Parents/{parentDbKey}/{studentId}/`
+ * Student profile — Firestore-only.
+ *   Source: Firestore `students/{schoolId}_{studentId}`
  *
- * The fallback exists because some older students may not yet have their
- * Firestore mirror populated. It will be removed in Phase 3 once every
- * student record is confirmed migrated.
+ * The previous RTDB fallback at `Users/Parents/{parentDbKey}/{studentId}/`
+ * was removed per the project's absolute NO-RTDB policy (P0c migration).
+ * Every student profile that the admin panel writes lands in Firestore via
+ * Entity_firestore_sync::syncStudent — there is no scenario where a real
+ * student exists in RTDB but not Firestore. If Firestore returns nothing,
+ * the student genuinely does not exist (or the user is signed into the
+ * wrong school) and the caller should treat that as the empty case.
  */
 @Singleton
 class StudentRepository @Inject constructor(
@@ -41,72 +45,60 @@ class StudentRepository @Inject constructor(
     val currentUser: Flow<User> = tokenManager.user
 
     /**
-     * Fetch the student's full profile.
-     * Tries Firestore first; falls back to RTDB if Firestore is empty or fails.
+     * Fetch the student's full profile from Firestore.
      *
-     * Public signature preserved for caller compatibility — still returns a
-     * Map<String, Any?> shaped like the RTDB node so existing decoders work
-     * against either source.
+     * Returns the doc as a Map<String, Any?> for caller compatibility (the
+     * dashboard / profile decoders shape themselves around the same keys
+     * the admin panel writes). Returns an empty map when:
+     *   - schoolId is not yet known (signed-out / pre-init state)
+     *   - the Firestore read fails (offline / permission / transient)
+     *   - the doc genuinely does not exist
+     *
+     * The `parentDbKey` parameter is retained for API compatibility — it is
+     * no longer used for any RTDB lookup but kept so callers don't have to
+     * change their call sites.
      */
+    @Suppress("UNUSED_PARAMETER")
     suspend fun fetchStudentProfile(parentDbKey: String, studentId: String): Map<String, Any?> {
         val schoolId = tokenManager.user.firstOrNull()?.schoolId ?: ""
-
-        if (schoolId.isNotBlank()) {
-            try {
-                val fsDocId = "${schoolId}_$studentId"
-                val fsMap = firestoreService.getDocumentMap(Constants.Firestore.STUDENTS, fsDocId)
-                if (!fsMap.isNullOrEmpty()) {
-                    Log.d(TAG, "Firestore: loaded student $studentId")
-                    return fsMap
-                }
-                Log.d(TAG, "Firestore empty for student $studentId; falling back to RTDB")
-            } catch (e: Exception) {
-                Log.w(TAG, "Firestore read failed for student $studentId; falling back to RTDB", e)
-            }
-        } else {
-            Log.d(TAG, "schoolId unavailable; reading student $studentId from RTDB")
+        if (schoolId.isBlank()) {
+            Log.d(TAG, "fetchStudentProfile: schoolId unavailable for $studentId")
+            return emptyMap()
         }
-
-        val rtdbPath = Constants.Firebase.studentProfilePath(parentDbKey, studentId)
-        return firebaseService.readMap(rtdbPath)
+        return try {
+            val fsDocId = "${schoolId}_$studentId"
+            val fsMap = firestoreService.getDocumentMap(Constants.Firestore.STUDENTS, fsDocId)
+            if (fsMap.isNullOrEmpty()) {
+                Log.d(TAG, "Firestore: no doc for student $studentId")
+                emptyMap()
+            } else {
+                fsMap
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Firestore read failed for student $studentId", e)
+            emptyMap()
+        }
     }
 
     /**
-     * Observe the student's profile for real-time changes.
+     * Observe the student's profile for real-time changes via Firestore.
      *
-     * Strategy:
-     *   1. If schoolId is known, subscribe to the Firestore doc. Each snapshot
-     *      is emitted as a Map. If the Firestore doc is missing, that snapshot
-     *      triggers a one-shot RTDB read and emits that instead.
-     *   2. If schoolId is unavailable, degrade to the pure-RTDB observable.
-     *
-     * The fallback is per-emission, not per-subscription — so a student whose
-     * Firestore mirror lands after the app opens will transparently start
-     * receiving Firestore updates without any reconnection.
+     * Emits the doc data on every snapshot. Emits an empty map when the
+     * doc does not exist or schoolId is not yet known. No RTDB fallback —
+     * the admin panel writes Firestore as the source of truth.
      */
+    @Suppress("UNUSED_PARAMETER")
     fun observeStudentProfile(parentDbKey: String, studentId: String): Flow<Map<String, Any?>> = flow {
         val schoolId = tokenManager.user.firstOrNull()?.schoolId ?: ""
-        val rtdbPath = Constants.Firebase.studentProfilePath(parentDbKey, studentId)
-
         if (schoolId.isBlank()) {
-            firebaseService.observeMap(rtdbPath).collect { emit(it) }
+            emit(emptyMap())
             return@flow
         }
 
         val fsDocId = "${schoolId}_$studentId"
         firestoreService.observeDocument(Constants.Firestore.STUDENTS, fsDocId).collect { snapshot ->
             val fsMap = snapshot?.data
-            if (fsMap != null && fsMap.isNotEmpty()) {
-                emit(fsMap)
-            } else {
-                // Firestore doc missing — one-shot RTDB read for this emission
-                try {
-                    emit(firebaseService.readMap(rtdbPath))
-                } catch (e: Exception) {
-                    Log.w(TAG, "RTDB fallback read failed for student $studentId", e)
-                    emit(emptyMap())
-                }
-            }
+            emit(if (fsMap != null && fsMap.isNotEmpty()) fsMap else emptyMap())
         }
     }
 
@@ -188,10 +180,15 @@ class StudentRepository @Inject constructor(
         // Count recent notices (last 5)
         var recentNoticeCount = 0
         try {
-            val noticesPath = Constants.Firebase.noticesPath(user.schoolCode)
-            val notices = firebaseService.readChildrenLimited(noticesPath, 5)
-            recentNoticeCount = notices.size
-        } catch (_: Exception) {}
+            val snapshot = firestoreService.queryDocuments(Constants.Firestore.NOTICES_FS) { ref ->
+                ref.whereEqualTo("schoolId", user.schoolCode)
+                    .orderBy("sentAt", Query.Direction.DESCENDING)
+                    .limit(5)
+            }
+            recentNoticeCount = snapshot.size()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to count recent notices", e)
+        }
 
         val attendanceChange = if (prevMonthPercentage != null && monthlyPercentage > 0f) {
             monthlyPercentage - prevMonthPercentage

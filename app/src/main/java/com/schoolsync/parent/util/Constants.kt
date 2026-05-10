@@ -287,6 +287,13 @@ object Constants {
         const val PTM_BOOKINGS = "ptmBookings"
         const val MESSAGE_TEMPLATES = "messageTemplates"
 
+        // Phase 6/7/8: Academic Planner
+        const val LESSON_PLANS = "lessonPlans"
+        const val SUBJECT_PLAN_PROGRESS = "subjectPlanProgress"
+
+        // Homework — teacher evaluations of non-submitters
+        const val TEACHER_MARKS = "teacherMarks"
+
         // Transport
         const val ROUTES = "routes"
         const val VEHICLES = "vehicles"

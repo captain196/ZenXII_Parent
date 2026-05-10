@@ -1,6 +1,12 @@
 package com.schoolsync.parent.ui.fees
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
@@ -79,9 +85,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -424,6 +432,7 @@ fun FeesScreen(
                             PendingFeesContent(
                                 pendingMonths = overview.pendingFees.pendingMonths,
                                 paymentInProgress = uiState.paymentInProgress,
+                                isPaymentOverlayActive = uiState.isPaymentOverlayActive,
                                 selectedMonthsState = uiState.selectedMonths,
                                 pendingConfirmMonths = uiState.pendingConfirmMonths,
                                 onToggleMonth = { m, list -> viewModel.toggleMonth(m, list) },
@@ -680,6 +689,11 @@ private fun FeeStructureCard(item: FeeHead) {
 private fun PendingFeesContent(
     pendingMonths: List<PendingMonth>,
     paymentInProgress: Boolean = false,
+    /** True while the global PaymentFlowOverlay is covering the screen
+     *  (PaymentSession Verifying / Confirming). The Pay button stays
+     *  disabled — the overlay is the canonical processing surface, so
+     *  we suppress this row's redundant in-button spinner + dots. */
+    isPaymentOverlayActive: Boolean = false,
     selectedMonthsState: List<String> = emptyList(),
     /** Months that just completed Razorpay but whose server-side
      *  pipeline is still running. Drawn with a "Processing…" chip so the
@@ -899,13 +913,33 @@ private fun PendingFeesContent(
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = c.accent)
                     ) {
-                        Icon(Icons.Filled.Payment, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            if (paymentInProgress) "Processing..." else "Pay Selected",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                        // While the full-screen PaymentVerifyScreen is up
+                        // (Verifying / Confirming), the overlay owns the
+                        // processing UX — no need to also animate a
+                        // spinner + dots here behind it. The button
+                        // remains disabled either way via paymentInProgress.
+                        val showInButtonSpinner = paymentInProgress && !isPaymentOverlayActive
+                        if (showInButtonSpinner) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Processing${rememberAnimatedDots()}",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            Icon(Icons.Filled.Payment, null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "Pay Selected",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                     OutlinedButton(
                         onClick = {
@@ -1046,6 +1080,23 @@ private fun PendingFeesContent(
     }
 }
 
+/**
+ * Cycles "" → "." → ".." → "..." every 400ms. Use as a live suffix
+ * on a "Processing" label so users see progress while the verify
+ * round-trip is in flight (Razorpay → backend → Firestore).
+ */
+@Composable
+private fun rememberAnimatedDots(): String {
+    var dots by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(400)
+            dots = (dots + 1) % 4
+        }
+    }
+    return ".".repeat(dots)
+}
+
 @Composable
 private fun PendingFeeCard(
     month: PendingMonth,
@@ -1115,11 +1166,27 @@ private fun PendingFeeCard(
                         .background(statusColor.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
+                    val iconModifier = if (isProcessing) {
+                        val infiniteTransition =
+                            rememberInfiniteTransition(label = "fee-sync")
+                        val rotation by infiniteTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 360f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(1000, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            ),
+                            label = "fee-sync-rotation"
+                        )
+                        Modifier.size(18.dp).rotate(rotation)
+                    } else {
+                        Modifier.size(18.dp)
+                    }
                     Icon(
                         imageVector = statusIcon,
                         contentDescription = null,
                         tint = statusColor,
-                        modifier = Modifier.size(18.dp)
+                        modifier = iconModifier
                     )
                 }
                 Spacer(modifier = Modifier.width(10.dp))
@@ -1161,14 +1228,15 @@ private fun PendingFeeCard(
                             }
                         }
                     }
+                    val statusLabel = when {
+                        isProcessing -> "Processing${rememberAnimatedDots()}"
+                        isPaid -> "Paid"
+                        isPartial -> "Partially Paid"
+                        isYearly -> "One-time · Due"
+                        else -> "Due"
+                    }
                     Text(
-                        text = when {
-                            isProcessing -> "Processing…"
-                            isPaid -> "Paid"
-                            isPartial -> "Partially Paid"
-                            isYearly -> "One-time · Due"
-                            else -> "Due"
-                        },
+                        text = statusLabel,
                         style = MaterialTheme.typography.labelSmall,
                         color = statusColor,
                         fontWeight = FontWeight.Medium

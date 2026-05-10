@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -115,6 +116,82 @@ class HomeworkFirestoreRepository @Inject constructor(
     }
 
     /**
+     * Bulk-fetch every submission this student has made, keyed by homeworkId.
+     * One indexed query replaces the per-homework getSubmissionStatus N+1
+     * pattern when building the homework list. Best-effort — empty map on
+     * failure so the homework list keeps rendering.
+     */
+    suspend fun getSubmissionsForStudent(studentId: String): Map<String, SubmissionDoc> {
+        if (studentId.isBlank()) return emptyMap()
+        val schoolCode = getSchoolCode() ?: return emptyMap()
+        return try {
+            val rows = firestoreService.queryDocumentsAs<SubmissionDoc>(
+                Constants.Firestore.SUBMISSIONS
+            ) { ref ->
+                ref.whereEqualTo("schoolId",  schoolCode)
+                    .whereEqualTo("studentId", studentId)
+            }
+            val out = mutableMapOf<String, SubmissionDoc>()
+            for (s in rows) {
+                if (s.homeworkId.isNotBlank()) out[s.homeworkId] = s
+            }
+            out
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    /**
+     * Fetch the teacherMark recorded for (homeworkId, studentId), if any.
+     * Used to display "Evaluated (no submission)" + score + remark when
+     * the student has no submission of their own. Returns null if absent
+     * or on read failure (best-effort — never blocks the homework list).
+     */
+    suspend fun getTeacherMark(homeworkId: String, studentId: String): Pair<Int, String>? {
+        if (homeworkId.isBlank() || studentId.isBlank()) return null
+        val markId = "${homeworkId}_${studentId}"
+        return try {
+            val snap = firestoreService.getDocument(Constants.Firestore.TEACHER_MARKS, markId)
+            if (snap == null) null
+            else {
+                val sc = (snap.getLong("score") ?: -1L).toInt()
+                val rk = snap.getString("remark") ?: ""
+                sc to rk
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Bulk-fetch every teacherMark for a single student in one query —
+     * keyed by homeworkId. Replaces the N+1 pattern of calling
+     * getTeacherMark() per-homework while building the homework list.
+     * Best-effort: returns an empty map on failure so the caller never
+     * sees a homework list missing entries because of a marks-read hiccup.
+     */
+    suspend fun getTeacherMarksForStudent(studentId: String): Map<String, Pair<Int, String>> {
+        if (studentId.isBlank()) return emptyMap()
+        val schoolCode = getSchoolCode() ?: return emptyMap()
+        return try {
+            val snap = firestoreService.queryDocuments(Constants.Firestore.TEACHER_MARKS) { ref ->
+                ref.whereEqualTo("schoolId",  schoolCode)
+                    .whereEqualTo("studentId", studentId)
+            }
+            val out = mutableMapOf<String, Pair<Int, String>>()
+            for (d in snap.documents) {
+                val hwId = d.getString("homeworkId") ?: continue
+                val sc   = (d.getLong("score") ?: -1L).toInt()
+                val rk   = d.getString("remark") ?: ""
+                out[hwId] = sc to rk
+            }
+            out
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    /**
      * Submit homework for a student.
      * Creates a new submission document with status "submitted".
      */
@@ -147,16 +224,36 @@ class HomeworkFirestoreRepository @Inject constructor(
         )
 
         return try {
-            firestoreService.setDocument(
-                Constants.Firestore.SUBMISSIONS,
-                docId,
-                data,
-                merge = true
-            )
+            // Atomic: submission write + counter increment in one transaction.
+            // The increment fires ONLY when this is the first time the doc is
+            // created (re-submission / edit updates the same docId but does
+            // NOT double-count). If either operation fails, the whole
+            // transaction rolls back — no half-state.
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val submissionRef = firestore
+                .collection(Constants.Firestore.SUBMISSIONS).document(docId)
+            val homeworkRef = firestore
+                .collection(Constants.Firestore.HOMEWORK).document(homeworkId)
 
-            // submissionCount: can't increment from parent app (Firestore
-            // rules only allow staff to update homework docs). The admin
-            // panel counts actual submissions when it needs the number.
+            firestore.runTransaction { txn ->
+                val existingSnap = txn.get(submissionRef)
+                val isFirstSubmission = !existingSnap.exists()
+
+                txn.set(
+                    submissionRef,
+                    data,
+                    com.google.firebase.firestore.SetOptions.merge()
+                )
+
+                if (isFirstSubmission) {
+                    txn.update(
+                        homeworkRef,
+                        "submissionCount",
+                        com.google.firebase.firestore.FieldValue.increment(1)
+                    )
+                }
+                null
+            }.await()
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -195,6 +292,46 @@ class HomeworkFirestoreRepository @Inject constructor(
                         snapshot.documents.mapNotNull { doc ->
                             doc.toObject(HomeworkDoc::class.java)
                         }
+                    }
+                }
+            }
+    }
+
+    /**
+     * Observe submissions for a student in real time, keyed by homeworkId.
+     * Emits a fresh map each time any submission for this student changes
+     * (e.g., teacher reviews the submission and writes score/remark/status).
+     * Emits empty map when identifiers are unavailable.
+     *
+     * Used by Dashboard to keep "pending homework" count accurate the moment
+     * the teacher reviews a submission — without this, the dashboard would
+     * keep counting reviewed homework as pending until the user manually
+     * refreshes.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun observeSubmissionsForStudent(studentId: String): Flow<Map<String, SubmissionDoc>> {
+        return tokenManager.user
+            .map { user ->
+                val schoolId = user.schoolId.takeIf { it.isNotBlank() }
+                if (schoolId == null || studentId.isBlank()) null
+                else schoolId
+            }
+            .flatMapLatest { schoolId ->
+                if (schoolId == null) {
+                    flowOf(emptyMap())
+                } else {
+                    firestoreService.observeQuery(
+                        Constants.Firestore.SUBMISSIONS
+                    ) { ref ->
+                        ref.whereEqualTo("schoolId", schoolId)
+                            .whereEqualTo("studentId", studentId)
+                    }.map { snapshot ->
+                        val out = mutableMapOf<String, SubmissionDoc>()
+                        for (doc in snapshot.documents) {
+                            val s = doc.toObject(SubmissionDoc::class.java) ?: continue
+                            if (s.homeworkId.isNotBlank()) out[s.homeworkId] = s
+                        }
+                        out
                     }
                 }
             }

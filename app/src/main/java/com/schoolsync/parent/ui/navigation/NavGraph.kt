@@ -112,6 +112,8 @@ sealed class Route(val route: String) {
     data object Splash : Route("splash")
     data object Walkthrough : Route("walkthrough")
     data object Login : Route("login")
+    /** Phase A — gate before Main when `mustChangePassword` is true. */
+    data object ForceChangePassword : Route("force_change_password")
     data object Main : Route("main")
 
     // Bottom nav destinations
@@ -147,6 +149,7 @@ sealed class Route(val route: String) {
     data object PtmList : Route("ptm_list")
     data object RedFlags : Route("red_flags")
     data object MyTeachers : Route("my_teachers")
+    data object MyLessons : Route("my_lessons")
     data object StoryViewer : Route("story_viewer/{teacherId}") {
         fun createRoute(teacherId: String) = "story_viewer/$teacherId"
     }
@@ -225,7 +228,16 @@ fun AppNavGraph(
                         }
                     },
                     onNavigateToMain = {
-                        navController.navigate(Route.Main.route) {
+                        // Phase A — if the cached user still has the
+                        // mustChangePassword flag (e.g. user killed the
+                        // app mid-force-change), route to the gate
+                        // instead of Main so the requirement isn't
+                        // bypassable by a cold restart.
+                        val dest = if (state.mustChangePassword)
+                            Route.ForceChangePassword.route
+                        else
+                            Route.Main.route
+                        navController.navigate(dest) {
                             popUpTo(Route.Splash.route) { inclusive = true }
                         }
                     },
@@ -250,9 +262,30 @@ fun AppNavGraph(
 
         composable(Route.Login.route) {
             LoginScreen(
-                onLoginSuccess = {
+                onLoginSuccess = { mustChangePassword ->
+                    if (mustChangePassword) {
+                        navController.navigate(Route.ForceChangePassword.route) {
+                            popUpTo(Route.Login.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Route.Main.route) {
+                            popUpTo(Route.Login.route) { inclusive = true }
+                        }
+                    }
+                }
+            )
+        }
+
+        composable(Route.ForceChangePassword.route) {
+            com.schoolsync.parent.ui.auth.ForceChangePasswordScreen(
+                onPasswordChanged = {
                     navController.navigate(Route.Main.route) {
-                        popUpTo(Route.Login.route) { inclusive = true }
+                        popUpTo(Route.ForceChangePassword.route) { inclusive = true }
+                    }
+                },
+                onLogout = {
+                    navController.navigate(Route.Login.route) {
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )
@@ -392,7 +425,8 @@ fun MainScreen(
                     onNavigateToEvents = { navController.navigate(Route.Events.route) },
                     onNavigateToGallery = { navController.navigate(Route.Gallery.route) },
                     onNavigateToLibrary = { navController.navigate(Route.Library.route) },
-                    onNavigateToPtmList = { navController.navigate(Route.PtmList.route) }
+                    onNavigateToPtmList = { navController.navigate(Route.PtmList.route) },
+                    onNavigateToLessons = { navController.navigate(Route.MyLessons.route) }
                 )
             }
 
@@ -473,6 +507,18 @@ fun MainScreen(
                 popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(slideDuration)) }
             ) {
                 TimetableScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(
+                Route.MyLessons.route,
+                enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(slideDuration)) },
+                exitTransition = { fadeOut(tween(200)) },
+                popEnterTransition = { fadeIn(tween(fadeDuration)) },
+                popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(slideDuration)) }
+            ) {
+                com.schoolsync.parent.ui.lessons.MyLessonsScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(
@@ -992,7 +1038,8 @@ private fun isAcademicsChild(currentRoute: String?, itemRoute: String): Boolean 
         Route.EventDetail.route,
         Route.Gallery.route,
         Route.GalleryDetail.route,
-        Route.Library.route
+        Route.Library.route,
+        Route.MyLessons.route
     )
 }
 
@@ -1007,7 +1054,8 @@ fun AcademicsHubScreen(
     onNavigateToEvents: () -> Unit,
     onNavigateToGallery: () -> Unit = {},
     onNavigateToLibrary: () -> Unit = {},
-    onNavigateToPtmList: () -> Unit = {}
+    onNavigateToPtmList: () -> Unit = {},
+    onNavigateToLessons: () -> Unit = {}
 ) {
     com.schoolsync.parent.ui.dashboard.AcademicsHubContent(
         onNavigateToAttendance = onNavigateToAttendance,
@@ -1017,6 +1065,7 @@ fun AcademicsHubScreen(
         onNavigateToEvents = onNavigateToEvents,
         onNavigateToGallery = onNavigateToGallery,
         onNavigateToLibrary = onNavigateToLibrary,
-        onNavigateToPtmList = onNavigateToPtmList
+        onNavigateToPtmList = onNavigateToPtmList,
+        onNavigateToLessons = onNavigateToLessons
     )
 }

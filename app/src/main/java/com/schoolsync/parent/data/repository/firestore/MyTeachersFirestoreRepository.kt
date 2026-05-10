@@ -84,9 +84,15 @@ class MyTeachersFirestoreRepository @Inject constructor(
                     .whereEqualTo("section", "_ALL_")
             }
 
+            // Drop assignments archived by the admin panel. The Active/Inactive
+            // staff lifecycle (Phase 3 cascade) sets `archived=true` on every
+            // subjectAssignment row owned by a deactivated teacher, so this
+            // filter is the join-side guard that keeps deactivated teachers
+            // off the parent's "My Teachers" list.
             val assignments = (sectionSpecific + classWide)
                 .distinctBy { it.id }
-            Log.d(TAG, "getMyTeachers: ${assignments.size} assignments")
+                .filter { !it.archived }
+            Log.d(TAG, "getMyTeachers: ${assignments.size} active assignments")
 
             // Resolve each unique teacherId to a StaffDoc — cache by id so
             // we don't re-fetch the same teacher when they teach multiple
@@ -100,8 +106,14 @@ class MyTeachersFirestoreRepository @Inject constructor(
                 TeacherEntry(assignment = a, staff = staff)
             }
 
+            // Belt-and-braces: hide rows whose staff doc is missing or
+            // whose status isn't Active. Covers the case where the
+            // assignment cascade missed a row (legacy data, partial write)
+            // but the staff was correctly deactivated.
+            val activeEntries = entries.filter { it.staff != null && it.staff.status == "Active" }
+
             // Class teacher first, then by subject name
-            val sorted = entries.sortedWith(
+            val sorted = activeEntries.sortedWith(
                 compareByDescending<TeacherEntry> { it.assignment.isClassTeacher }
                     .thenBy { it.assignment.subjectName.lowercase() }
             )

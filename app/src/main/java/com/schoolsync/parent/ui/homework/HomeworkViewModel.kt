@@ -81,7 +81,7 @@ data class HomeworkUiState(
     val filteredHomework: List<Homework> = emptyList(),
     val subjects: List<String> = emptyList(),
     val selectedSubject: String? = null,          // null = "All"
-    val selectedTab: String = "pending",          // "pending" | "completed"
+    val selectedTab: String = "all",               // "all" | "pending" | "submitted" | "graded". Default "all" — opening on "pending" caused a visible flicker when the autoSelectTab flipped it to "all" after the first data load.
     val selectedHomework: Homework? = null,        // non-null = detail view
     val completionStats: CompletionStats = CompletionStats(),
     val pendingCount: Int = 0,
@@ -110,16 +110,21 @@ class HomeworkViewModel @Inject constructor(
         startLiveListener()
     }
 
-    /** Auto-select the best default tab based on what data exists. */
-    private fun autoSelectTab() {
-        val state = _uiState.value
-        if (state.pendingCount > 0) return // already on "pending", has items
-        // If nothing is pending, show "all" so the screen isn't empty
-        if (state.selectedTab == "pending" && state.pendingCount == 0 && state.allHomework.isNotEmpty()) {
-            _uiState.update { it.copy(selectedTab = "all") }
-            applyFilters()
-        }
+    override fun onCleared() {
+        // Belt-and-braces. viewModelScope cancellation already propagates to
+        // the live-listener coroutine, which tears down the underlying
+        // Firestore SnapshotListener via callbackFlow's awaitClose. Cancelling
+        // the job explicitly here guarantees that the FCM/badge cleanup
+        // path runs even if a future refactor pulls the listener out of
+        // viewModelScope (e.g. into a process-lifetime scope).
+        listenerJob?.cancel()
+        super.onCleared()
     }
+
+    // Removed autoSelectTab(): default is now "all" so the prior
+    // pending→all auto-flip caused a visible flicker on screen open.
+    // If the user explicitly picks "pending", we keep them there even
+    // when count drops to 0 — the system shouldn't override their choice.
 
     private fun loadUserInfo() {
         viewModelScope.launch {
@@ -150,16 +155,29 @@ class HomeworkViewModel @Inject constructor(
                     homeworkFirestoreRepo.observeHomework(className, section).collect { homeworkDocs ->
                         Log.d("HomeworkVM", "Firestore live update: ${homeworkDocs.size} homework items")
 
+                        // Bulk-fetch THIS student's submissions + teacherMarks
+                        // ONCE per refresh — replaces the per-homework N+1
+                        // pattern. Both queries are indexed (schoolId+studentId).
+                        val submissionsMap: Map<String, com.schoolsync.parent.data.model.firestore.SubmissionDoc> =
+                            if (studentId.isNotBlank())
+                                homeworkFirestoreRepo.getSubmissionsForStudent(studentId)
+                            else emptyMap()
+                        val teacherMarksMap: Map<String, Pair<Int, String>> =
+                            if (studentId.isNotBlank())
+                                homeworkFirestoreRepo.getTeacherMarksForStudent(studentId)
+                            else emptyMap()
+
                         // Map HomeworkDoc → existing Homework model, checking submission status
                         val items = homeworkDocs.map { doc ->
-                            // Check submission status for this student.
-                            // Uses direct doc read (not query) to avoid
-                            // PERMISSION_DENIED on queries without schoolId.
-                            val submissionDoc = if (studentId.isNotBlank()) {
-                                homeworkFirestoreRepo.getSubmissionStatus(doc.id, studentId)
-                                    .getOrNull()
-                            } else null
+                            // O(1) lookup — same status-extraction logic as before.
+                            val submissionDoc = submissionsMap[doc.id]
                             val submissionStatus = submissionDoc?.status ?: "pending"
+
+                            // No submission of their own — fall back to a
+                            // teacherMark if the teacher recorded one (e.g.
+                            // student was absent but evaluated).
+                            val teacherMark =
+                                if (submissionDoc == null) teacherMarksMap[doc.id] else null
 
                             Homework(
                                 homeworkId = doc.id,
@@ -180,7 +198,10 @@ class HomeworkViewModel @Inject constructor(
                                 isFromNewPath = true,
                                 attachments = doc.attachments,
                                 score = submissionDoc?.score ?: -1,
-                                feedback = submissionDoc?.remark ?: ""
+                                feedback = submissionDoc?.remark ?: "",
+                                hasTeacherMark    = teacherMark != null,
+                                teacherMarkScore  = teacherMark?.first  ?: -1,
+                                teacherMarkRemark = teacherMark?.second ?: ""
                             )
                         }
 
@@ -321,7 +342,6 @@ class HomeworkViewModel @Inject constructor(
     private fun recomputeAll() {
         computeStats()
         computeCounts()
-        autoSelectTab()
         applyFilters()
     }
 
@@ -390,32 +410,38 @@ class HomeworkViewModel @Inject constructor(
 
     private fun applyFilters() {
         _uiState.update { state ->
-            var filtered = state.allHomework
+            state.copy(
+                filteredHomework = filterForTab(state.allHomework, state.selectedTab, state.selectedSubject)
+            )
+        }
+    }
 
-            // Tab filter
-            filtered = when (state.selectedTab) {
-                "pending" -> filtered.filter {
-                    it.studentStatus.lowercase().trim() == "pending"
-                }
-                "submitted" -> filtered.filter {
-                    it.studentStatus.lowercase().trim() == "submitted"
-                }
-                "graded" -> filtered.filter {
+    // ── Static helpers ──────────────────────────────────────────────────────
+    companion object {
+
+        /**
+         * Filter + sort for a single tab. Used by applyFilters() AND by the
+         * pager pages so each tab's view is computed identically without
+         * needing to round-trip through the ViewModel during a swipe.
+         */
+        fun filterForTab(
+            all: List<Homework>,
+            tab: String,
+            subject: String?
+        ): List<Homework> {
+            var filtered = when (tab) {
+                "pending" -> all.filter { it.studentStatus.lowercase().trim() == "pending" }
+                "submitted" -> all.filter { it.studentStatus.lowercase().trim() == "submitted" }
+                "graded" -> all.filter {
                     val s = it.studentStatus.lowercase().trim()
                     s == "reviewed" || s == "complete"
                 }
-                else -> filtered // "all"
+                else -> all // "all"
             }
-
-            // Subject filter
-            if (state.selectedSubject != null) {
-                filtered = filtered.filter {
-                    it.subject.equals(state.selectedSubject, ignoreCase = true)
-                }
+            if (subject != null) {
+                filtered = filtered.filter { it.subject.equals(subject, ignoreCase = true) }
             }
-
-            // Sort: pending by priority (overdue first, then due soonest), completed by date desc
-            filtered = if (state.selectedTab == "pending") {
+            return if (tab == "pending") {
                 filtered.sortedWith(compareBy<Homework> {
                     when (derivePriority(it)) {
                         Priority.HIGH -> 0
@@ -426,15 +452,12 @@ class HomeworkViewModel @Inject constructor(
             } else {
                 filtered.sortedByDescending { it.timestamp }
             }
-
-            state.copy(filteredHomework = filtered)
         }
-    }
 
-    // ── Static helpers ──────────────────────────────────────────────────────
-    companion object {
-
+        private val IST_TZ: java.util.TimeZone = java.util.TimeZone.getTimeZone("Asia/Kolkata")
         private val dateFormats = listOf(
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US),  // ISO 8601 with offset (e.g. +05:30)
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") },
             SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
             SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()),
             SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()),
@@ -495,19 +518,24 @@ class HomeworkViewModel @Inject constructor(
         }
 
         fun dueDateLabel(homework: Homework): String {
-            val dueDate = parseDueDate(homework.dueDate) ?: return homework.dueDate
-            val now = Date()
-            val diffMs = dueDate.time - now.time
-            val diffDays = TimeUnit.MILLISECONDS.toDays(diffMs)
-            return when {
-                dueDate.before(now) -> "Overdue"
-                diffDays == 0L -> "Due today"
-                diffDays == 1L -> "Due tomorrow"
-                diffDays <= 7 -> "Due in $diffDays days"
-                else -> {
-                    val fmt = SimpleDateFormat("dd MMM", Locale.getDefault())
-                    "Due ${fmt.format(dueDate)}"
+            val due = parseDueDate(homework.dueDate) ?: return homework.dueDate
+            fun istDay(d: Date): Long {
+                val c = java.util.Calendar.getInstance(IST_TZ).apply {
+                    time = d
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
                 }
+                return c.timeInMillis / 86_400_000L
+            }
+            val diffDays = istDay(due) - istDay(Date())
+            val timeFmt  = SimpleDateFormat("h:mm a", Locale.US).apply { timeZone = IST_TZ }
+            val dateFmt  = SimpleDateFormat("dd MMM", Locale.US).apply { timeZone = IST_TZ }
+            return when (diffDays) {
+                0L   -> "Due today (${timeFmt.format(due)})"
+                1L   -> "Due tomorrow"
+                else -> "Due on ${dateFmt.format(due)}"
             }
         }
 

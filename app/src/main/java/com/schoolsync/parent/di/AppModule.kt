@@ -31,7 +31,6 @@ import com.schoolsync.parent.data.repository.firestore.StudentFirestoreRepositor
 import com.schoolsync.parent.data.repository.firestore.TransportFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.CampusLifeFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.HRFirestoreRepository
-import com.schoolsync.parent.data.repository.firestore.AdmissionFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.InventoryFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.LeaveFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.MyTeachersFirestoreRepository
@@ -357,15 +356,6 @@ object AppModule {
         tokenManager: TokenManager
     ): HRFirestoreRepository {
         return HRFirestoreRepository(firestoreService, tokenManager)
-    }
-
-    @Provides
-    @Singleton
-    fun provideAdmissionFirestoreRepository(
-        firestoreService: FirestoreService,
-        tokenManager: TokenManager
-    ): AdmissionFirestoreRepository {
-        return AdmissionFirestoreRepository(firestoreService, tokenManager)
     }
 
     @Provides

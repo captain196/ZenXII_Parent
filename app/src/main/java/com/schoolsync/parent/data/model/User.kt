@@ -23,7 +23,16 @@ data class User(
     val admissionDate: String,
     val parentDbKey: String,
     val session: String,
-    val schoolCode: String = ""  // Firebase school key resolved from Indexes/School_codes
+    val schoolCode: String = "",  // Firebase school key resolved from Indexes/School_codes
+    /** Phase A — set during login from `students/{id}.mustChangePassword`.
+     *  Drives the force-change-password gate after a successful login. */
+    val mustChangePassword: Boolean = false,
+    /** B2 — set during login from `students/{id}.status`. Default "Active"
+     *  for back-compat with any cached User from before this field existed.
+     *  AuthRepository.login() blocks completion when the value is anything
+     *  other than "Active" (TC, Inactive, Deleted, etc.) so a withdrawn
+     *  student's parent can't keep using the app on stale credentials. */
+    val status: String = "Active",
 ) {
     companion object {
         fun fromDto(dto: UserDto, schoolCode: String = ""): User {
@@ -46,7 +55,8 @@ data class User(
                 admissionDate = dto.admissionDate ?: "",
                 parentDbKey = dto.parentDbKey ?: "",
                 session = dto.session ?: "",
-                schoolCode = schoolCode
+                schoolCode = schoolCode,
+                mustChangePassword = false,
             )
         }
 
@@ -69,7 +79,8 @@ data class User(
             admissionDate = "",
             parentDbKey = "",
             session = "",
-            schoolCode = ""
+            schoolCode = "",
+            mustChangePassword = false,
         )
     }
 

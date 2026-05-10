@@ -389,10 +389,16 @@ private fun EmptyFlagsState() {
 }
 
 private fun formatTimestamp(timestamp: Long): String {
+    // Guard against unparseable / missing dates from legacy schema.
+    // 0L = no createdAtMs / timestamp / createdAt was extractable;
+    // anything below year 2000 = almost certainly a bad parse, not a
+    // legitimate flag from the 1970s.
+    if (timestamp <= 946_684_800_000L) return "date unavailable"
     return try {
         val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
+            .apply { timeZone = java.util.TimeZone.getTimeZone("Asia/Kolkata") }
         sdf.format(Date(timestamp))
     } catch (_: Exception) {
-        ""
+        "date unavailable"
     }
 }

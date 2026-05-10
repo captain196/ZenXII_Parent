@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
     id("com.google.dagger.hilt.android")
-    kotlin("kapt")
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -71,6 +71,10 @@ dependencies {
     // 1.2.x BoM we're on, so we use the older Material (Compose
     // Material 2) `pullRefresh` API which coexists with Material3.
     implementation("androidx.compose.material:material")
+    // Pull-to-refresh — Material3's PullToRefreshBox isn't in the
+    // 1.2.x BoM we're on, so we use the older Material (Compose
+    // Material 2) `pullRefresh` API which coexists with Material3.
+    implementation("androidx.compose.material:material")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
@@ -80,7 +84,7 @@ dependencies {
 
     // Hilt DI
     implementation("com.google.dagger:hilt-android:2.50")
-    kapt("com.google.dagger:hilt-compiler:2.50")
+    ksp("com.google.dagger:hilt-compiler:2.50")
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:32.7.4"))
@@ -114,6 +118,10 @@ dependencies {
     // Media3 = modern ExoPlayer; stable, Compose-friendly via AndroidView.
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
+    // Video playback (Stories viewer — Round 1a).
+    // Media3 = modern ExoPlayer; stable, Compose-friendly via AndroidView.
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
 
     // Lottie animations
     implementation("com.airbnb.android:lottie-compose:6.4.0")
@@ -124,11 +132,11 @@ dependencies {
     // Razorpay checkout
     implementation("com.razorpay:checkout:1.6.38")
 
+    // Razorpay checkout
+    implementation("com.razorpay:checkout:1.6.38")
+
     // Tests
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
 }
 
-kapt {
-    correctErrorTypes = true
-}

@@ -20,6 +20,7 @@ import com.schoolsync.parent.data.repository.firestore.EventFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.ExamFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.FeeFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.HomeworkFirestoreRepository
+import com.schoolsync.parent.data.repository.firestore.MyTeachersFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.PtmFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.StudentFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.TimetableFirestoreRepository
@@ -27,10 +28,12 @@ import com.schoolsync.parent.util.NetworkMonitor
 import com.schoolsync.parent.util.toDateOrNull
 import com.schoolsync.parent.util.toEpochMillisOrNull
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -79,6 +82,20 @@ data class DashboardUiState(
      *  father+mother name match). Empty when no siblings or lookup
      *  failed. Sorted alphabetically by name. */
     val siblings: List<SiblingSummary> = emptyList(),
+    /** The Active class teacher for the student's section (or null
+     *  when none is assigned / the loader hasn't finished yet). The
+     *  loader leans on MyTeachersFirestoreRepository, which already
+     *  filters out archived assignments and Inactive staff, so this
+     *  field is by construction either Active or null. */
+    val classTeacher: MyTeachersFirestoreRepository.TeacherEntry? = null,
+    /** Every subject the class teacher teaches to this student's
+     *  section. The class teacher row from `MyTeachers...` only
+     *  carries one assignment doc (the row marked isClassTeacher),
+     *  but the same teacher usually delivers multiple subjects to
+     *  the section — this list aggregates all of them so the
+     *  dashboard hero card can display them the same way the My
+     *  Teachers screen does. */
+    val classTeacherSubjects: List<String> = emptyList(),
     val errorMessage: String? = null
 )
 
@@ -93,6 +110,7 @@ class DashboardViewModel @Inject constructor(
     private val timetableFirestoreRepo: TimetableFirestoreRepository,
     private val examFirestoreRepo: ExamFirestoreRepository,
     private val ptmFirestoreRepo: PtmFirestoreRepository,
+    private val myTeachersRepo: MyTeachersFirestoreRepository,
     private val studentFirestoreRepo: StudentFirestoreRepository,
     private val tokenManager: TokenManager,
     networkMonitor: NetworkMonitor
@@ -103,6 +121,11 @@ class DashboardViewModel @Inject constructor(
 
     val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    /** Live listener for the homework + submissions combined flow. We
+     *  cancel-and-restart this every time the active student changes
+     *  (sibling switch, profile reload). */
+    private var homeworkListenerJob: Job? = null
 
     init {
         loadDashboard()
@@ -154,6 +177,7 @@ class DashboardViewModel @Inject constructor(
                 launch { loadTodaySchedule(user) }
                 launch { loadLatestResult(user) }
                 launch { loadNextPtm(user) }
+                launch { loadClassTeacher(user) }
             }
 
             _uiState.update { it.copy(isLoading = false) }
@@ -476,37 +500,61 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadHomework(user: User?) {
+    private fun loadHomework(user: User?) {
         val className = user?.className ?: return
         val section = user.section
+        val studentId = user.userId
         if (className.isBlank() || section.isBlank()) return
-        try {
-            val result = homeworkFirestoreRepo.getActiveHomework(className, section)
-            result.fold(
-                onSuccess = { homeworkDocs ->
-                    // Sort by due date ascending so the most urgent shows first.
-                    // Items without a due date sink to the bottom.
-                    val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                        .format(java.util.Date())
-                    val sorted = homeworkDocs.sortedWith(
+
+        // Cancel any prior listener (e.g. from a sibling switch) before
+        // starting a new one so we never have two flows racing to update
+        // pendingHomeworkCount with stale studentIds.
+        homeworkListenerJob?.cancel()
+        homeworkListenerJob = viewModelScope.launch {
+            try {
+                // Combine live homework + live submissions for THIS student.
+                // Either flow updating triggers a recompute — so the moment
+                // a teacher reviews a submission, the dashboard count drops
+                // without the user touching anything.
+                combine(
+                    homeworkFirestoreRepo.observeHomework(className, section),
+                    homeworkFirestoreRepo.observeSubmissionsForStudent(studentId)
+                ) { homeworkDocs, submissionsByHwId ->
+                    // Sort earliest dueDate first so overdue items rise to
+                    // the top of the preview. Undated items sink to the
+                    // bottom. We deliberately do NOT filter out overdue
+                    // homework — for a parent, "overdue and not submitted"
+                    // is exactly what the dashboard needs to surface.
+                    val activeSorted = homeworkDocs.sortedWith(
                         compareBy(
                             { it.dueDate.isBlank() },
                             { it.dueDate.takeIf { d -> d.isNotBlank() } ?: "9999-12-31" }
                         )
-                    ).filter { d -> d.dueDate.isBlank() || d.dueDate >= today }
+                    )
+
+                    // Pending = student has NOT submitted/reviewed/completed
+                    // yet. A submission with status "submitted" or "reviewed"
+                    // or "complete" means the parent's task on this homework
+                    // is done — should not be on the dashboard prompt.
+                    val pending = activeSorted.filter { hw ->
+                        val status = (submissionsByHwId[hw.id]?.status ?: "pending")
+                            .lowercase().trim()
+                        status == "pending"
+                    }
+                    pending
+                }.collect { pending ->
                     _uiState.update {
                         it.copy(
-                            pendingHomeworkCount = sorted.size,
-                            homeworkPreview = sorted.take(5)
+                            pendingHomeworkCount = pending.size,
+                            homeworkPreview = pending.take(5)
                         )
                     }
-                },
-                onFailure = { e ->
-                    Log.w("DashboardVM", "Firestore homework failed", e)
                 }
-            )
-        } catch (e: Exception) {
-            Log.w("DashboardVM", "Firestore homework exception", e)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Normal cancellation when student switches — silent.
+            } catch (e: Exception) {
+                Log.w("DashboardVM", "Firestore homework live listener failed", e)
+            }
         }
     }
 
@@ -546,6 +594,43 @@ class DashboardViewModel @Inject constructor(
             )
         } catch (e: Exception) {
             Log.w("DashboardVM", "PTM load exception", e)
+        }
+    }
+
+    /**
+     * Pick the student's Active class teacher for the dashboard card.
+     * The repository already filters archived assignments and Inactive
+     * staff (Phase 3 cascade + Active gate), so any entry returned here
+     * is safe to display without further checks. Multiple matches are
+     * defended against with `firstOrNull`.
+     */
+    private suspend fun loadClassTeacher(user: User?) {
+        if (user?.userId.isNullOrBlank()) return
+        try {
+            val res = myTeachersRepo.getMyTeachers()
+            res.fold(
+                onSuccess = { entries ->
+                    val ct = entries.filter { it.assignment.isClassTeacher }.firstOrNull()
+                    // Aggregate every subject this class teacher delivers
+                    // to the same section so the hero card mirrors the
+                    // multi-subject row format used on My Teachers.
+                    val subjects = if (ct != null) {
+                        entries
+                            .filter { it.assignment.teacherId.isNotBlank()
+                                && it.assignment.teacherId == ct.assignment.teacherId }
+                            .map { it.assignment.subjectName.ifBlank { it.assignment.subjectCode } }
+                            .filter { it.isNotBlank() }
+                            .distinct()
+                    } else emptyList()
+                    Log.d("DashboardVM", "Class teacher: ${ct?.staff?.name ?: "none"} subjects=${subjects.size} (${entries.size} total entries)")
+                    _uiState.update { it.copy(classTeacher = ct, classTeacherSubjects = subjects) }
+                },
+                onFailure = { e ->
+                    Log.w("DashboardVM", "Class teacher load failed", e)
+                }
+            )
+        } catch (e: Exception) {
+            Log.w("DashboardVM", "Class teacher load exception", e)
         }
     }
 
@@ -602,6 +687,7 @@ class DashboardViewModel @Inject constructor(
                 loadTodaySchedule(user)
                 loadLatestResult(user)
                 loadNextPtm(user)
+                loadClassTeacher(user)
             } catch (e: Exception) {
                 Log.w("DashboardVM", "pullRefresh failed", e)
             }

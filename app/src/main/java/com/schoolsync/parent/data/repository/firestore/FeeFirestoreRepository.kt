@@ -233,7 +233,7 @@ class FeeFirestoreRepository @Inject constructor(
     fun observeFeeDemands(studentId: String): Flow<FeeDataState<List<FeeDemandDoc>>> {
         return tokenManager.user
             .map { user ->
-                val code = user.schoolCode.takeIf { it.isNotBlank() }
+                val code = user.schoolId.takeIf { it.isNotBlank() }
                 val sess = user.session.takeIf { it.isNotBlank() }
                 if (code != null && sess != null) Pair(code, sess) else null
             }
@@ -364,18 +364,24 @@ class FeeFirestoreRepository @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observePaymentHistory(studentId: String): Flow<FeeDataState<List<FeeReceiptDoc>>> {
         return tokenManager.user
-            .map { user -> user.schoolId.takeIf { it.isNotBlank() } }
-            .flatMapLatest { schoolCode ->
+            .map { user ->
+                val sid = user.schoolId.takeIf { it.isNotBlank() }
+                val sess = user.session.takeIf { it.isNotBlank() }
+                if (sid != null && sess != null) Pair(sid, sess) else null
+            }
+            .flatMapLatest { pair ->
                 com.schoolsync.parent.util.debugLog(
-                    "PaymentHistory query: studentId='$studentId' schoolCode='$schoolCode'"
+                    "PaymentHistory query: studentId='$studentId' pair='$pair'"
                 )
-                if (schoolCode == null) flowOf<FeeDataState<List<FeeReceiptDoc>>>(FeeDataState.Data(emptyList()))
+                if (pair == null) flowOf<FeeDataState<List<FeeReceiptDoc>>>(FeeDataState.Data(emptyList()))
                 else {
+                    val (schoolCode, session) = pair
                     firestoreService.observeQuery(
                         Constants.Firestore.FEE_RECEIPTS
                     ) { ref ->
                         ref.whereEqualTo("schoolId", schoolCode)
                             .whereEqualTo("studentId", studentId)
+                            .whereEqualTo("session", session)
                     }.map { snap ->
                         val parsed = snap.documents.mapNotNull {
                             try { it.toObject(FeeReceiptDoc::class.java) } catch (_: Exception) { null }
@@ -401,6 +407,8 @@ class FeeFirestoreRepository @Inject constructor(
     suspend fun getRefundVouchers(studentId: String): Result<List<FeeRefundVoucherDoc>> {
         val schoolCode = getSchoolCode()
             ?: return Result.failure(Exception("School code not available"))
+        val session = getSession()
+            ?: return Result.failure(Exception("Session not available"))
 
         return try {
             // Both filters on server — the schoolId filter is REQUIRED
@@ -414,6 +422,7 @@ class FeeFirestoreRepository @Inject constructor(
             ) { ref ->
                 ref.whereEqualTo("schoolId", schoolCode)
                     .whereEqualTo("studentId", studentId)
+                    .whereEqualTo("session", session)
             }
             Result.success(refunds)
         } catch (e: Exception) {
@@ -453,10 +462,15 @@ class FeeFirestoreRepository @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeRefundVouchers(studentId: String): Flow<List<FeeRefundVoucherDoc>> {
         return tokenManager.user
-            .map { user -> user.schoolId.takeIf { it.isNotBlank() } }
-            .flatMapLatest { schoolCode ->
-                if (schoolCode == null) flowOf(emptyList())
+            .map { user ->
+                val sid = user.schoolId.takeIf { it.isNotBlank() }
+                val sess = user.session.takeIf { it.isNotBlank() }
+                if (sid != null && sess != null) Pair(sid, sess) else null
+            }
+            .flatMapLatest { pair ->
+                if (pair == null) flowOf(emptyList())
                 else {
+                    val (schoolCode, session) = pair
                     firestoreService.observeQuery(
                         Constants.Firestore.FEE_REFUND_VOUCHERS
                     ) { ref ->
@@ -465,6 +479,7 @@ class FeeFirestoreRepository @Inject constructor(
                         // (see matching comment in getRefundVouchers()).
                         ref.whereEqualTo("schoolId", schoolCode)
                             .whereEqualTo("studentId", studentId)
+                            .whereEqualTo("session", session)
                     }.map { snap ->
                         snap.documents.mapNotNull {
                             it.toObject(FeeRefundVoucherDoc::class.java)

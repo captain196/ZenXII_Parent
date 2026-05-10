@@ -6,6 +6,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.remote.FeesApi
 import com.schoolsync.parent.data.remote.VerifyPaymentRequest
+import com.schoolsync.parent.util.friendlyErrorMessage
 import com.schoolsync.parent.util.periodToMonth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -205,8 +206,19 @@ class PaymentSession @Inject constructor(
                 )
             } catch (e: Exception) {
                 Log.e("PaymentSession", "verifyPayment network error", e)
+                // Stage B1: replace raw e.message leakage with a calm,
+                // action-oriented message. The parent always needs to
+                // know their money was captured (Razorpay confirmed it
+                // before our call ever fires) — we just couldn't reach
+                // OUR server to record it. friendlyErrorMessage maps
+                // the transport-layer exception class; we prepend the
+                // "Razorpay captured" reassurance.
+                val friendly = friendlyErrorMessage(
+                    e,
+                    fallback = "We couldn't reach the school server to record this payment."
+                )
                 _state.value = State.Failure(
-                    "Payment captured but verification failed: ${e.message ?: "network error"}",
+                    "Payment received by Razorpay. $friendly The receipt will appear in your Fees list once the school server responds.",
                     System.currentTimeMillis()
                 )
                 return@launch

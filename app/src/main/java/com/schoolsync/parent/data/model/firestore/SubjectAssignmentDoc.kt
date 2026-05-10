@@ -1,6 +1,7 @@
 package com.schoolsync.parent.data.model.firestore
 
 import com.google.firebase.firestore.DocumentId
+import com.google.firebase.firestore.PropertyName
 
 /**
  * Firestore subjectAssignments collection — single source of truth for who
@@ -13,6 +14,14 @@ import com.google.firebase.firestore.DocumentId
  * `updatedAt` is a String because the PHP backend writes ISO strings, not
  * Firestore Timestamps. Do not change to Timestamp without first updating the
  * backend writer or every read here will throw.
+ *
+ * NOTE on `isClassTeacher`: Kotlin's `is`-prefix Boolean property convention
+ * makes Firestore's CustomClassMapper miss the field — its reflective lookup
+ * expects `getIsClassTeacher` / `setIsClassTeacher`, but Kotlin generates
+ * `isClassTeacher()` and no setter (val). Without [PropertyName] every load
+ * logs `No setter/field for isClassTeacher` and the value silently stays
+ * `false` — which broke the Dashboard class-teacher card and the My Teachers
+ * "Class Teacher" badge.
  */
 data class SubjectAssignmentDoc(
     @DocumentId
@@ -27,6 +36,8 @@ data class SubjectAssignmentDoc(
     val periodsPerWeek: Int = 0,
     val teacherId: String = "",
     val teacherName: String = "",
+    @get:PropertyName("isClassTeacher")
     val isClassTeacher: Boolean = false,
     val updatedAt: String = "",
+    val archived: Boolean = false,
 )

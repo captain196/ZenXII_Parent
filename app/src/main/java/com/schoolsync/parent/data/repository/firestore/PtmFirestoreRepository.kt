@@ -6,6 +6,7 @@ import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.firestore.PtmEventDoc
 import com.schoolsync.parent.data.model.firestore.PtmRsvpDoc
 import com.schoolsync.parent.data.model.firestore.PtmSectionAssignment
+import com.schoolsync.parent.data.model.firestore.StaffDoc
 import com.schoolsync.parent.data.model.firestore.assignmentFor
 import com.schoolsync.parent.data.model.firestore.normalizedBookings
 import com.schoolsync.parent.data.remote.BookingPayload
@@ -396,6 +397,23 @@ class PtmFirestoreRepository @Inject constructor(
             return Result.failure(
                 PtmRsvpException("NO_CLASS_TEACHER",
                     "No class teacher assigned for ${className} / ${section}. Ask the school office to set one.")
+            )
+        }
+
+        // Mid-cycle deactivation guard: the PTM's `sections[]` snapshot is
+        // taken at create time, so a class teacher who's been deactivated
+        // since the PTM was published is still recorded here. Re-resolve
+        // against the live staff doc and refuse the apply if Inactive.
+        val classTeacherStaff = try {
+            firestoreService.getDocumentAs<StaffDoc>(
+                "staff",
+                "${schoolId}_${assignment.classTeacherId}"
+            )
+        } catch (_: Exception) { null }
+        if (classTeacherStaff == null || !classTeacherStaff.status.equals("Active", ignoreCase = true)) {
+            return Result.failure(
+                PtmRsvpException("NO_ACTIVE_CLASS_TEACHER",
+                    "No active class teacher available. Please contact school.")
             )
         }
 

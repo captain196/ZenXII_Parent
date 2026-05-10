@@ -20,6 +20,7 @@ import com.schoolsync.parent.data.remote.CreateOrderResponse
 import com.schoolsync.parent.data.remote.FeesApi
 import com.schoolsync.parent.data.remote.VerifyPaymentRequest
 import com.schoolsync.parent.data.repository.firestore.FeeFirestoreRepository
+import com.schoolsync.parent.util.friendlyErrorMessage
 import com.schoolsync.parent.util.toDateOrNull
 import com.schoolsync.parent.util.toEpochMillisOrNull
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -107,6 +108,16 @@ data class FeesUiState(
      */
     val pendingSyncMessage: String? = null,
     val paymentInProgress: Boolean = false,
+    /**
+     * True iff the global [PaymentFlowOverlay] is currently covering
+     * the screen — i.e. PaymentSession is in Verifying or Confirming.
+     * Distinct from [paymentInProgress], which is ALSO true during the
+     * Razorpay-checkout phase (before the overlay appears). FeesScreen
+     * uses this to suppress its in-button spinner / dot animation
+     * during the verify window so the overlay is the sole UX surface
+     * for those states.
+     */
+    val isPaymentOverlayActive: Boolean = false,
     val paymentStatus: String? = null,
     val lastReceiptNo: String? = null,
     /** Structured failure for the AlertDialog; null means no active failure. */
@@ -210,13 +221,24 @@ class FeesViewModel @Inject constructor(
                 }
                 when (sessionState) {
                     is PaymentSession.State.Idle -> {
-                        _uiState.update { it.copy(pendingConfirmMonths = processingMonths) }
+                        _uiState.update {
+                            it.copy(
+                                pendingConfirmMonths = processingMonths,
+                                isPaymentOverlayActive = false
+                            )
+                        }
                     }
                     is PaymentSession.State.Verifying -> {
+                        // Snackbar text is suppressed during overlay
+                        // states — PaymentVerifyScreen is the canonical
+                        // surface; an additional snackbar would queue
+                        // up behind the opaque overlay and reappear
+                        // when it closes, fighting the success screen.
                         _uiState.update {
                             it.copy(
                                 paymentInProgress = true,
-                                paymentStatus = "Payment received ✓ Recording receipt…",
+                                isPaymentOverlayActive = true,
+                                paymentStatus = null,
                                 pendingConfirmMonths = processingMonths
                             )
                         }
@@ -225,7 +247,8 @@ class FeesViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 paymentInProgress = true,
-                                paymentStatus = "Verifying with school records…",
+                                isPaymentOverlayActive = true,
+                                paymentStatus = null,
                                 pendingConfirmMonths = processingMonths
                             )
                         }
@@ -241,6 +264,7 @@ class FeesViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 paymentInProgress = false,
+                                isPaymentOverlayActive = false,
                                 paymentStatus = null,
                                 lastReceiptNo = sessionState.details.receiptNo.takeIf { rn -> rn.isNotBlank() },
                                 pendingConfirmMonths = emptyList()
@@ -256,6 +280,7 @@ class FeesViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 paymentInProgress = false,
+                                isPaymentOverlayActive = false,
                                 paymentStatus = null,
                                 pendingSyncMessage = sessionState.message,
                                 // Keep chip visible — server will replay
@@ -271,6 +296,7 @@ class FeesViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 paymentInProgress = false,
+                                isPaymentOverlayActive = false,
                                 paymentStatus = null,
                                 errorMessage = sessionState.message,
                                 pendingConfirmMonths = emptyList()
@@ -590,7 +616,10 @@ class FeesViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.message ?: "Failed to load fees data"
+                        errorMessage = friendlyErrorMessage(
+                            e,
+                            fallback = "Couldn't load fee details. Please pull to refresh."
+                        )
                     )
                 }
             }
@@ -913,14 +942,10 @@ class FeesViewModel @Inject constructor(
      */
     fun initiatePayment(months: List<String>, amountOverride: Double? = null) {
         if (months.isEmpty()) return
-        // Hard submission guard — blocks duplicate Pay taps that fire
-        // before paymentInProgress reaches Compose (race window between
-        // tap and recomposition). Without this, double-tap can create
-        // two parallel Razorpay orders for the same months.
-        if (_uiState.value.paymentInProgress) {
-            Log.w("FeesVM", "initiatePayment ignored — a payment is already in progress")
-            return
-        }
+
+        // Compute the amount BEFORE claiming the in-flight slot, so a
+        // "nothing to pay" no-op doesn't lock out subsequent legitimate
+        // taps via a stuck paymentInProgress=true.
         val overview = _uiState.value.overview
         val computedTotal = overview.pendingFees.pendingMonths
             .filter { it.month in months }
@@ -931,15 +956,32 @@ class FeesViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(
+        // Stage B1 atomic claim — `_uiState.update` is documented as
+        // atomic (compareAndSet loop). Setting paymentInProgress=true
+        // here, BEFORE viewModelScope.launch runs, closes the race
+        // window where two rapid Pay-button taps both passed the old
+        // check-then-set guard at line 945 before either had updated
+        // the StateFlow. `didClaim` captures whether THIS call won the
+        // race; only the winner proceeds to call createOrder.
+        var didClaim = false
+        _uiState.update { current ->
+            if (current.paymentInProgress) current
+            else {
+                didClaim = true
+                current.copy(
                     paymentInProgress = true,
                     paymentStatus = "Creating order…",
                     errorMessage = null,
                     paymentFailure = null
                 )
             }
+        }
+        if (!didClaim) {
+            Log.w("FeesVM", "initiatePayment ignored — a payment is already in progress")
+            return
+        }
+
+        viewModelScope.launch {
             // Remember what we tried so a failure dialog can offer "Try again".
             lastAttemptedMonths = months
             lastAttemptedAmount = amountOverride
@@ -977,11 +1019,17 @@ class FeesViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 Log.e("FeesVM", "createOrder network error", e)
+                // Stage B1: never leak retrofit/IO exception text into
+                // the parent-visible banner. Map by class to a calm,
+                // actionable line; full exception is logged above.
                 _uiState.update {
                     it.copy(
                         paymentInProgress = false,
                         paymentStatus = null,
-                        errorMessage = e.message ?: "Network error creating order."
+                        errorMessage = friendlyErrorMessage(
+                            e,
+                            fallback = "Couldn't start the payment. Please try again in a moment."
+                        )
                     )
                 }
                 return@launch
@@ -1094,19 +1142,27 @@ class FeesViewModel @Inject constructor(
             initiatePayment(f.failedMonths, f.failedAmount)
             return
         }
-        if (_uiState.value.paymentInProgress) {
-            Log.w("FeesVM", "retry ignored — payment already in progress")
-            return
-        }
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(
+        // Stage B1 atomic claim — same race-closing pattern as
+        // initiatePayment so a fast double-tap of "Try again" cannot
+        // re-open Razorpay checkout twice for one cached order.
+        var didClaim = false
+        _uiState.update { current ->
+            if (current.paymentInProgress) current
+            else {
+                didClaim = true
+                current.copy(
                     paymentInProgress = true,
                     paymentStatus = "Reopening checkout…",
                     errorMessage = null,
                     paymentFailure = null
                 )
             }
+        }
+        if (!didClaim) {
+            Log.w("FeesVM", "retry ignored — payment already in progress")
+            return
+        }
+        viewModelScope.launch {
             val user = tokenManager.user.firstOrNull() ?: User.empty()
             _checkoutRequests.trySend(
                 CheckoutRequest(

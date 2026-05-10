@@ -18,12 +18,12 @@ import com.schoolsync.parent.data.payment.PaymentSession
  *
  * State routing:
  *  - Idle              → no-op (overlay invisible, zero touch capture)
- *  - Verifying         → no-op for now (existing FeesScreen snackbar
- *                        handles it; will become full-screen in later
- *                        steps)
- *  - Confirming        → same as Verifying — brief intermediate state
- *                        as PaymentSession reads the receipt back
- *                        from Firestore for confirmation
+ *  - Verifying         → full-screen [PaymentVerifyScreen] with the
+ *                        "Verifying with school server" step active
+ *  - Confirming        → same [PaymentVerifyScreen] surface, "Recording
+ *                        in school records" step active. Renders as a
+ *                        smooth in-place transition because both
+ *                        branches mount the same composable type.
  *  - Success           → full-screen [PaymentSuccessScreen]
  *  - Pending / Failure → no-op (existing banners in FeesScreen handle
  *                        them; will become full-screen later)
@@ -43,8 +43,14 @@ fun PaymentFlowOverlay(
 
     when (val s = state) {
         is PaymentSession.State.Idle -> Unit
-        is PaymentSession.State.Verifying -> Unit
-        is PaymentSession.State.Confirming -> Unit
+        is PaymentSession.State.Verifying -> PaymentVerifyScreen(
+            phase = VerifyPhase.Verifying,
+            months = s.attemptedMonths
+        )
+        is PaymentSession.State.Confirming -> PaymentVerifyScreen(
+            phase = VerifyPhase.Confirming,
+            months = s.attemptedMonths
+        )
         is PaymentSession.State.Pending -> Unit
         is PaymentSession.State.Failure -> Unit
         is PaymentSession.State.Success -> {

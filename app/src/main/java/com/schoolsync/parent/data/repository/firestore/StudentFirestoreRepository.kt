@@ -6,6 +6,7 @@ import com.schoolsync.parent.data.model.firestore.StudentDoc
 import com.schoolsync.parent.util.Constants
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -142,29 +143,75 @@ class StudentFirestoreRepository @Inject constructor(
                 ref.whereEqualTo("schoolId", schoolCode)
             }
 
-            val primaryFather = primary.fatherName.trim().lowercase()
-            val primaryMother = primary.motherName.trim().lowercase()
-            val primaryPhone  = listOf(primary.phone, primary.phoneNumber)
-                .map { it.trim() }.firstOrNull { it.isNotBlank() } ?: ""
-            val primaryParentKey = primary.parentDbKey.trim()
+            // Option B sibling matching:
+            //   phone matches (normalized)
+            //   AND (
+            //     fatherName matches OR
+            //     motherName matches OR
+            //     either side has missing parent names
+            //   )
+            //
+            // Why not phone-only: shared/recycled phone numbers (e.g.
+            // grandparents, in-laws, extended family) caused unrelated
+            // students to appear as siblings — the Mahendra (Brijesh
+            // Verma) / Hanuman Ji (Maharaj Kesari) collision in prod
+            // was the trigger.
+            // Why the "missing names → still match" branch: legacy
+            // student records often have blank parent fields. Refusing
+            // to match when names are unavailable would hide real
+            // siblings purely because of incomplete data.
+            //
+            // Phone normalization: strip whitespace, dashes, parens,
+            // and the optional + prefix so "9988-776-655", "9988776655",
+            // and "+91 9988776655" collapse to one canonical key.
+            //
+            // Name normalization: trim, lowercase, collapse internal
+            // multi-space runs to a single space so "  Brijesh   Verma "
+            // and "brijesh verma" compare equal.
+            fun normPhone(s: String): String =
+                s.replace(Regex("[\\s\\-()]"), "").removePrefix("+")
+
+            fun normName(s: String): String =
+                s.trim().lowercase().replace(Regex("\\s+"), " ")
+
+            val primaryPhone = listOfNotNull(
+                primary.phone.takeIf { it.isNotBlank() },
+                primary.phoneNumber.takeIf { it.isNotBlank() },
+            ).firstOrNull()?.let(::normPhone).orEmpty()
             val primaryId = primary.userId.ifBlank { primary.studentId }.ifBlank { primary.id }
 
-            val siblings = fetched.filter { s ->
-                val sid = s.userId.ifBlank { s.studentId }.ifBlank { s.id }
-                if (sid == primaryId || sid.isBlank()) return@filter false
-                val sFather = s.fatherName.trim().lowercase()
-                val sMother = s.motherName.trim().lowercase()
-                val sPhone  = listOf(s.phone, s.phoneNumber)
-                    .map { it.trim() }.firstOrNull { it.isNotBlank() } ?: ""
+            val primaryFather = normName(primary.fatherName)
+            val primaryMother = normName(primary.motherName)
+            val primaryNamesBlank = primaryFather.isBlank() && primaryMother.isBlank()
 
-                val keyMatch = primaryParentKey.isNotBlank() &&
-                        s.parentDbKey.trim() == primaryParentKey
-                val namesMatch = primaryFather.isNotBlank() && primaryMother.isNotBlank() &&
-                        sFather == primaryFather && sMother == primaryMother
-                val phoneMatch = primaryPhone.isNotBlank() && sPhone == primaryPhone
+            // Hard prerequisite: without a phone we can't identify
+            // siblings reliably. Empty list rather than match against blank.
+            val siblings = if (primaryPhone.isBlank()) {
+                emptyList()
+            } else {
+                fetched.filter { s ->
+                    val sid = s.userId.ifBlank { s.studentId }.ifBlank { s.id }
+                    if (sid == primaryId || sid.isBlank()) return@filter false
 
-                keyMatch || namesMatch || phoneMatch
-            }.sortedBy { it.name }
+                    val sPhone = listOfNotNull(
+                        s.phone.takeIf { it.isNotBlank() },
+                        s.phoneNumber.takeIf { it.isNotBlank() },
+                    ).firstOrNull()?.let(::normPhone).orEmpty()
+                    if (sPhone.isBlank()) return@filter false
+                    if (sPhone != primaryPhone) return@filter false
+
+                    val sFather = normName(s.fatherName)
+                    val sMother = normName(s.motherName)
+                    val sNamesBlank = sFather.isBlank() && sMother.isBlank()
+
+                    val fatherMatch = primaryFather.isNotBlank() &&
+                        sFather.isNotBlank() && primaryFather == sFather
+                    val motherMatch = primaryMother.isNotBlank() &&
+                        sMother.isNotBlank() && primaryMother == sMother
+
+                    fatherMatch || motherMatch || primaryNamesBlank || sNamesBlank
+                }.sortedBy { it.name }
+            }
             Result.success(siblings)
         } catch (e: Exception) {
             Result.failure(e)
@@ -173,13 +220,27 @@ class StudentFirestoreRepository @Inject constructor(
 
     /**
      * Observe a student document for real-time changes.
-     * Emits `null` when the document does not exist.
+     * Emits `null` when the document does not exist OR when schoolCode
+     * isn't yet known (pre-login state).
+     *
+     * B4 — Pre-fix this passed bare `studentId` as the docId, but the
+     * canonical Firestore docId is `{schoolId}_{studentId}` (matches
+     * `getStudent()` above and the admin writer). The bug never
+     * surfaced because `observeStudent` had no live callers, but it
+     * was a trap waiting for the next consumer to wire it up.
      */
-    fun observeStudent(studentId: String): Flow<StudentDoc?> {
-        return firestoreService.observeDocumentAs<StudentDoc>(
+    fun observeStudent(studentId: String): Flow<StudentDoc?> = flow {
+        val schoolCode = tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
+            ?: tokenManager.user.firstOrNull()?.schoolId?.takeIf { it.isNotBlank() }
+        if (schoolCode == null) {
+            emit(null)
+            return@flow
+        }
+        val docId = "${schoolCode}_$studentId"
+        firestoreService.observeDocumentAs<StudentDoc>(
             Constants.Firestore.STUDENTS,
-            studentId
-        )
+            docId
+        ).collect { emit(it) }
     }
 
     private suspend fun getSchoolCode(): String? {

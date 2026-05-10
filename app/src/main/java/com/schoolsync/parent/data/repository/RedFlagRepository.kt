@@ -90,9 +90,11 @@ class RedFlagRepository @Inject constructor(
         val schoolId = user.preferredSchoolId().ifBlank { return emptyList() }
 
         return try {
+            val sinceMs = defaultSinceMs()
             val snap = firestoreService.queryDocuments(Constants.Firestore.STUDENT_FLAGS) { ref ->
                 ref.whereEqualTo("schoolId", schoolId)
                     .whereEqualTo("studentId", user.userId)
+                    .whereGreaterThanOrEqualTo("createdAtMs", sinceMs)
                     .orderBy("createdAtMs", Query.Direction.DESCENDING)
             }
             snap.documents.map { snapshotToFlag(it) }.dropDeleted()
@@ -118,14 +120,16 @@ class RedFlagRepository @Inject constructor(
             } else {
                 val schoolId  = user.preferredSchoolId()
                 val studentId = user.userId
+                val sinceMs   = defaultSinceMs()
                 // Loud log so a teacher/parent studentId mismatch is
                 // immediately visible in logcat. Compare against the
                 // RedFlagRepo log on the Teacher app:
                 //   adb logcat -s RedFlagRepoP:* RedFlagRepo:*
-                Log.i(TAG, "observeFlags query -> schoolId=$schoolId, studentId=$studentId")
+                Log.i(TAG, "observeFlags query -> schoolId=$schoolId, studentId=$studentId, since=$sinceMs")
                 firestoreService.observeQuery(Constants.Firestore.STUDENT_FLAGS) { ref ->
                     ref.whereEqualTo("schoolId", schoolId)
                         .whereEqualTo("studentId", studentId)
+                        .whereGreaterThanOrEqualTo("createdAtMs", sinceMs)
                         .orderBy("createdAtMs", Query.Direction.DESCENDING)
                 }.map { snap ->
                     Log.i(TAG, "observeFlags emit -> raw=${snap.documents.size} docs")
@@ -135,7 +139,18 @@ class RedFlagRepository @Inject constructor(
         }
     }
 
-    companion object { private const val TAG = "RedFlagRepoP" }
+    /**
+     * Rolling 60-day window. Matches the cross-system retention strategy
+     * — older flags are preserved in Firestore but not surfaced to the
+     * parent UI by default. Admin retains full-history access.
+     */
+    private fun defaultSinceMs(): Long =
+        System.currentTimeMillis() - (DEFAULT_WINDOW_DAYS * 24L * 60L * 60L * 1000L)
+
+    companion object {
+        private const val TAG = "RedFlagRepoP"
+        private const val DEFAULT_WINDOW_DAYS = 60L
+    }
 
     /**
      * Get count of active flags for the current student (one-shot).
