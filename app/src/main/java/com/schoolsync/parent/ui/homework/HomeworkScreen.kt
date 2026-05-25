@@ -56,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -71,6 +72,7 @@ import com.schoolsync.parent.ui.theme.AppColors
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
+import com.schoolsync.parent.util.AttachmentUrlValidator
 
 // ─── Main Entry Point ───────────────────────────────────────────────────────
 
@@ -843,7 +845,19 @@ private fun HomeworkDetailPage(
             }
 
             // ── Attachments ─────────────────────────────────────────────
+            //
+            // Finding #30 — closed by Step 5 (2026-05-15). The Row below
+            // is now clickable; taps go through [AttachmentUrlValidator]
+            // which enforces an https-only + firebasestorage.googleapis.com
+            // host allowlist before dispatching [Intent.ACTION_VIEW]. See
+            // util/AttachmentUrlValidator.kt for the full rejection
+            // taxonomy and telemetry. The legacy `homework.attachments:
+            // List<String>` field is read here intentionally — Step 2
+            // dual-emit guarantees this list always carries the same
+            // canonical download URLs as `homework.attachmentObjects`,
+            // so backward compatibility is preserved.
             if (homework.attachments.isNotEmpty()) {
+                val context = LocalContext.current
                 SectionLabel(text = "ATTACHMENTS FROM TEACHER")
                 Column(
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -867,6 +881,13 @@ private fun HomeworkDetailPage(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .glassCard(12.dp)
+                                .clickable {
+                                    AttachmentUrlValidator.openAttachmentSafely(
+                                        context = context,
+                                        rawUrl = attachment,
+                                        fileName = fileName
+                                    )
+                                }
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -1154,7 +1175,7 @@ private fun SubmitHomeworkDialog(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 androidx.compose.material3.Text(
-                    "${homework.subject} — Due: ${homework.dueDate}",
+                    "${homework.subject} — Due: ${HomeworkViewModel.dueDateFullLabel(homework)}",
                     color = c.textSecondary,
                     fontSize = 12.sp
                 )

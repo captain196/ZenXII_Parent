@@ -1,6 +1,5 @@
 package com.schoolsync.parent.ui.attendance
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.local.TokenManager
@@ -8,6 +7,7 @@ import com.schoolsync.parent.data.model.AttendanceData
 import com.schoolsync.parent.data.model.AttendanceStatus
 import com.schoolsync.parent.data.model.User
 import com.schoolsync.parent.data.repository.firestore.AttendanceFirestoreRepository
+import com.schoolsync.parent.util.debugLog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -224,7 +224,7 @@ class AttendanceViewModel @Inject constructor(
                         // fields to defaults so the UI renders an
                         // empty month cleanly instead of carrying
                         // over the previous selection's numbers.
-                        Log.i("AttendanceVM", "No attendance for ${month.monthName} ${month.year}: ${e.message}")
+                        debugLog("[AttendanceVM][I] No attendance for ${month.monthName} ${month.year}: ${e.message}")
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -268,7 +268,7 @@ class AttendanceViewModel @Inject constructor(
                 loadAttendance()
                 loadExtras()
             } catch (e: Exception) {
-                Log.w("AttendanceVM", "pullRefresh failed", e)
+                debugLog("[AttendanceVM][W] pullRefresh failed: ${e.message}")
             }
             val elapsed = System.currentTimeMillis() - startedAt
             if (elapsed < minSpinnerMs) {
@@ -343,7 +343,7 @@ class AttendanceViewModel @Inject constructor(
                         }
                     },
                     onFailure = { e ->
-                        Log.w("AttendanceVM", "Firestore extras failed", e)
+                        debugLog("[AttendanceVM][W] Firestore extras failed: ${e.message}")
                         // Non-critical, leave defaults
                     }
                 )

@@ -6,6 +6,7 @@ import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.firestore.HomeworkDoc
 import com.schoolsync.parent.data.model.firestore.SubmissionDoc
 import com.schoolsync.parent.util.Constants
+import com.schoolsync.parent.util.debugLog
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -136,7 +137,11 @@ class HomeworkFirestoreRepository @Inject constructor(
                 if (s.homeworkId.isNotBlank()) out[s.homeworkId] = s
             }
             out
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            // BUG-022 — structured debugLog (OEM-strip-immune) replaces the
+            // prior fully-silent catch. Result.success(emptyMap()) contract
+            // preserved so the homework list keeps rendering.
+            debugLog("ACC_HW_PARENT_REPO_GET_SUBMISSIONS_FOR_STUDENT_FAILED err=${e.javaClass.simpleName}:${e.message}")
             emptyMap()
         }
     }
@@ -158,7 +163,10 @@ class HomeworkFirestoreRepository @Inject constructor(
                 val rk = snap.getString("remark") ?: ""
                 sc to rk
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            // BUG-022 — structured debugLog replaces silent catch.
+            // null contract preserved so caller renders "no mark".
+            debugLog("ACC_HW_PARENT_REPO_GET_TEACHER_MARK_FAILED hwId=$homeworkId err=${e.javaClass.simpleName}:${e.message}")
             null
         }
     }
@@ -186,7 +194,10 @@ class HomeworkFirestoreRepository @Inject constructor(
                 out[hwId] = sc to rk
             }
             out
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            // BUG-022 — structured debugLog replaces silent catch.
+            // emptyMap() contract preserved.
+            debugLog("ACC_HW_PARENT_REPO_GET_TEACHER_MARKS_FOR_STUDENT_FAILED err=${e.javaClass.simpleName}:${e.message}")
             emptyMap()
         }
     }
@@ -203,6 +214,20 @@ class HomeworkFirestoreRepository @Inject constructor(
         text: String,
         files: List<String>
     ): Result<Unit> {
+        // BUG-023 — input-boundary length validation (mirror of admin BUG-013
+        // and Teacher BUG-020). Byte-count via toByteArray().size for accurate
+        // Firestore 1MB doc-cap semantics; user-facing messages say
+        // "characters"/"files" for clarity.
+        if (text.toByteArray().size > 10000) {
+            return Result.failure(IllegalArgumentException("Submission text exceeds 10000 characters."))
+        }
+        if (files.size > 10) {
+            return Result.failure(IllegalArgumentException("Submission cannot have more than 10 attachments."))
+        }
+        if (studentName.toByteArray().size > 200) {
+            return Result.failure(IllegalArgumentException("Student name exceeds 200 characters."))
+        }
+
         val schoolCode = getSchoolCode()
             ?: return Result.failure(Exception("School code not available"))
 

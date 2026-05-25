@@ -247,15 +247,6 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideSchoolFirestoreRepository(
-        firestoreService: FirestoreService,
-        tokenManager: TokenManager
-    ): SchoolFirestoreRepository {
-        return SchoolFirestoreRepository(firestoreService, tokenManager)
-    }
-
-    @Provides
-    @Singleton
     fun provideStudentFirestoreRepository(
         firestoreService: FirestoreService,
         tokenManager: TokenManager

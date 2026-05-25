@@ -8,6 +8,7 @@ import com.schoolsync.parent.data.model.Homework
 import com.schoolsync.parent.data.model.User
 import com.schoolsync.parent.data.repository.firestore.HomeworkFirestoreRepository
 import com.schoolsync.parent.util.Constants
+import com.schoolsync.parent.util.debugLog
 import com.schoolsync.parent.util.toDateOrNull
 import com.schoolsync.parent.util.toEpochMillisOrNull
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -247,7 +248,11 @@ class HomeworkViewModel @Inject constructor(
             try {
                 startLiveListener()
             } catch (e: Exception) {
-                Log.w("HomeworkVM", "pullRefresh failed", e)
+                // BUG-025 — route through debugLog (OEM-strip-immune via
+                // cache-file sink) per F1 lesson; iQOO/OnePlus/Xiaomi strip
+                // Log.w from logcat, leaving operator triage blind on the
+                // dominant Indian Android OEM substrate.
+                debugLog("ACC_HW_PARENT_VM_PULL_REFRESH_FAILED err=${e.javaClass.simpleName}:${e.message}")
             }
             val elapsed = System.currentTimeMillis() - startedAt
             if (elapsed < minSpinnerMs) {
@@ -537,6 +542,22 @@ class HomeworkViewModel @Inject constructor(
                 1L   -> "Due tomorrow"
                 else -> "Due on ${dateFmt.format(due)}"
             }
+        }
+
+        /**
+         * Full date+time label for surfaces (e.g. Submit Homework dialog)
+         * where we want absolute "16 May 2026, 11:59 PM IST" rather than
+         * the relative form. Mirrors the Teacher app's `dueDateDisplay`
+         * shape so notification body strings and on-screen text agree.
+         * Falls back to the raw stored value only if it cannot be parsed,
+         * so blank / legacy non-ISO strings still surface something.
+         */
+        fun dueDateFullLabel(homework: Homework): String {
+            val due = parseDueDate(homework.dueDate) ?: return homework.dueDate
+            val out = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.US).apply {
+                timeZone = IST_TZ
+            }
+            return "${out.format(due)} IST"
         }
 
         /** Subject-specific study tip */

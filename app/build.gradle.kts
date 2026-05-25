@@ -34,6 +34,15 @@ android {
                 "proguard-rules.pro"
             )
         }
+        debug {
+            // Runtime-validation override — points debug builds at ngrok tunnel.
+            // Remove this block (or revert) when ngrok session ends.
+            buildConfigField(
+                "String",
+                "BASE_URL",
+                "\"https://shifting-salvation-skylight.ngrok-free.dev/Grader/school/\""
+            )
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
