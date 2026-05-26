@@ -29,8 +29,8 @@ class FCMService : FirebaseMessagingService() {
     companion object {
         private const val TAG = "FCMService"
         private const val CHANNEL_ID = "schoolsync_notifications"
-        private const val CHANNEL_NAME = "SchoolSync Notifications"
-        private const val CHANNEL_DESCRIPTION = "Notifications from SchoolSync"
+        private const val CHANNEL_NAME = "ZenXii Notifications"
+        private const val CHANNEL_DESCRIPTION = "Notifications from ZenXii"
     }
 
     @Inject
@@ -74,7 +74,7 @@ class FCMService : FirebaseMessagingService() {
         // Handle notification payload
         message.notification?.let { notification ->
             showNotification(
-                title = notification.title ?: "SchoolSync",
+                title = notification.title ?: "ZenXii",
                 body = notification.body ?: "",
                 data = message.data
             )
@@ -83,7 +83,7 @@ class FCMService : FirebaseMessagingService() {
         // Handle data-only messages
         if (message.notification == null && message.data.isNotEmpty()) {
             val type = message.data["type"] ?: ""
-            val title = message.data["title"] ?: "SchoolSync"
+            val title = message.data["title"] ?: "ZenXii"
             val body = message.data["body"] ?: message.data["message"] ?: ""
 
             when (type) {
@@ -211,7 +211,7 @@ class FCMService : FirebaseMessagingService() {
         )
 
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.mipmap.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)

@@ -538,7 +538,7 @@ private fun StudentIdCard(
                 Icon(Icons.Filled.School, null, tint = c.onBanner.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    schoolName.ifBlank { "SchoolSync" },
+                    schoolName.ifBlank { "ZenXii" },
                     style = MaterialTheme.typography.labelMedium,
                     color = c.onBannerMuted,
                     maxLines = 1,

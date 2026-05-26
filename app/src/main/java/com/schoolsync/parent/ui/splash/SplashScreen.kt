@@ -2,6 +2,7 @@ package com.schoolsync.parent.ui.splash
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -14,15 +15,15 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.schoolsync.parent.R
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import kotlinx.coroutines.delay
 
-private val ZenzGreen = Color(0xFF2DB87A)
-private val ZenzDark = Color(0xFF1E2D3D)
+private val ZenXiiGreen = Color(0xFF2DB87A)
 
 @Composable
 fun SplashScreen(
@@ -48,16 +49,6 @@ fun SplashScreen(
     val logoAlpha by animateFloatAsState(
         targetValue = if (phase >= 1) 1f else 0f,
         animationSpec = tween(400), label = "logoAlpha"
-    )
-
-    // ── Green triangle draws in (clip reveal) ──
-    val greenReveal by animateFloatAsState(
-        targetValue = if (phase >= 1) 1f else 0f,
-        animationSpec = tween(700, easing = FastOutSlowInEasing), label = "greenReveal"
-    )
-    val darkReveal by animateFloatAsState(
-        targetValue = if (phase >= 1) 1f else 0f,
-        animationSpec = tween(700, delayMillis = 250, easing = FastOutSlowInEasing), label = "darkReveal"
     )
 
     // ── Text animations ──
@@ -131,19 +122,19 @@ fun SplashScreen(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(horizontal = 40.dp)
         ) {
-            // ── ZENZ Logo ──
+            // ── ZenXii Logo ──
             Box(contentAlignment = Alignment.Center) {
                 // Glow behind logo
                 Canvas(
                     modifier = Modifier
-                        .size(160.dp)
+                        .size(180.dp)
                         .alpha(if (phase >= 1) glowAlpha else 0f)
                 ) {
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                ZenzGreen.copy(alpha = 0.5f),
-                                ZenzGreen.copy(alpha = 0f)
+                                ZenXiiGreen.copy(alpha = 0.5f),
+                                ZenXiiGreen.copy(alpha = 0f)
                             ),
                             center = center,
                             radius = size.minDimension / 2f * glowRadius
@@ -151,48 +142,25 @@ fun SplashScreen(
                     )
                 }
 
-                // Z Logo canvas
-                Canvas(
+                Image(
+                    painter = painterResource(id = R.drawable.zenxii_logo),
+                    contentDescription = "ZenXii",
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(140.dp)
                         .scale(logoScale)
                         .alpha(logoAlpha)
-                ) {
-                    val w = size.width
-                    val h = size.height
-                    // Green: top bar + diagonal stroke (connected Z shape)
-                    val greenPath = Path().apply {
-                        moveTo(w * 0.07f, h * 0.03f)
-                        lineTo(w * 0.93f, h * 0.03f)
-                        lineTo(w * 0.93f, h * 0.27f)
-                        lineTo(w * 0.67f, h * 0.27f)
-                        lineTo(w * 0.27f, h * 0.73f)
-                        lineTo(w * 0.07f, h * 0.73f)
-                        close()
-                    }
-                    // Dark: bottom bar
-                    val darkPath = Path().apply {
-                        moveTo(w * 0.07f, h * 0.73f)
-                        lineTo(w * 0.93f, h * 0.73f)
-                        lineTo(w * 0.93f, h * 0.97f)
-                        lineTo(w * 0.07f, h * 0.97f)
-                        close()
-                    }
-
-                    drawPath(greenPath, color = ZenzGreen, alpha = greenReveal)
-                    drawPath(darkPath, color = if (colors.isDark) Color(0xFF8AA0B8) else ZenzDark, alpha = darkReveal)
-                }
+                )
             }
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // ── Brand name ──
             Text(
-                text = "ZENZ",
-                fontSize = 42.sp,
+                text = "ZenXii",
+                fontSize = 38.sp,
                 fontWeight = FontWeight.Black,
                 color = colors.textPrimary,
-                letterSpacing = 8.sp,
+                letterSpacing = 2.sp,
                 modifier = Modifier
                     .alpha(titleAlpha)
                     .offset(y = titleOffsetY.dp)
@@ -216,7 +184,7 @@ fun SplashScreen(
                 text = "Parent Portal",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = ZenzGreen,
+                color = ZenXiiGreen,
                 modifier = Modifier.alpha(taglineAlpha)
             )
         }

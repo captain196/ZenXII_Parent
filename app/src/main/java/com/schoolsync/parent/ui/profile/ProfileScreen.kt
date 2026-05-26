@@ -488,7 +488,7 @@ fun ProfileScreen(
                         SettingsRow(
                             emoji = "\uD83D\uDCC4",
                             label = "About",
-                            subtitle = "SchoolSync Parent v1.0",
+                            subtitle = "ZenXii Parent v1.0",
                             onClick = { aboutExpanded = !aboutExpanded }
                         )
                         AnimatedVisibility(
@@ -532,7 +532,7 @@ fun ProfileScreen(
                 // ── 9. Version ──────────────────────────────────────────
                 item {
                     Text(
-                        text = "SchoolSync Parent v1.0",
+                        text = "ZenXii Parent v1.0",
                         style = TextStyle(fontSize = 11.sp, color = c.textTertiary),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1191,7 +1191,7 @@ private fun AboutContent() {
             .padding(bottom = 14.dp)
     ) {
         Text(
-            text = "SchoolSync Parent",
+            text = "ZenXii Parent",
             style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
         )
         Spacer(modifier = Modifier.height(2.dp))
@@ -1201,7 +1201,7 @@ private fun AboutContent() {
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "SchoolSync is your direct line to your child's school. Track " +
+            text = "ZenXii is your direct line to your child's school. Track " +
                 "attendance, pay fees securely, view homework and results, read " +
                 "circulars, and stay informed of every event \u2014 all in one place.",
             style = TextStyle(fontSize = 11.sp, color = c.textSecondary, lineHeight = 16.sp)
@@ -1214,7 +1214,7 @@ private fun AboutContent() {
             "Firebase project, never shared with third parties")
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "\u00A9 2026 SchoolSync. Built for Indian schools.",
+            text = "\u00A9 2026 ZenXii. Built for Indian schools.",
             style = TextStyle(fontSize = 10.sp, color = c.textTertiary)
         )
     }
