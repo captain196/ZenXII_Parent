@@ -8,6 +8,7 @@ import com.schoolsync.parent.data.firebase.FirebaseService
 import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.remote.ApiService
+import com.schoolsync.parent.data.remote.AuthApi
 import com.schoolsync.parent.data.remote.AuthInterceptor
 import com.schoolsync.parent.data.remote.FeesApi
 import com.schoolsync.parent.data.repository.AttendanceRepository
@@ -126,6 +127,14 @@ object AppModule {
         return retrofit.create(FeesApi::class.java)
     }
 
+    @Provides
+    @Singleton
+    fun provideAuthApi(
+        retrofit: Retrofit
+    ): AuthApi {
+        return retrofit.create(AuthApi::class.java)
+    }
+
     // ── Firebase ─────────────────────────────────────────────────────────
 
     @Provides
@@ -162,9 +171,10 @@ object AppModule {
         tokenManager: TokenManager,
         firebaseAuthManager: FirebaseAuthManager,
         firebaseService: FirebaseService,
-        firestoreService: FirestoreService
+        firestoreService: FirestoreService,
+        authApi: AuthApi
     ): AuthRepository {
-        return AuthRepository(tokenManager, firebaseAuthManager, firebaseService, firestoreService)
+        return AuthRepository(tokenManager, firebaseAuthManager, firebaseService, firestoreService, authApi)
     }
 
     @Provides

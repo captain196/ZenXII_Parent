@@ -13,22 +13,23 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Phase A Part 2 — drives the forced password-change screen that
- * appears immediately after a parent's first login. The screen blocks
+ * Drives the forced password-change screen that appears immediately after
+ * a parent's first login (admin-driven reset path). The screen blocks
  * navigation to the rest of the app until a new password is set.
  *
- * Implementation note: we DO require the user to re-enter their current
- * password here, even though they just typed it to log in. Firebase Auth
- * needs a "recent login" window for password updates (about 5 min), and
- * reading network conditions, slow typing, or splash → force-change cold
- * starts can blow that window. The current password lets us re-auth
- * immediately before the update, which makes the change reliable.
+ * The flow calls the server endpoint `POST /auth/clear_must_change` —
+ * the server uses Admin-SDK privileges to update Firebase Auth and clear
+ * the `must_change_password` custom claim + Firestore profile field
+ * atomically. No "current password" re-auth is needed because the user
+ * just signed in with the temporary password seconds ago.
+ *
+ * For voluntary password changes from a Settings screen (future), use a
+ * different ViewModel that calls AuthRepository.changePassword which goes
+ * through Firebase client SDK with a recent-login re-auth.
  */
 data class ForceChangePasswordUiState(
-    val currentPassword: String = "",
     val newPassword: String = "",
     val confirmPassword: String = "",
-    val currentVisible: Boolean = false,
     val newVisible: Boolean = false,
     val confirmVisible: Boolean = false,
     val isSubmitting: Boolean = false,
@@ -44,20 +45,12 @@ class ForceChangePasswordViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ForceChangePasswordUiState())
     val uiState: StateFlow<ForceChangePasswordUiState> = _uiState.asStateFlow()
 
-    fun onCurrentPasswordChange(value: String) {
-        _uiState.update { it.copy(currentPassword = value, errorMessage = null) }
-    }
-
     fun onNewPasswordChange(value: String) {
         _uiState.update { it.copy(newPassword = value, errorMessage = null) }
     }
 
     fun onConfirmPasswordChange(value: String) {
         _uiState.update { it.copy(confirmPassword = value, errorMessage = null) }
-    }
-
-    fun toggleCurrentVisibility() {
-        _uiState.update { it.copy(currentVisible = !it.currentVisible) }
     }
 
     fun toggleNewVisibility() {
@@ -70,18 +63,14 @@ class ForceChangePasswordViewModel @Inject constructor(
 
     fun submit() {
         val state = _uiState.value
-        val errors = validate(state.currentPassword, state.newPassword, state.confirmPassword)
+        val errors = validate(state.newPassword, state.confirmPassword)
         if (errors != null) {
             _uiState.update { it.copy(errorMessage = errors) }
             return
         }
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
-            // Pass the typed currentPassword so AuthRepository.changePassword
-            // re-authenticates with Firebase Auth (refreshing the recent-
-            // login window) before calling updatePassword. Without this the
-            // update fails with `requires-recent-login` after a few minutes.
-            when (val res = authRepository.changePassword(state.currentPassword, state.newPassword)) {
+            when (val res = authRepository.clearMustChange(state.newPassword)) {
                 is AuthResult.Success ->
                     _uiState.update { it.copy(isSubmitting = false, success = true) }
                 is AuthResult.Error ->
@@ -90,11 +79,15 @@ class ForceChangePasswordViewModel @Inject constructor(
         }
     }
 
-    private fun validate(current: String, new: String, confirm: String): String? {
-        if (current.isBlank()) return "Please enter your current password."
-        if (new.length < 6) return "New password must be at least 6 characters."
-        if (new == current) return "New password must be different from the current one."
-        if (new != confirm) return "Passwords do not match."
+    private fun validate(new: String, confirm: String): String? {
+        // Mirrors the server-side policy in Auth_api::clear_must_change.
+        if (new.length < 8 || new.length > 72) {
+            return "Password must be 8–72 characters."
+        }
+        if (!new.any { it.isUpperCase() }) return "Must include an uppercase letter."
+        if (!new.any { it.isLowerCase() }) return "Must include a lowercase letter."
+        if (!new.any { it.isDigit() })     return "Must include a digit."
+        if (new != confirm)                return "Passwords do not match."
         // Block the auto-generated password format (e.g. "Sum1504@") from
         // being reused — the entire point of this screen is to replace it.
         if (Regex("^[A-Z][a-z]{2}\\d{4}@$").matches(new)) {

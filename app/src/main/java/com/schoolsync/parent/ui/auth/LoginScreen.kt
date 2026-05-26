@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,14 +20,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Lock
@@ -48,6 +47,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.schoolsync.parent.R
 import com.schoolsync.parent.ui.theme.AppColors
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
@@ -75,18 +76,23 @@ fun LoginScreen(
     val c = LocalAppColors.current
     val showDevSettingsState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     val showDevSettings = showDevSettingsState.value
+    val showForgotState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     LaunchedEffect(uiState.loginSuccess) {
         if (uiState.loginSuccess) onLoginSuccess(uiState.mustChangePassword)
     }
 
-    // Hidden dev override dialog — long-press the SchoolSync title to
+    // Hidden dev override dialog — long-press the ZenXii title to
     // open. Survives PC IP changes during testing without rebuilding.
     if (showDevSettings) {
         com.schoolsync.parent.ui.common.DevSettingsDialog(
             devPrefs = viewModel.devPrefs,
             onDismiss = { showDevSettingsState.value = false }
         )
+    }
+
+    if (showForgotState.value) {
+        ForgotPasswordDialog(onDismiss = { showForgotState.value = false })
     }
 
     Box(
@@ -106,28 +112,17 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(72.dp))
 
             // ── Logo ──
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(listOf(c.accent, c.accentSecondary))
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.School,
-                    contentDescription = "SchoolSync",
-                    tint = if (c.isDark) c.bgStart else Color.White,
-                    modifier = Modifier.size(38.dp)
-                )
-            }
+            Image(
+                painter = painterResource(id = R.drawable.zenxii_logo),
+                contentDescription = "ZenXii",
+                modifier = Modifier.size(96.dp)
+            )
 
             Spacer(modifier = Modifier.height(18.dp))
 
             // ── Brand ── (long-press → hidden dev settings dialog)
             Text(
-                text = "SchoolSync",
+                text = "ZenXii",
                 style = TextStyle(
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
@@ -322,17 +317,21 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                text = "Contact your school administrator\nif you forgot your credentials",
-                style = TextStyle(
-                    fontSize = 12.sp,
-                    color = c.textTertiary,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 18.sp
+            androidx.compose.material3.TextButton(
+                onClick = { showForgotState.value = true }
+            ) {
+                Text(
+                    text = "Forgot password?",
+                    style = TextStyle(
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = c.accent,
+                        textAlign = TextAlign.Center
+                    )
                 )
-            )
+            }
 
             Spacer(modifier = Modifier.height(40.dp))
         }

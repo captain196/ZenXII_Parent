@@ -20,9 +20,12 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
-        // PHP backend URL — used for any future REST API endpoints
-        // Emulator: 10.0.2.2 | Physical device over USB: use localhost + `adb reverse tcp:80 tcp:80`
-        buildConfigField("String", "BASE_URL", "\"http://localhost:8080/Grader/school/\"")
+        // PHP backend URL — used for any future REST API endpoints.
+        // Emulator: 10.0.2.2 reaches the host machine's 8080.
+        // Physical device over USB: `adb reverse tcp:8080 tcp:8080` then use 127.0.0.1:8080 here.
+        // Physical device over Wi-Fi: use the Mac's LAN IP.
+        // Runtime override available via DevPrefs / Dev Settings dialog.
+        buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080/Grader/school/\"")
     }
 
     buildTypes {
