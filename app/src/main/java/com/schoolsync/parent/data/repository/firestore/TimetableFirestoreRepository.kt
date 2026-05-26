@@ -32,14 +32,27 @@ class TimetableFirestoreRepository @Inject constructor(
      * Queries all day documents matching the sectionKey.
      */
     suspend fun getTimetable(className: String, section: String): Result<Timetable> {
-        val schoolCode = tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
-            ?: return Result.failure(Exception("School code not available"))
-        val session = tokenManager.user.firstOrNull()?.session?.takeIf { it.isNotBlank() }
-            ?: return Result.failure(Exception("Session not available"))
+        val user = tokenManager.user.firstOrNull()
+        val schoolCode = user?.schoolCode?.takeIf { it.isNotBlank() }
+            ?: run {
+                Log.w(TAG, "getTimetable: schoolCode blank on user — aborting")
+                return Result.failure(Exception("School code not available"))
+            }
+        val session = user.session?.takeIf { it.isNotBlank() }
+            ?: run {
+                Log.w(TAG, "getTimetable: session blank on user — aborting (schoolCode=$schoolCode)")
+                return Result.failure(Exception("Session not available on profile"))
+            }
 
         val cls = Constants.Firebase.classKey(className)
         val sec = Constants.Firebase.sectionKey(section)
         val sectionKey = "$cls/$sec"
+
+        Log.d(
+            TAG,
+            "getTimetable query → schoolId=$schoolCode session=$session " +
+                "className=\"$className\" section=\"$section\" sectionKey=\"$sectionKey\""
+        )
 
         return try {
             // Query by schoolId + sectionKey (schoolId required by security rules)
@@ -51,6 +64,39 @@ class TimetableFirestoreRepository @Inject constructor(
                     .whereEqualTo("sectionKey", sectionKey)
             }
             val docs = allDocs.filter { it.session == session }
+
+            Log.d(
+                TAG,
+                "getTimetable result → allDocs=${allDocs.size} afterSessionFilter=${docs.size}"
+            )
+            if (allDocs.isNotEmpty() && docs.isEmpty()) {
+                // Most common bug: schoolId+sectionKey matched but session filter
+                // dropped everything — surface the offending session values.
+                val sampleSessions = allDocs.map { it.session }.distinct()
+                Log.w(
+                    TAG,
+                    "getTimetable: ${allDocs.size} docs matched but session filter " +
+                        "removed all of them. user.session=\"$session\" docSessions=$sampleSessions"
+                )
+            } else if (allDocs.isEmpty()) {
+                // Probe whether ANY timetable exists for this school under the
+                // same session — pinpoints schoolId vs sectionKey mismatches.
+                val probe = firestoreService.queryDocumentsAs<TimetableDoc>(
+                    Constants.Firestore.TIMETABLES
+                ) { ref ->
+                    ref.whereEqualTo("schoolId", schoolCode).limit(5)
+                }
+                if (probe.isEmpty()) {
+                    Log.w(TAG, "getTimetable: no timetable docs at all for schoolId=$schoolCode")
+                } else {
+                    val sampleKeys = probe.map { "session=${it.session} sectionKey=\"${it.sectionKey}\"" }
+                    Log.w(
+                        TAG,
+                        "getTimetable: 0 sectionKey matches for \"$sectionKey\". " +
+                            "Sample timetable docs in same school: $sampleKeys"
+                    )
+                }
+            }
 
             // Defensive teacher-name resolution: most timetable documents
             // already store the teacher's full name in `period.teacher`, but
