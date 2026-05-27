@@ -679,7 +679,16 @@ class FeesViewModel @Inject constructor(
         studentId: String
     ): PendingFees {
         if (demands.isEmpty()) return PendingFees(studentId = studentId)
-        val grouped = demands.groupBy { it.month.ifBlank { "Unknown" } }
+        // BUG-076 defense (2026-05-27): client-side archived skip. Belt-and-
+        // suspenders pairing with FeeFirestoreRepository.kt SW4-B upstream
+        // .whereNotEqualTo("status","archived") filter. Even when the upstream
+        // is unavailable (stale APK without SW4-B, undeployed composite index,
+        // Firestore SDK fallback path), archived demands MUST NOT enter the
+        // aggregation — otherwise post-promotion phantom dues surface in
+        // Total/Paid/Due cards.
+        val active = demands.filter { it.status != "archived" }
+        if (active.isEmpty()) return PendingFees(studentId = studentId)
+        val grouped = active.groupBy { it.month.ifBlank { "Unknown" } }
         val academicOrder = listOf(
             "April","May","June","July","August","September",
             "October","November","December","January","February","March"
@@ -689,7 +698,7 @@ class FeesViewModel @Inject constructor(
         // across all demands. Format: "2026-27". Used to anchor the
         // "overdue" computation (so April 2026 doesn't register as
         // "overdue" in April 2027).
-        val sessionYear: Int = demands
+        val sessionYear: Int = active
             .firstOrNull()?.session?.take(4)?.toIntOrNull()
             ?: java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
 
