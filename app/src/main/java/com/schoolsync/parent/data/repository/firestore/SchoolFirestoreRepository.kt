@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -67,6 +68,22 @@ class SchoolFirestoreRepository @Inject constructor(
      * Observe the school document for real-time updates.
      * Reacts to school code changes in the user profile via [flatMapLatest],
      * and emits `null` when the document does not exist or the school code is unavailable.
+     *
+     * SW4 (2026-05-26) — activated live session propagation:
+     * every emitted snapshot mirrors `doc.currentSession` into
+     * `TokenManager.saveSession()` so downstream session-scoped queries
+     * (fees, attendance, exams, lesson plans, sections, teachers, etc.)
+     * automatically follow admin-side currentSession changes without
+     * forcing a re-login. Pattern mirrors Teacher app's proven
+     * SchoolFirestoreRepository implementation (in production since
+     * Phase 1, 2026-05-15). Propagation is wrapped in try/catch so
+     * a failure NEVER blocks the snapshot from reaching the UI layer
+     * — the caller's collector still receives the SchoolDoc.
+     *
+     * BUG-060 / BUG-064 resolution: previously the
+     * `AuthRepository.lookupActiveSession()` RTDB read at login was
+     * the only session source; this observer is now the canonical
+     * session-propagation path.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeSchool(): Flow<SchoolDoc?> {
@@ -80,6 +97,24 @@ class SchoolFirestoreRepository @Inject constructor(
                         Constants.Firestore.SCHOOLS,
                         schoolCode
                     )
+                }
+            }
+            .onEach { doc ->
+                // Best-effort: propagate currentSession into TokenManager so
+                // session-scoped repository queries automatically follow
+                // admin rollovers. Wrapped in try/catch — a propagation
+                // failure must NEVER block the snapshot from reaching UI.
+                val current = doc?.currentSession?.trim().orEmpty()
+                if (current.isNotEmpty()) {
+                    try {
+                        val stored = tokenManager.user.firstOrNull()?.session.orEmpty()
+                        if (stored != current) {
+                            Log.i(TAG, "ACC_SESSION_PROPAGATE stored=$stored fromSchoolDoc=$current")
+                            tokenManager.saveSession(current)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "ACC_SESSION_PROPAGATE_FAILED err=${e.message}")
+                    }
                 }
             }
     }

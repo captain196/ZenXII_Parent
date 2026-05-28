@@ -20,13 +20,17 @@ import com.razorpay.Checkout
 import com.razorpay.PaymentData
 import com.razorpay.PaymentResultWithDataListener
 import android.content.Intent
+import androidx.lifecycle.lifecycleScope
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.payment.PaymentBridge
+import com.schoolsync.parent.data.repository.firestore.SchoolFirestoreRepository
 import com.schoolsync.parent.ui.navigation.AppNavGraph
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.SchoolSyncTheme
 import com.schoolsync.parent.util.DeepLinkBridge
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -34,6 +38,9 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
     @Inject
     lateinit var tokenManager: TokenManager
+
+    @Inject
+    lateinit var schoolFirestoreRepository: SchoolFirestoreRepository
 
     /** Android 13+ runtime permission request for push notifications. */
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -51,6 +58,24 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         // notification, route the user to the relevant screen after
         // the nav graph settles. See DeepLinkBridge + NavGraph consumer.
         publishDeepLinkFromIntent(intent)
+
+        // SW4 (2026-05-26) — activate live session-authority observer.
+        // SchoolFirestoreRepository.observeSchool() emits live Firestore
+        // snapshots of schools/{schoolCode}; its internal .onEach block
+        // propagates currentSession into TokenManager. We subscribe with
+        // an empty collector — the side-effect lives in the repository's
+        // onEach. Tied to the Activity lifecycle so the snapshot listener
+        // cleans up automatically on destroy (via callbackFlow's awaitClose).
+        // Failure of this subscription must NEVER crash the Activity;
+        // wrapped in try/catch so app continues with frozen-at-login
+        // behavior (matches pre-SW4 fallback if observer fails).
+        lifecycleScope.launch {
+            try {
+                schoolFirestoreRepository.observeSchool().collect { /* side-effects via onEach in repo */ }
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "ACC_SESSION_OBSERVER_FAILED err=${e.message}")
+            }
+        }
 
         setContent {
             val themeMode by tokenManager.themeMode.collectAsState(initial = "system")

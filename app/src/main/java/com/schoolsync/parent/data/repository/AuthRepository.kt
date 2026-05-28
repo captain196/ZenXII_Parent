@@ -105,13 +105,16 @@ class AuthRepository @Inject constructor(
             tokenManager.saveDeviceId(deviceId)
 
             // ── Step 5: Resolve active session ──────────────────────
+            // SW4 (2026-05-26): removed RTDB Schools/{schoolCode}/Config/ActiveSession
+            // read. Session now comes from (a) the Firestore profile's
+            // StudentDoc.session at saveUserDirect above, and (b) the live
+            // observer in SchoolFirestoreRepository.observeSchool() which
+            // mirrors schools/{schoolCode}.currentSession into TokenManager
+            // continuously while the app is foregrounded.
+            // The lookupActiveSession() helper at line 388-392 is preserved
+            // unused (dead-code) so SW4 rollback is a single atomic revert.
             if (schoolCode.isNotBlank()) {
                 tokenManager.saveSchoolCode(schoolCode)
-                val session = lookupActiveSession(schoolCode)
-                if (session != null) {
-                    tokenManager.saveSession(session)
-                    Log.d(TAG, "Session resolved: $session")
-                }
             }
 
             // ── Step 6: Phase 7z — register the current FCM token ───
@@ -243,6 +246,14 @@ class AuthRepository @Inject constructor(
                 gender = data["Gender"]?.toString() ?: data["gender"]?.toString() ?: "",
                 admissionDate = data["Admission Date"]?.toString() ?: data["admissionDate"]?.toString() ?: "",
                 parentDbKey = parentDbKey,
+                // BUG-065 / SW4 Option A (2026-05-26, conservative):
+                // RTDB profile fallback path cannot know the canonical
+                // current session. Setting session="" intentionally;
+                // SchoolFirestoreRepository.observeSchool() will self-heal
+                // this within the first Firestore snapshot delivery after
+                // the parent's MainActivity subscribes (typically ms).
+                // Hard-fail-on-empty path NOT chosen here to preserve
+                // login UX during transient Firestore unavailability.
                 session = "",
                 schoolCode = schoolCode
             )
