@@ -86,6 +86,15 @@ class FeeFirestoreRepository @Inject constructor(
                 ref.whereEqualTo("schoolId", schoolCode)
                     .whereEqualTo("session", session)
                     .whereEqualTo("studentId", studentId)
+                    // SW4-companion-B (2026-05-26): exclude archived demand
+                    // docs from the parent-visible result. Archived rows are
+                    // historical records preserved for refund/receipt audit
+                    // lineage after reassignFeesOnPromotion runs. They are
+                    // intentional Firestore residue and must NOT be deleted;
+                    // they just don't belong in the parent's "current dues"
+                    // surface. Requires composite index
+                    //   feeDemands: schoolId ASC, session ASC, studentId ASC, status ASC
+                    .whereNotEqualTo("status", "archived")
                 // No orderBy: Firestore drops docs missing the indexed field,
                 // and alphabetical month order is meaningless. The VM
                 // re-sorts by academic order (April → March, Yearly last).
@@ -113,6 +122,12 @@ class FeeFirestoreRepository @Inject constructor(
                 ref.whereEqualTo("schoolId", schoolCode)
                     .whereEqualTo("session", session)
                     .whereEqualTo("studentId", studentId)
+                    // SW4-companion-B (2026-05-26): exclude archived demands
+                    // server-side. Pairs with the existing client-side
+                    // status!="paid" filter below to yield the pending-dues
+                    // semantic (unpaid + partial only). See getFeeDemands()
+                    // for full rationale + composite-index spec.
+                    .whereNotEqualTo("status", "archived")
                 // No orderBy — see getDemands() for the rationale.
             }
             val pending = demands.filter { it.status != "paid" }
@@ -248,6 +263,11 @@ class FeeFirestoreRepository @Inject constructor(
                         ref.whereEqualTo("schoolId", schoolCode)
                             .whereEqualTo("session", session)
                             .whereEqualTo("studentId", studentId)
+                            // SW4-companion-B (2026-05-26): exclude archived
+                            // demand docs from the live observer. Same
+                            // rationale + index requirement as
+                            // getFeeDemands().
+                            .whereNotEqualTo("status", "archived")
                     }.map { snapshot ->
                         val list = snapshot.documents.mapNotNull { doc ->
                             try { doc.toObject(FeeDemandDoc::class.java) } catch (_: Exception) { null }

@@ -502,7 +502,15 @@ private fun HomeworkCard(item: Homework, onClick: () -> Unit) {
         Priority.MEDIUM -> c.warning
         Priority.LOW -> c.success
     }
-    val statusInfo = resolveStatusInfo(item.studentStatus, c)
+    // Flag overdue (due date passed, still unsubmitted) with a red "Overdue"
+    // pill instead of the amber "Pending" one. isOverdue() already excludes
+    // completed/submitted work, so only genuinely-missed homework is flagged;
+    // it stays in the list and the count by design — this only changes how it
+    // reads, not whether it shows.
+    val statusInfo = if (HomeworkViewModel.isOverdue(item))
+        resolveStatusInfo("overdue", c)
+    else
+        resolveStatusInfo(item.studentStatus, c)
 
     Row(
         modifier = Modifier
@@ -713,7 +721,10 @@ private fun HomeworkDetailPage(
         Priority.MEDIUM -> c.warning
         Priority.LOW -> c.success
     }
-    val statusInfo = resolveStatusInfo(homework.studentStatus, c)
+    val statusInfo = if (HomeworkViewModel.isOverdue(homework))
+        resolveStatusInfo("overdue", c)
+    else
+        resolveStatusInfo(homework.studentStatus, c)
     val isAlreadyDone = HomeworkViewModel.isCompleted(homework)
 
     Box(
