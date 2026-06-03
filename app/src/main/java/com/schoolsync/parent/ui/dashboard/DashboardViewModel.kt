@@ -283,13 +283,22 @@ class DashboardViewModel @Inject constructor(
             val result = studentFirestoreRepo.getStudent(user.userId)
             val doc = result.getOrNull() ?: return user
             var healed = user.copy(
-                className = user.className.ifBlank { doc.className },
-                section   = user.section.ifBlank   { doc.section   },
-                rollNo    = user.rollNo.ifBlank    { doc.rollNo    },
-                fatherName = user.fatherName.ifBlank { doc.fatherName },
-                motherName = user.motherName.ifBlank { doc.motherName },
-                // DOB always prefers Firestore's current value — admin edits
-                // propagate to the parent app on the next dashboard load.
+                // Mobile Refresh Hotfix N Step 2 (2026-06-02) — flipped
+                // from `user.X.ifBlank { doc.X }` (cached-stale-wins) to
+                // `doc.X.ifBlank { user.X }` (Firestore-fresh-wins) for
+                // every promotion-mutable + admin-mutable field. The
+                // previous pattern left className/section etc. cached
+                // stale forever once they were non-blank, so admin
+                // promotion never propagated until logout/login. The
+                // new pattern matches the DOB line at the bottom of
+                // this copy. Also added `session` (was missing entirely
+                // from the heal).
+                className  = doc.className.ifBlank  { user.className  },
+                section    = doc.section.ifBlank    { user.section    },
+                session    = doc.session.ifBlank    { user.session    },
+                rollNo     = doc.rollNo.ifBlank     { user.rollNo     },
+                fatherName = doc.fatherName.ifBlank { user.fatherName },
+                motherName = doc.motherName.ifBlank { user.motherName },
                 dob       = if (doc.dob.isNotBlank()) doc.dob else user.dob
             )
             // Also heal school display name from Firestore schools collection
@@ -304,7 +313,12 @@ class DashboardViewModel @Inject constructor(
                 } catch (_: Exception) {}
             }
             if (healed != user) {
-                Log.d("DashboardVM", "Self-heal: cached user was incomplete, rewriting from Firestore (schoolName=${healed.schoolDisplayName})")
+                Log.i("DashboardVM",
+                    "ACC_STUDENT_PROPAGATE source=dashboard userId=${user.userId} " +
+                    "class=${user.className}->${healed.className} " +
+                    "section=${user.section}->${healed.section} " +
+                    "session=${user.session}->${healed.session} " +
+                    "rollNo=${user.rollNo}->${healed.rollNo}")
                 tokenManager.saveUserDirect(healed)
             }
             healed

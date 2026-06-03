@@ -61,12 +61,35 @@ class SplashViewModel @Inject constructor(
                         Constants.Firestore.STUDENTS, docId
                     )
                     if (doc != null) {
-                        Log.d(TAG, "Splash Firestore re-check: docId=$docId mustChangePassword=${doc.mustChangePassword} (cache was=$mustChange)")
                         mustChange = doc.mustChangePassword
-                        // Sync the cached User if it diverges so the rest
-                        // of the app sees the truth too.
-                        if (doc.mustChangePassword != cachedUser.mustChangePassword) {
-                            tokenManager.saveUserDirect(cachedUser.copy(mustChangePassword = doc.mustChangePassword))
+                        // Mobile Refresh Hotfix N Step 1 (2026-06-02) —
+                        // previously we only mirrored mustChangePassword
+                        // back to the cached User; promotion-mutable
+                        // fields (className/section/session/rollNo) read
+                        // from Firestore were silently discarded, so the
+                        // Parent app dashboard kept showing the old class
+                        // after admin promotion until next logout/login.
+                        // Now: prefer Firestore's value when non-blank;
+                        // fall back to cache (matches the DOB pattern in
+                        // DashboardViewModel).
+                        val refreshed = cachedUser.copy(
+                            mustChangePassword = doc.mustChangePassword,
+                            className = doc.className.ifBlank { cachedUser.className },
+                            section   = doc.section.ifBlank   { cachedUser.section   },
+                            session   = doc.session.ifBlank   { cachedUser.session   },
+                            rollNo    = doc.rollNo.ifBlank    { cachedUser.rollNo    },
+                        )
+                        if (refreshed != cachedUser) {
+                            Log.i(TAG,
+                                "ACC_STUDENT_PROPAGATE source=splash docId=$docId " +
+                                "mustChange=${cachedUser.mustChangePassword}->${refreshed.mustChangePassword} " +
+                                "class=${cachedUser.className}->${refreshed.className} " +
+                                "section=${cachedUser.section}->${refreshed.section} " +
+                                "session=${cachedUser.session}->${refreshed.session} " +
+                                "rollNo=${cachedUser.rollNo}->${refreshed.rollNo}")
+                            tokenManager.saveUserDirect(refreshed)
+                        } else {
+                            Log.d(TAG, "Splash Firestore re-check: docId=$docId unchanged")
                         }
                     }
                 } catch (e: Exception) {
