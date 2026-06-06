@@ -43,8 +43,14 @@ class ExamFirestoreRepository @Inject constructor(
             val exams = firestoreService.queryDocumentsAs<ExamDoc>(
                 Constants.Firestore.EXAMS
             ) { ref ->
+                // EXAM-LIFECYCLE Phase 2 (Visibility Hardening): parents see
+                // only Published + Completed exams; Draft is staff-only and is
+                // also denied by the /exams Firestore security rule. Keeping the
+                // client filter aligned with the rule avoids permission-denied
+                // errors that an unfiltered query (touching a Draft doc) raises.
                 ref.whereEqualTo("schoolId", schoolCode)
                     .whereEqualTo("session", session)
+                    .whereIn("status", listOf("Published", "Completed"))
                     .orderBy("startDate")
             }
             Result.success(exams)
