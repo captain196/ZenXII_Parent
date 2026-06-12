@@ -112,7 +112,7 @@ fun ResultsScreen(
                 ) {
                     Text(
                         text = uiState.examResult?.examName
-                            ?: uiState.examIds.getOrNull(uiState.selectedExamIndex)
+                            ?: uiState.examNames.getOrNull(uiState.selectedExamIndex)
                             ?: "Select Exam",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary
@@ -129,11 +129,12 @@ fun ResultsScreen(
                     onDismissRequest = { viewModel.dismissExamSelector() },
                     modifier = Modifier.background(SurfaceElevated)
                 ) {
-                    uiState.examIds.forEachIndexed { index, examId ->
+                    uiState.examIds.forEachIndexed { index, _ ->
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    text = examId,
+                                    text = uiState.examNames.getOrNull(index)
+                                        ?: uiState.examIds[index],
                                     color = TextPrimary,
                                     style = MaterialTheme.typography.bodyLarge
                                 )
@@ -157,9 +158,21 @@ fun ResultsScreen(
                     CircularProgressIndicator(color = Teal, modifier = Modifier.size(40.dp))
                 }
             } else if (uiState.examIds.isEmpty()) {
-                EmptyResultsState()
+                // No exams published for this student at all.
+                EmptyResultsState(
+                    title = "No Exams Yet",
+                    subtitle = "No exams have been published for your child yet. Results will appear here once an exam is graded."
+                )
+            } else if (uiState.examResult == null) {
+                // Exam(s) exist, but the selected exam has no result — marks not
+                // entered or the result hasn't been published/computed yet.
+                val examName = uiState.examNames.getOrNull(uiState.selectedExamIndex) ?: "this exam"
+                EmptyResultsState(
+                    title = "Result Not Published Yet",
+                    subtitle = "Marks for \"$examName\" haven't been entered or published yet. Please check back later."
+                )
             } else {
-                val result = uiState.examResult
+                val result = uiState.examResult!!
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -167,26 +180,24 @@ fun ResultsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Overall Result Card
-                    if (result != null) {
-                        item {
-                            OverallResultCard(result = result)
-                        }
+                    item {
+                        OverallResultCard(result = result)
+                    }
 
-                        // Subject Results Header
-                        item {
-                            Text(
-                                text = "Subject-wise Marks",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = TextPrimary,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
+                    // Subject Results Header
+                    item {
+                        Text(
+                            text = "Subject-wise Marks",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
 
-                        // Subject Results
-                        itemsIndexed(result.subjects) { _, subject ->
-                            SubjectResultCard(subject = subject)
-                        }
+                    // Subject Results
+                    itemsIndexed(result.subjects) { _, subject ->
+                        SubjectResultCard(subject = subject)
                     }
 
                     // Error message
@@ -394,7 +405,10 @@ private fun SubjectResultCard(subject: SubjectResult) {
 }
 
 @Composable
-private fun EmptyResultsState() {
+private fun EmptyResultsState(
+    title: String = "No Results Available",
+    subtitle: String = "Results will appear here once exams are completed and graded."
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -410,14 +424,14 @@ private fun EmptyResultsState() {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "No Results Available",
+                text = title,
                 style = MaterialTheme.typography.titleLarge,
                 color = TextSecondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Results will appear here once exams are completed and graded.",
+                text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextTertiary,
                 textAlign = TextAlign.Center

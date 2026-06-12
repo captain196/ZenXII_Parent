@@ -22,6 +22,8 @@ data class ResultsUiState(
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
     val examIds: List<String> = emptyList(),
+    /** Display labels parallel to [examIds] (exam names for the selector). */
+    val examNames: List<String> = emptyList(),
     val selectedExamIndex: Int = 0,
     val examResult: ExamResult? = null,
     val examSelectorExpanded: Boolean = false,
@@ -91,8 +93,12 @@ class ResultsViewModel @Inject constructor(
 
             examFirestoreRepo.getAvailableExams().fold(
                 onSuccess = { examDocs ->
-                    val examIds = examDocs.map { it.id }
-                    _uiState.update { it.copy(examIds = examIds) }
+                    // Use the bare examId field (NOT it.id, which is the
+                    // schoolId-prefixed doc-id) so getResult's examId-field
+                    // query matches; keep examName parallel for the selector.
+                    val examIds = examDocs.map { it.examId.ifBlank { it.id } }
+                    val examNames = examDocs.map { it.examName.ifBlank { it.examId.ifBlank { it.id } } }
+                    _uiState.update { it.copy(examIds = examIds, examNames = examNames) }
                     if (examIds.isNotEmpty()) {
                         loadResult(0)
                     } else {

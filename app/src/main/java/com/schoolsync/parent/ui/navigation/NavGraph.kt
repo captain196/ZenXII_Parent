@@ -92,6 +92,7 @@ import com.schoolsync.parent.ui.messages.MessagesScreen
 import com.schoolsync.parent.ui.notices.NoticesScreen
 import com.schoolsync.parent.ui.profile.ProfileScreen
 import com.schoolsync.parent.ui.results.ResultsScreen
+import com.schoolsync.parent.ui.exam.ExamScheduleScreen
 import com.schoolsync.parent.ui.timetable.TimetableScreen
 import androidx.compose.runtime.collectAsState
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -386,6 +387,7 @@ fun MainScreen(
                 DashboardScreen(
                     onNavigateToAttendance = { navController.navigate(Route.Attendance.route) },
                     onNavigateToResults = { navController.navigate(Route.Results.route) },
+                    onNavigateToExam = { navController.navigate(Route.Exams.route) },
                     onNavigateToFees = { navController.navigate(Route.Fees.route) },
                     onNavigateToTimetable = { navController.navigate(Route.Timetable.route) },
                     onNavigateToHomework = { navController.navigate(Route.Homework.route) },
@@ -420,6 +422,7 @@ fun MainScreen(
                 AcademicsHubScreen(
                     onNavigateToAttendance = { navController.navigate(Route.Attendance.route) },
                     onNavigateToResults = { navController.navigate(Route.Results.route) },
+                    onNavigateToExam = { navController.navigate(Route.Exams.route) },
                     onNavigateToHomework = { navController.navigate(Route.Homework.route) },
                     onNavigateToTimetable = { navController.navigate(Route.Timetable.route) },
                     onNavigateToEvents = { navController.navigate(Route.Events.route) },
@@ -487,6 +490,16 @@ fun MainScreen(
                         }
                     }
                 )
+            }
+
+            composable(
+                Route.Exams.route,
+                enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(slideDuration)) },
+                exitTransition = { fadeOut(tween(200)) },
+                popEnterTransition = { fadeIn(tween(fadeDuration)) },
+                popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(slideDuration)) }
+            ) {
+                ExamScheduleScreen(onBack = { navController.popBackStack() })
             }
 
             composable(
@@ -1049,6 +1062,7 @@ private fun isAcademicsChild(currentRoute: String?, itemRoute: String): Boolean 
 fun AcademicsHubScreen(
     onNavigateToAttendance: () -> Unit,
     onNavigateToResults: () -> Unit,
+    onNavigateToExam: () -> Unit = {},
     onNavigateToHomework: () -> Unit,
     onNavigateToTimetable: () -> Unit,
     onNavigateToEvents: () -> Unit,
@@ -1060,6 +1074,7 @@ fun AcademicsHubScreen(
     com.schoolsync.parent.ui.dashboard.AcademicsHubContent(
         onNavigateToAttendance = onNavigateToAttendance,
         onNavigateToResults = onNavigateToResults,
+        onNavigateToExam = onNavigateToExam,
         onNavigateToHomework = onNavigateToHomework,
         onNavigateToTimetable = onNavigateToTimetable,
         onNavigateToEvents = onNavigateToEvents,

@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.Grading
@@ -131,6 +132,7 @@ import java.util.Calendar
 fun DashboardScreen(
     onNavigateToAttendance: () -> Unit,
     onNavigateToResults: () -> Unit,
+    onNavigateToExam: () -> Unit = {},
     onNavigateToFees: () -> Unit,
     onNavigateToTimetable: () -> Unit,
     onNavigateToHomework: () -> Unit = {},
@@ -373,6 +375,7 @@ fun DashboardScreen(
                                 onFees = onNavigateToFees,
                                 onAttendance = onNavigateToAttendance,
                                 onResults = onNavigateToResults,
+                                onExam = onNavigateToExam,
                                 onTimetable = onNavigateToTimetable,
                                 onLeave = onNavigateToLeave,
                                 onEvents = onNavigateToEvents,
@@ -1068,6 +1071,7 @@ private fun ShortcutsBento(
     onFees: () -> Unit,
     onAttendance: () -> Unit,
     onResults: () -> Unit,
+    onExam: () -> Unit = {},
     onTimetable: () -> Unit,
     onLeave: () -> Unit,
     onEvents: () -> Unit,
@@ -1084,6 +1088,7 @@ private fun ShortcutsBento(
         QuickAction(Icons.Filled.Flag,                                Color(0xFFD32F2F),  "Red Flags",   onRedFlags),
         QuickAction(Icons.Filled.Payment,                             c.accent,           "Pay Fees",    onFees),
         QuickAction(Icons.Filled.CalendarMonth,                       Color(0xFF1565C0),  "Attendance",  onAttendance),
+        QuickAction(Icons.Filled.EditCalendar,                        Color(0xFF283593),  "Exam",        onExam),
         QuickAction(Icons.AutoMirrored.Filled.Grading,                Color(0xFF2E7D32),  "Results",     onResults),
         QuickAction(Icons.Filled.Schedule,                            Color(0xFFC62828),  "Timetable",   onTimetable),
         QuickAction(Icons.AutoMirrored.Filled.EventNote,              Color(0xFF00838F),  "Leave",       onLeave),
@@ -2491,6 +2496,7 @@ private fun buildInitials(name: String): String {
 fun AcademicsHubContent(
     onNavigateToAttendance: () -> Unit,
     onNavigateToResults: () -> Unit,
+    onNavigateToExam: () -> Unit = {},
     onNavigateToHomework: () -> Unit,
     onNavigateToTimetable: () -> Unit,
     onNavigateToEvents: () -> Unit,
@@ -2521,6 +2527,13 @@ fun AcademicsHubContent(
             modifier = Modifier.padding(bottom = 8.dp)
         )
         AcademicsMenuItem(Icons.Filled.CalendarMonth, stringResource(R.string.drawer_attendance), stringResource(R.string.academics_attendance_subtitle), c.success, onNavigateToAttendance)
+        AcademicsMenuItem(
+            Icons.Filled.EditCalendar,
+            "Exam Schedule",
+            "Datesheet · subjects, dates & timings",
+            Color(0xFF283593),
+            onNavigateToExam
+        )
         AcademicsMenuItem(Icons.AutoMirrored.Filled.Grading,       stringResource(R.string.drawer_results),    stringResource(R.string.academics_results_subtitle),    c.info,    onNavigateToResults)
         AcademicsMenuItem(Icons.AutoMirrored.Filled.MenuBook,      stringResource(R.string.drawer_homework),   stringResource(R.string.academics_homework_subtitle),   c.warning, onNavigateToHomework)
         AcademicsMenuItem(Icons.Filled.Schedule,      stringResource(R.string.drawer_timetable),  stringResource(R.string.academics_timetable_subtitle),  c.accent,  onNavigateToTimetable)
