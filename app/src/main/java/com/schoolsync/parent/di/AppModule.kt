@@ -15,7 +15,6 @@ import com.schoolsync.parent.data.repository.AuthRepository
 import com.schoolsync.parent.data.repository.DataRepository
 import com.schoolsync.parent.data.repository.EventRepository
 import com.schoolsync.parent.data.repository.HomeworkRepository
-import com.schoolsync.parent.data.repository.MessageRepository
 import com.schoolsync.parent.data.repository.NoticeRepository
 import com.schoolsync.parent.data.repository.RedFlagRepository
 import com.schoolsync.parent.data.repository.StudentRepository
@@ -186,15 +185,9 @@ object AppModule {
         return StudentRepository(firebaseService, firestoreService, feeFirestoreRepository, tokenManager)
     }
 
-    @Provides
-    @Singleton
-    fun provideMessageRepository(
-        firebaseService: FirebaseService,
-        firestoreService: FirestoreService,
-        tokenManager: TokenManager
-    ): MessageRepository {
-        return MessageRepository(firebaseService, firestoreService, tokenManager)
-    }
+    // MessageRepository binding removed — Direct Messaging retired (Package 2A).
+    // The Messages screen now renders a Coming Soon Composable that does not
+    // instantiate any ViewModel or repository.
 
     // RedFlagRepository: resolved via its @Inject constructor (FirestoreService,
     // TokenManager, FirebaseAuth) — no manual @Provides needed.

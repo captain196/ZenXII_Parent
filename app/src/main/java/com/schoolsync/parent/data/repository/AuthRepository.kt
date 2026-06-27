@@ -117,14 +117,14 @@ class AuthRepository @Inject constructor(
                 tokenManager.saveSchoolCode(schoolCode)
             }
 
-            // ── Step 6: Phase 7z — register the current FCM token ───
+            // ── Step 6: register the current FCM token ──────────────
             // FCMService.onNewToken only fires when FCM rotates the
             // token (usually at install). At that moment the user
             // hasn't logged in yet, so registerFcmToken bails with
             // "no user logged in" and the token is never saved.
             // Pull the current token here on every successful login
-            // so Users/Devices/{userId}/{deviceId}/fcmToken is always
-            // populated and admin pushes can find it.
+            // so the canonical Firestore userDevices/{userId}_{safeDeviceId}
+            // doc is always populated and admin pushes can find it.
             try {
                 val token = com.google.firebase.messaging.FirebaseMessaging.getInstance()
                     .token
@@ -351,35 +351,13 @@ class AuthRepository @Inject constructor(
                 "appRole"    to "parent"
             )
 
-            // ── Firestore FIRST (canonical — rules now allow userDevices writes) ──
-            var firestoreOk = false
+            // Firestore userDevices is the sole canonical store for FCM tokens.
             try {
                 firestoreService.setDocument("userDevices", docId, payload, merge = true)
-                firestoreOk = true
-                Log.w(TAG, "FCM token written to Firestore userDevices/$docId")
+                Log.d(TAG, "FCM token written to Firestore userDevices/$docId")
+                AuthResult.Success(Unit)
             } catch (e: Exception) {
                 Log.e(TAG, "FCM token Firestore write failed", e)
-            }
-
-            // ── RTDB mirror (best-effort, stays until Phase 9 cleanup) ──
-            try {
-                firebaseService.updateChildren(
-                    "Users/Devices/$userId/$deviceId",
-                    mapOf(
-                        "fcmToken"   to fcmToken,
-                        "status"     to "active",
-                        "platform"   to "android",
-                        "lastActive" to now
-                    )
-                )
-                Log.d(TAG, "FCM token mirrored to RTDB")
-            } catch (e: Exception) {
-                Log.w(TAG, "FCM token RTDB mirror failed (non-fatal)", e)
-            }
-
-            if (firestoreOk) {
-                AuthResult.Success(Unit)
-            } else {
                 AuthResult.Error("FCM token write failed")
             }
         } catch (e: Exception) {
