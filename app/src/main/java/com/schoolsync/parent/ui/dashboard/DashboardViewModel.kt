@@ -28,13 +28,18 @@ import com.schoolsync.parent.util.NetworkMonitor
 import com.schoolsync.parent.util.toDateOrNull
 import com.schoolsync.parent.util.toEpochMillisOrNull
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.coroutineScope
@@ -514,11 +519,15 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun loadHomework(user: User?) {
-        val className = user?.className ?: return
-        val section = user.section
-        val studentId = user.userId
-        if (className.isBlank() || section.isBlank()) return
+        // studentId = the student identity. Stable across promotion (same
+        // student, new class) and re-passed by switchToSibling() on a sibling
+        // switch (which also cancels + relaunches this job). className/section
+        // are taken REACTIVELY from tokenManager.user below, so a mid-session
+        // promotion re-subscribes the listener instead of staying pinned to
+        // the class captured at call time.
+        val studentId = user?.userId ?: return
 
         // Cancel any prior listener (e.g. from a sibling switch) before
         // starting a new one so we never have two flows racing to update
@@ -526,44 +535,53 @@ class DashboardViewModel @Inject constructor(
         homeworkListenerJob?.cancel()
         homeworkListenerJob = viewModelScope.launch {
             try {
-                // Combine live homework + live submissions for THIS student.
-                // Either flow updating triggers a recompute — so the moment
-                // a teacher reviews a submission, the dashboard count drops
-                // without the user touching anything.
-                combine(
-                    homeworkFirestoreRepo.observeHomework(className, section),
-                    homeworkFirestoreRepo.observeSubmissionsForStudent(studentId)
-                ) { homeworkDocs, submissionsByHwId ->
-                    // Sort earliest dueDate first so overdue items rise to
-                    // the top of the preview. Undated items sink to the
-                    // bottom. We deliberately do NOT filter out overdue
-                    // homework — for a parent, "overdue and not submitted"
-                    // is exactly what the dashboard needs to surface.
-                    val activeSorted = homeworkDocs.sortedWith(
-                        compareBy(
-                            { it.dueDate.isBlank() },
-                            { it.dueDate.takeIf { d -> d.isNotBlank() } ?: "9999-12-31" }
-                        )
-                    )
+                tokenManager.user
+                    .map { it.className to it.section }
+                    .distinctUntilChanged()
+                    .flatMapLatest { (className, section) ->
+                        if (className.isBlank() || section.isBlank()) {
+                            flowOf(emptyList())
+                        } else {
+                            // Combine live homework + live submissions for THIS
+                            // student. Either flow updating triggers a recompute
+                            // — so the moment a teacher reviews a submission, the
+                            // dashboard count drops without the user touching it.
+                            combine(
+                                homeworkFirestoreRepo.observeHomework(className, section),
+                                homeworkFirestoreRepo.observeSubmissionsForStudent(studentId)
+                            ) { homeworkDocs, submissionsByHwId ->
+                                // Sort earliest dueDate first so overdue items
+                                // rise to the top of the preview. Undated items
+                                // sink to the bottom. We deliberately do NOT
+                                // filter out overdue homework — "overdue and not
+                                // submitted" is exactly what to surface.
+                                val activeSorted = homeworkDocs.sortedWith(
+                                    compareBy(
+                                        { it.dueDate.isBlank() },
+                                        { it.dueDate.takeIf { d -> d.isNotBlank() } ?: "9999-12-31" }
+                                    )
+                                )
 
-                    // Pending = student has NOT submitted/reviewed/completed
-                    // yet. A submission with status "submitted" or "reviewed"
-                    // or "complete" means the parent's task on this homework
-                    // is done — should not be on the dashboard prompt.
-                    val pending = activeSorted.filter { hw ->
-                        val status = (submissionsByHwId[hw.id]?.status ?: "pending")
-                            .lowercase().trim()
-                        status == "pending"
+                                // Pending = student has NOT submitted/reviewed/
+                                // completed yet. A "submitted"/"reviewed"/
+                                // "complete" submission means the task is done.
+                                val pending = activeSorted.filter { hw ->
+                                    val status = (submissionsByHwId[hw.id]?.status ?: "pending")
+                                        .lowercase().trim()
+                                    status == "pending"
+                                }
+                                pending
+                            }
+                        }
                     }
-                    pending
-                }.collect { pending ->
-                    _uiState.update {
-                        it.copy(
-                            pendingHomeworkCount = pending.size,
-                            homeworkPreview = pending.take(5)
-                        )
+                    .collect { pending ->
+                        _uiState.update {
+                            it.copy(
+                                pendingHomeworkCount = pending.size,
+                                homeworkPreview = pending.take(5)
+                            )
+                        }
                     }
-                }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // Normal cancellation when student switches — silent.
             } catch (e: Exception) {

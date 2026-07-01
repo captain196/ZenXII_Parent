@@ -12,11 +12,16 @@ import com.schoolsync.parent.util.debugLog
 import com.schoolsync.parent.util.toDateOrNull
 import com.schoolsync.parent.util.toEpochMillisOrNull
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -140,20 +145,30 @@ class HomeworkViewModel @Inject constructor(
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun startLiveListener() {
         listenerJob?.cancel()
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
         listenerJob = viewModelScope.launch {
-            val user = tokenManager.user.firstOrNull() ?: User.empty()
-            val className = user.className
-            val section = user.section
-            val studentId = user.userId
-
-            if (className.isNotBlank() && section.isNotBlank()) {
-                // Primary: Firestore live listener
-                try {
-                    homeworkFirestoreRepo.observeHomework(className, section).collect { homeworkDocs ->
+            // Reactive on the student's class/section: a mid-session promotion
+            // (className/section change in tokenManager.user) re-subscribes the
+            // homework listener via flatMapLatest instead of staying pinned to
+            // the class captured at screen-open. Mirrors
+            // SchoolFirestoreRepository.observeSchool()'s reactive pattern.
+            try {
+                tokenManager.user
+                    .map { it.className to it.section }
+                    .distinctUntilChanged()
+                    .flatMapLatest { (className, section) ->
+                        if (className.isBlank() || section.isBlank()) {
+                            flowOf(emptyList())
+                        } else {
+                            homeworkFirestoreRepo.observeHomework(className, section)
+                        }
+                    }
+                    .collect { homeworkDocs ->
+                        val studentId = tokenManager.user.firstOrNull()?.userId.orEmpty()
                         Log.d("HomeworkVM", "Firestore live update: ${homeworkDocs.size} homework items")
 
                         // Bulk-fetch THIS student's submissions + teacherMarks
@@ -216,20 +231,15 @@ class HomeworkViewModel @Inject constructor(
                         }
                         recomputeAll()
                     }
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    Log.d("HomeworkVM", "Firestore listener cancelled (normal)")
-                } catch (e: Exception) {
-                    Log.e("HomeworkVM", "Firestore listener failed", e)
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = e.message ?: "Failed to load homework"
-                        )
-                    }
-                }
-            } else {
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                Log.d("HomeworkVM", "Firestore listener cancelled (normal)")
+            } catch (e: Exception) {
+                Log.e("HomeworkVM", "Firestore listener failed", e)
                 _uiState.update {
-                    it.copy(isLoading = false, errorMessage = "Class/section not available")
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = e.message ?: "Failed to load homework"
+                    )
                 }
             }
         }
