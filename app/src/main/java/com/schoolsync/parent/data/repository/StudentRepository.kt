@@ -6,6 +6,7 @@ import com.schoolsync.parent.data.firebase.FirebaseService
 import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.AttendanceData
+import com.schoolsync.parent.data.model.firestore.AttendanceSummaryDoc
 import com.schoolsync.parent.data.model.User
 import com.schoolsync.parent.data.repository.firestore.FeeFirestoreRepository
 import com.schoolsync.parent.util.Constants
@@ -119,25 +120,22 @@ class StudentRepository @Inject constructor(
         // Fetch today's attendance
         val currentYear = calendar.get(Calendar.YEAR)
         val monthKey = "$currentMonth $currentYear"
-        val attendancePath = Constants.Firebase.attendancePath(
-            schoolCode = user.schoolCode,
-            session = user.session,
-            className = user.className,
-            section = user.section,
-            studentId = user.userId,
-            month = monthKey
-        )
-
         var todayStatus: String? = null
         var monthlyPercentage = 0f
         var prevMonthPercentage: Float? = null
 
+        // P3: dashboard attendance now sourced from Firestore `attendanceSummary`
+        // (docId {schoolCode}_{studentId}_{YYYY-MM}) — was RTDB
+        // {sectionRoot}/Students/{id}/Attendance. Zero RTDB attendance read.
+        val curMonthKey = "%04d-%02d".format(currentYear, calendar.get(Calendar.MONTH) + 1)
         try {
-            val rawString = firebaseService.readString(attendancePath)
-            if (!rawString.isNullOrBlank()) {
-                val attendance = AttendanceData.decode(currentMonth, currentYear, rawString)
-                val status = attendance.statusForDay(currentDay)
-                todayStatus = status?.label
+            val doc = firestoreService.getDocumentAs<AttendanceSummaryDoc>(
+                Constants.Firestore.ATTENDANCE_SUMMARY,
+                "${user.schoolCode}_${user.userId}_$curMonthKey"
+            )
+            if (doc != null && doc.dayWise.isNotBlank()) {
+                val attendance = AttendanceData.decode(currentMonth, currentYear, doc.dayWise)
+                todayStatus = attendance.statusForDay(currentDay)?.label
                 monthlyPercentage = attendance.attendancePercentage
             }
         } catch (_: Exception) {}
@@ -147,18 +145,13 @@ class StudentRepository @Inject constructor(
             val prevCal = Calendar.getInstance().apply { add(Calendar.MONTH, -1) }
             val prevMonth = Constants.getMonthName(prevCal.get(Calendar.MONTH))
             val prevYear = prevCal.get(Calendar.YEAR)
-            val prevMonthKey = "$prevMonth $prevYear"
-            val prevPath = Constants.Firebase.attendancePath(
-                schoolCode = user.schoolCode,
-                session = user.session,
-                className = user.className,
-                section = user.section,
-                studentId = user.userId,
-                month = prevMonthKey
+            val prevMonthKey = "%04d-%02d".format(prevYear, prevCal.get(Calendar.MONTH) + 1)
+            val prevDoc = firestoreService.getDocumentAs<AttendanceSummaryDoc>(
+                Constants.Firestore.ATTENDANCE_SUMMARY,
+                "${user.schoolCode}_${user.userId}_$prevMonthKey"
             )
-            val prevRaw = firebaseService.readString(prevPath)
-            if (!prevRaw.isNullOrBlank()) {
-                val prevAttendance = AttendanceData.decode(prevMonth, prevYear, prevRaw)
+            if (prevDoc != null && prevDoc.dayWise.isNotBlank()) {
+                val prevAttendance = AttendanceData.decode(prevMonth, prevYear, prevDoc.dayWise)
                 if (prevAttendance.workingDays > 0) {
                     prevMonthPercentage = prevAttendance.attendancePercentage
                 }
