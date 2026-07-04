@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -6,15 +8,33 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+// Load release-signing credentials from a gitignored keystore.properties at the
+// project root. Absent on machines that only build debug (release signing is skipped).
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
+}
+
 android {
     namespace = "com.schoolsync.parent"
     compileSdk = 35
 
+    signingConfigs {
+        if (keystorePropsFile.exists()) {
+            create("release") {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.schoolsync.parent"
         minSdk = 24
-        targetSdk = 34
-        versionCode = 1
+        targetSdk = 35
+        versionCode = 2
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -25,11 +45,20 @@ android {
         // Physical device over USB: `adb reverse tcp:8080 tcp:8080` then use 127.0.0.1:8080 here.
         // Physical device over Wi-Fi: use the Mac's LAN IP.
         // Runtime override available via DevPrefs / Dev Settings dialog.
-        buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080/Grader/school/\"")
+        // Production: ZenXii backend on Lightsail, fronted by https://www.zenxii.com.
+        // The /Grader/school/ subpath serves the legacy PHP REST endpoints; the
+        // host root serves the Node auth routes (e.g. /auth/clear_must_change),
+        // which AuthApi reaches via leading-slash paths.
+        // A developer can still point a debug build at a LAN IP at runtime via
+        // the hidden Dev Settings dialog (DevPrefs override).
+        buildConfigField("String", "BASE_URL", "\"https://www.zenxii.com/Grader/school/\"")
     }
 
     buildTypes {
         release {
+            if (keystorePropsFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -37,15 +66,10 @@ android {
                 "proguard-rules.pro"
             )
         }
-        debug {
-            // Runtime-validation override — points debug builds at ngrok tunnel.
-            // Remove this block (or revert) when ngrok session ends.
-            buildConfigField(
-                "String",
-                "BASE_URL",
-                "\"https://shifting-salvation-skylight.ngrok-free.dev/Grader/school/\""
-            )
-        }
+        // Debug builds inherit the production BASE_URL from defaultConfig
+        // (https://www.zenxii.com/Grader/school/). To test against a LAN PC,
+        // override at runtime via the hidden Dev Settings dialog instead of
+        // hardcoding a tunnel here.
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -63,6 +87,12 @@ android {
     }
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    }
+    testOptions {
+        // JVM unit tests only touch pure companion helpers; return default
+        // values for any incidentally-linked android.jar stubs instead of
+        // throwing "Method ... not mocked".
+        unitTests.isReturnDefaultValues = true
     }
 }
 
@@ -106,6 +136,7 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-functions-ktx")
 
     // Networking
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
@@ -126,6 +157,10 @@ dependencies {
 
     // Image loading
     implementation("io.coil-kt:coil-compose:2.6.0")
+    // Coil video-frame decoder so video thumbnails (event / gallery media)
+    // render a poster frame instead of a blank tile when no explicit
+    // thumbnail URL is provided.
+    implementation("io.coil-kt:coil-video:2.6.0")
     // Video playback (Stories viewer — Round 1a).
     // Media3 = modern ExoPlayer; stable, Compose-friendly via AndroidView.
     implementation("androidx.media3:media3-exoplayer:1.3.1")
@@ -134,6 +169,13 @@ dependencies {
     // Media3 = modern ExoPlayer; stable, Compose-friendly via AndroidView.
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
+    // Stories viewer upgrade — disk cache for smooth video re-watch /
+    // swipe-back, and the cache DB provider.
+    implementation("androidx.media3:media3-datasource:1.3.1")
+    implementation("androidx.media3:media3-database:1.3.1")
+
+    // Stories viewer upgrade — pinch / double-tap zoom for image stories.
+    implementation("me.saket.telephoto:zoomable-image-coil:0.13.0")
 
     // Lottie animations
     implementation("com.airbnb.android:lottie-compose:6.4.0")
@@ -149,6 +191,8 @@ dependencies {
 
     // Tests
     testImplementation("junit:junit:4.13.2")
+    // Match kotlinx-coroutines-android version (1.7.3) above.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
 }
 

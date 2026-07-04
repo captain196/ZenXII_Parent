@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 data class SplashState(
@@ -47,6 +48,26 @@ class SplashViewModel @Inject constructor(
             val loggedIn = tokenManager.isLoggedIn.first()
             val seenOnboarding = prefs.getBoolean("onboarding_seen", false)
             val cachedUser = tokenManager.user.first()
+
+            // Force-refresh the Firebase ID token on cold start so the
+            // security-rules claims (school_id, role, parent_db_key) are
+            // always current. Custom claims set/backfilled AFTER the user's
+            // last fresh login only reach the token on refresh; a session
+            // restored with a stale token has NO school_id claim, so
+            // tenantActive()/isSameSchool() reject EVERY read (stories,
+            // attendance, fees, flags…) with PERMISSION_DENIED until the
+            // token happens to auto-refresh. Refreshing here closes that
+            // window. Best-effort: offline / transient failures fall through
+            // to the cached session rather than blocking the splash.
+            if (loggedIn) {
+                try {
+                    com.google.firebase.auth.FirebaseAuth.getInstance()
+                        .currentUser?.getIdToken(true)?.await()
+                    Log.d(TAG, "Splash: ID token force-refreshed")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Splash: token refresh failed (using cached session)", e)
+                }
+            }
 
             // Authoritative re-check from Firestore. The cached User can
             // be stale (e.g. user logged in before this field existed in

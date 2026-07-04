@@ -3,7 +3,9 @@ package com.schoolsync.parent.data.repository.firestore
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import com.schoolsync.parent.data.firebase.FirestoreService
+import com.schoolsync.parent.util.toEpochMillisOrNull
 import com.schoolsync.parent.data.local.TokenManager
+import com.schoolsync.parent.data.model.User
 import com.schoolsync.parent.data.model.firestore.CircularDoc
 import com.schoolsync.parent.data.model.firestore.CircularReadDoc
 import com.schoolsync.parent.data.model.firestore.NotificationDoc
@@ -51,6 +53,37 @@ class CommunicationFirestoreRepository @Inject constructor(
     }
 
     /**
+     * Canonical audience keys for the CURRENT parent's child. A circular is
+     * visible when its `audienceKeys` intersect this set. Mirrors the backfill
+     * migration's key vocabulary (all / role:* / class:Class X / user:<id>).
+     */
+    private fun audienceKeysFor(u: User): Set<String> {
+        val keys = mutableSetOf("all", "role:parent", "role:student")
+        u.userId.takeIf { it.isNotBlank() }?.let { keys.add("user:$it") }
+        u.className.takeIf { it.isNotBlank() }?.let { cn ->
+            val ck = if (cn.startsWith("Class ", ignoreCase = true)) cn else "Class $cn"
+            keys.add("class:$ck")
+        }
+        return keys
+    }
+
+    private suspend fun parentAudienceKeys(): Set<String> =
+        tokenManager.user.firstOrNull()?.let { audienceKeysFor(it) } ?: setOf("all")
+
+    /**
+     * Audience gate. Canonical `audienceKeys` intersection when present;
+     * otherwise fall back to the legacy staff-only string check so a doc
+     * written before the migration/writer update is never wrongly hidden.
+     */
+    private fun matchesAudience(c: CircularDoc, myKeys: Set<String>): Boolean =
+        if (c.audienceKeys.isNotEmpty()) c.audienceKeys.any { it in myKeys }
+        else isForParents(c)
+
+    /** Hide circulars whose expiry has passed (expiresAt is optional). */
+    private fun notExpired(c: CircularDoc): Boolean =
+        c.expiresAt.toEpochMillisOrNull()?.let { it > System.currentTimeMillis() } ?: true
+
+    /**
      * Fetch sent circulars AND notices for the current school, merged and
      * ordered by most recent first. Admin Notice Board posts to the `notices`
      * collection; HR auto-posts + Circulars module posts to `circulars`.
@@ -84,13 +117,32 @@ class CommunicationFirestoreRepository @Inject constructor(
                 // or the query fails, fall through with circulars only.
                 emptyList()
             }
+            val myKeys = parentAudienceKeys()
             val merged = (circulars + notices)
-                .filter { isForParents(it) }
-                .sortedByDescending { it.sentAt?.toString().orEmpty() }
+                .filter { matchesAudience(it, myKeys) && notExpired(it) }
+                .sortedByDescending { it.sentAt.toEpochMillisOrNull() ?: 0L }
                 .take(limit)
             Result.success(merged)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    /**
+     * The set of circular/notice IDs the current parent has already opened
+     * (from `circularReads`). Empty on any failure — read-state is a display
+     * nicety, never a hard dependency.
+     */
+    suspend fun getReadCircularIds(): Set<String> {
+        val userId = getUserId() ?: return emptySet()
+        return try {
+            firestoreService.queryDocumentsAs<CircularReadDoc>(
+                Constants.Firestore.CIRCULAR_READS
+            ) { ref -> ref.whereEqualTo("userId", userId) }
+                .mapNotNull { it.circularId.takeIf { c -> c.isNotBlank() } }
+                .toSet()
+        } catch (e: Exception) {
+            emptySet()
         }
     }
 
@@ -138,11 +190,12 @@ class CommunicationFirestoreRepository @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeCirculars(): Flow<List<CircularDoc>> {
         return tokenManager.user
-            .map { user -> user.schoolCode.takeIf { it.isNotBlank() } }
-            .flatMapLatest { schoolCode ->
+            .flatMapLatest { user ->
+                val schoolCode = user.schoolCode.takeIf { it.isNotBlank() }
                 if (schoolCode == null) {
                     flowOf(emptyList())
                 } else {
+                    val myKeys = audienceKeysFor(user)
                     val circulars = firestoreService.observeQuery(
                         Constants.Firestore.CIRCULARS
                     ) { ref ->
@@ -164,8 +217,8 @@ class CommunicationFirestoreRepository @Inject constructor(
 
                     combine(circulars, notices) { c, n ->
                         (c + n)
-                            .filter { isForParents(it) }
-                            .sortedByDescending { it.sentAt?.toString().orEmpty() }
+                            .filter { matchesAudience(it, myKeys) && notExpired(it) }
+                            .sortedByDescending { it.sentAt.toEpochMillisOrNull() ?: 0L }
                             .take(50)
                     }
                 }

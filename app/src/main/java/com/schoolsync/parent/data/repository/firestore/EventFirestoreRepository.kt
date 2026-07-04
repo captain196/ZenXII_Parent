@@ -40,6 +40,7 @@ class EventFirestoreRepository @Inject constructor(
             ) { ref ->
                 ref.whereEqualTo("schoolId", schoolId)
                     .orderBy("startDate", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    .limit(200)
             }
             Result.success(events)
         } catch (e: Exception) {
@@ -57,10 +58,16 @@ class EventFirestoreRepository @Inject constructor(
             val schoolId = tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
             var doc: EventDoc? = null
             if (schoolId != null) {
+                // Prefixed docId `{schoolId}_{eventId}` is already school-scoped.
                 doc = firestoreService.getDocumentAs<EventDoc>("events", "${schoolId}_$eventId")
             }
             if (doc == null) {
-                doc = firestoreService.getDocumentAs<EventDoc>("events", eventId)
+                // Bare-eventId fallback for legacy docs. This path is reachable
+                // via a crafted deep-link, so re-verify the doc's schoolId
+                // matches the signed-in user's school; drop it on mismatch to
+                // prevent cross-school event leakage.
+                val fallback = firestoreService.getDocumentAs<EventDoc>("events", eventId)
+                doc = fallback?.takeIf { schoolId != null && it.schoolId == schoolId }
             }
             Result.success(doc)
         } catch (e: Exception) {

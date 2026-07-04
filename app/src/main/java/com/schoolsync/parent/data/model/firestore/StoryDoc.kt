@@ -51,6 +51,18 @@ data class StoryDoc(
     val expiresAt: Long = 0,
     val viewCount: Int = 0,
 
+    // ── Audience scoping (v1) ──────────────────────────────────────
+    /** Canonical class-section tokens this story targets (see
+     *  StorySharedConfig.audienceKey), e.g. ["8-a"]. EMPTY = school-wide
+     *  (every pre-v1 doc → empty → visible to all). The parent app
+     *  filters client-side against the active child's class/section. */
+    val audienceClassKeys: List<String> = emptyList(),
+
+    // ── Reactions (v1) ─────────────────────────────────────────────
+    /** Denormalised emoji → count, kept in sync transactionally with
+     *  the reactions/{userId} subcollection (mirrors viewCount). */
+    val reactionCounts: Map<String, Int> = emptyMap(),
+
     // ── Moderation (admin-only writes) ─────────────────────────────
     val status: String = "active",
     val moderatedBy: String = "",

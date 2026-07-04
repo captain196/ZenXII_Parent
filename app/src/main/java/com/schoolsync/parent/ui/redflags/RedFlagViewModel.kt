@@ -7,11 +7,14 @@ import com.schoolsync.parent.data.model.StudentFlag
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.repository.RedFlagRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -37,65 +40,89 @@ class RedFlagViewModel @Inject constructor(
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
-    companion object { private const val TAG = "RedFlagVM" }
+    companion object {
+        private const val TAG = "RedFlagVM"
+        private const val MAX_RETRIES = 3L
+    }
 
     private val _uiState = MutableStateFlow(RedFlagUiState())
     val uiState: StateFlow<RedFlagUiState> = _uiState.asStateFlow()
 
+    private var observeJob: Job? = null
+
     init {
         viewModelScope.launch { redFlagRepository.dumpAuthClaimsForDebug() }
-        loadInitial()
+        viewModelScope.launch {
+            tokenManager.user.firstOrNull()?.let { user ->
+                _uiState.update { it.copy(studentName = user.name) }
+            }
+        }
         observeFlags()
     }
 
     /**
-     * One-shot load that flips isLoading off as soon as the first batch
-     * (or empty) comes back. Without this, isLoading would stay true
-     * forever if the live listener never fires (e.g. observe path errors
-     * before its first emission). The live observer below then takes over
-     * for ongoing updates.
-     */
-    private fun loadInitial() {
-        viewModelScope.launch {
-            val user = tokenManager.user.firstOrNull()
-            if (user != null) {
-                _uiState.update { it.copy(studentName = user.name) }
-            }
-
-            try {
-                val flags = redFlagRepository.getAllFlags()
-                applyFlags(flags)
-            } catch (e: Exception) {
-                Log.e(TAG, "Initial load failed", e)
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = e.message ?: "Failed to load red flags"
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Live snapshot listener. Emits whenever a teacher creates a flag or
-     * an admin resolves one — no manual refresh required. Errors surface
-     * via .catch (FirestoreService.observeQuery now uses close(error) so
-     * permission-denied / missing-index errors actually propagate).
+     * Live snapshot listener — the single source of truth. First emission
+     * flips isLoading off; ongoing emissions keep the list current.
+     *
+     * Previously a separate one-shot `getAllFlags()` also ran, but it
+     * swallowed all errors → returned emptyList() → the screen painted a
+     * false "No red flags / all clear" on any failure. For a safety feature
+     * that's dangerous, so the one-shot is gone and load/error state is
+     * driven purely from this listener.
+     *
+     * Resilience: transient errors (network blips) auto-retry with backoff
+     * so a single hiccup no longer permanently kills live updates (the old
+     * terminal `.catch` did). Persistent errors (permission/index) fall
+     * through to `.catch` and surface a friendly, actionable message — never
+     * the raw Firestore string (which leaks a Firebase console URL).
      */
     private fun observeFlags() {
-        viewModelScope.launch {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
             redFlagRepository.observeFlags()
+                .retryWhen { cause, attempt ->
+                    if (attempt < MAX_RETRIES) {
+                        Log.w(TAG, "Live listener error (attempt ${attempt + 1}), retrying", cause)
+                        // Keep showing existing content; only spin if we have nothing yet.
+                        _uiState.update { it.copy(isLoading = it.allFlags.isEmpty(), errorMessage = null) }
+                        delay(1_000L * (attempt + 1))
+                        true
+                    } else {
+                        false
+                    }
+                }
                 .catch { e ->
-                    Log.e(TAG, "Live listener error", e)
+                    Log.e(TAG, "Live listener error (final)", e)
                     _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = e.message ?: "Live updates unavailable"
-                        )
+                        it.copy(isLoading = false, errorMessage = friendlyError(e))
                     }
                 }
                 .collect { flags -> applyFlags(flags) }
+        }
+    }
+
+    /** Manual retry from the error state — re-subscribes the live listener. */
+    fun retry() {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        observeFlags()
+    }
+
+    /**
+     * Map a load/listener failure to short, non-technical copy. Never surface
+     * the raw exception (a Firestore FAILED_PRECONDITION includes a clickable
+     * console URL — alarming and meaningless to a parent).
+     */
+    private fun friendlyError(e: Throwable): String {
+        val msg = e.message ?: ""
+        return when {
+            msg.contains("PERMISSION_DENIED", ignoreCase = true) ->
+                "These alerts aren't available right now. Log out and back in, then try again."
+            msg.contains("FAILED_PRECONDITION", ignoreCase = true) ||
+                msg.contains("requires an index", ignoreCase = true) ->
+                "Alerts are temporarily unavailable. Please try again shortly."
+            msg.contains("UNAVAILABLE", ignoreCase = true) || msg.contains("network", ignoreCase = true) ->
+                "Network problem — check your connection and try again."
+            else -> "Couldn't load alerts. Tap to retry."
         }
     }
 

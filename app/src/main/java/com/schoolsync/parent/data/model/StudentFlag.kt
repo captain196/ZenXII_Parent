@@ -23,12 +23,17 @@ data class StudentFlag(
         fun fromMap(flagId: String, data: Map<String, Any?>): StudentFlag {
             return StudentFlag(
                 flagId      = flagId,
-                type        = (data["type"] ?: "").toString(),
+                // Canonicalize enums to lowercase on read — matches the Teacher
+                // model and the Firestore contract. Without this, a flag stored
+                // "Active"/"Behavior" (any non-canonical casing from a future
+                // writer) is silently misclassified and dropped from every
+                // status/type filter.
+                type        = (data["type"] ?: "").toString().lowercase().trim(),
                 message     = (data["message"] ?: "").toString(),
                 subject     = (data["subject"] ?: "").toString(),
                 teacherId   = (data["teacherId"] ?: "").toString(),
                 teacherName = (data["teacherName"] ?: "").toString(),
-                severity    = (data["severity"] ?: "low").toString(),
+                severity    = (data["severity"] ?: "low").toString().lowercase().trim(),
                 // Tolerate legacy schema: prefer canonical `createdAtMs`,
                 // fall back to legacy `timestamp` (RTDB-era), then to a
                 // Firestore Timestamp object, then to an ISO string. Returns
@@ -37,7 +42,7 @@ data class StudentFlag(
                 createdAtMs = parseEpochMs(
                     data["createdAtMs"] ?: data["timestamp"] ?: data["createdAt"]
                 ),
-                status      = (data["status"] ?: "active").toString(),
+                status      = (data["status"] ?: "active").toString().lowercase().trim(),
                 resolvedAtMs = (data["resolvedAtMs"] as? Number)?.toLong(),
                 hwId        = data["hwId"]?.toString(),
                 studentName = (data["studentName"] ?: "").toString()

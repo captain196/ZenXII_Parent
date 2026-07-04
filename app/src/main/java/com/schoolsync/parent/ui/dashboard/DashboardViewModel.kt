@@ -13,14 +13,16 @@ import com.schoolsync.parent.data.model.firestore.AttendanceSummaryDoc
 import com.schoolsync.parent.data.model.firestore.HomeworkDoc
 import com.schoolsync.parent.data.model.firestore.PtmEventDoc
 import com.schoolsync.parent.data.model.firestore.ResultDoc
+import com.schoolsync.parent.data.repository.RedFlagRepository
 import com.schoolsync.parent.data.repository.StudentRepository
 import com.schoolsync.parent.data.repository.firestore.AttendanceFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.CommunicationFirestoreRepository
+import com.schoolsync.parent.data.model.EventMedia
 import com.schoolsync.parent.data.repository.firestore.EventFirestoreRepository
+import com.schoolsync.parent.data.repository.firestore.GalleryFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.ExamFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.FeeFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.HomeworkFirestoreRepository
-import com.schoolsync.parent.data.repository.firestore.MyTeachersFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.PtmFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.StudentFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.TimetableFirestoreRepository
@@ -60,12 +62,25 @@ data class DashboardUiState(
     val todayAttendance: String? = null,
     val attendancePercentage: Float = 0f,
     val attendanceChange: Float? = null,
+    /** True when the attendance fetch failed — distinguishes a real
+     *  0% from "data never loaded" so the ring can show a retry hint
+     *  instead of a misleading empty arc. */
+    val attendanceLoadFailed: Boolean = false,
     val pendingFeeAmount: Double = 0.0,
     /** True when the fees fetch failed — UI shows a retry prompt
      *  instead of the green "All cleared" state, which would be
      *  misleading when data never loaded. */
     val feesLoadFailed: Boolean = false,
     val pendingHomeworkCount: Int = 0,
+    /** Live count of ACTIVE red flags for the current child — drives the
+     *  dashboard "Red Flags" tile badge so a new serious flag is visible
+     *  at a glance without opening the screen. */
+    val activeFlagCount: Int = 0,
+    /** True when the homework listener errored — distinguishes a real
+     *  "0 pending" from a failed load. */
+    val homeworkLoadFailed: Boolean = false,
+    /** True when the latest-result fetch failed. */
+    val resultLoadFailed: Boolean = false,
     /** Top 5 active homework items for the dashboard preview list. */
     val homeworkPreview: List<HomeworkDoc> = emptyList(),
     val recentNotices: List<Notice> = emptyList(),
@@ -82,20 +97,6 @@ data class DashboardUiState(
      *  father+mother name match). Empty when no siblings or lookup
      *  failed. Sorted alphabetically by name. */
     val siblings: List<SiblingSummary> = emptyList(),
-    /** The Active class teacher for the student's section (or null
-     *  when none is assigned / the loader hasn't finished yet). The
-     *  loader leans on MyTeachersFirestoreRepository, which already
-     *  filters out archived assignments and Inactive staff, so this
-     *  field is by construction either Active or null. */
-    val classTeacher: MyTeachersFirestoreRepository.TeacherEntry? = null,
-    /** Every subject the class teacher teaches to this student's
-     *  section. The class teacher row from `MyTeachers...` only
-     *  carries one assignment doc (the row marked isClassTeacher),
-     *  but the same teacher usually delivers multiple subjects to
-     *  the section — this list aggregates all of them so the
-     *  dashboard hero card can display them the same way the My
-     *  Teachers screen does. */
-    val classTeacherSubjects: List<String> = emptyList(),
     val errorMessage: String? = null
 )
 
@@ -107,11 +108,12 @@ class DashboardViewModel @Inject constructor(
     private val communicationFirestoreRepo: CommunicationFirestoreRepository,
     private val homeworkFirestoreRepo: HomeworkFirestoreRepository,
     private val eventFirestoreRepo: EventFirestoreRepository,
+    private val galleryFirestoreRepo: GalleryFirestoreRepository,
     private val timetableFirestoreRepo: TimetableFirestoreRepository,
     private val examFirestoreRepo: ExamFirestoreRepository,
     private val ptmFirestoreRepo: PtmFirestoreRepository,
-    private val myTeachersRepo: MyTeachersFirestoreRepository,
     private val studentFirestoreRepo: StudentFirestoreRepository,
+    private val redFlagRepository: RedFlagRepository,
     private val tokenManager: TokenManager,
     networkMonitor: NetworkMonitor
 ) : ViewModel() {
@@ -126,6 +128,10 @@ class DashboardViewModel @Inject constructor(
      *  cancel-and-restart this every time the active student changes
      *  (sibling switch, profile reload). */
     private var homeworkListenerJob: Job? = null
+
+    /** Live listener for the active red-flag count; cancel-and-restart on
+     *  every active-student change, same as the homework listener. */
+    private var flagListenerJob: Job? = null
 
     init {
         loadDashboard()
@@ -144,44 +150,53 @@ class DashboardViewModel @Inject constructor(
             Log.d("DashboardVM", "user=${user?.userId} class='${user?.className}' sec='${user?.section}' schoolId='${user?.schoolId}'")
             _uiState.update { it.copy(user = user) }
 
-            // Fetch school name directly from Firestore schools collection
-            val sid = user?.schoolId ?: user?.schoolCode ?: ""
-            if (sid.isNotBlank()) {
-                try {
-                    val schoolSnap = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                        .collection("schools").document(sid).get().await()
-                    val sName = schoolSnap?.getString("name") ?: ""
-                    Log.d("DashboardVM", "School name from Firestore: '$sName' (docId=$sid)")
-                    if (sName.isNotBlank()) {
-                        _uiState.update { it.copy(schoolName = sName) }
-                    }
-                } catch (e: Exception) {
-                    Log.w("DashboardVM", "Failed to fetch school name for $sid", e)
-                }
-            }
-
-            // Each loader is independent — there are no data dependencies
-            // between them. Running sequentially meant Events was the 5th
-            // round-trip in line and appeared visibly later than other
-            // tiles. coroutineScope launches them concurrently and waits
-            // for all to complete before flipping isLoading off.
-            // Each loader updates _uiState.copy independently;
-            // MutableStateFlow's atomic update handles the concurrent edits.
-            coroutineScope {
-                launch { loadAttendance(user) }
-                launch { loadFees(user) }
-                launch { loadNotices() }
-                launch { loadHomework(user) }
-                launch { loadEvents() }
-                launch { loadSiblings(user) }
-                launch { loadTodaySchedule(user) }
-                launch { loadLatestResult(user) }
-                launch { loadNextPtm(user) }
-                launch { loadClassTeacher(user) }
-            }
+            fetchSchoolName(user)
+            runAllLoaders(user)
 
             _uiState.update { it.copy(isLoading = false) }
         }
+    }
+
+    /** Fetch the school display name directly from the Firestore
+     *  `schools` collection. Best-effort — failures are logged, not
+     *  surfaced (the cached name from the user profile is the fallback). */
+    private suspend fun fetchSchoolName(user: User?) {
+        val sid = user?.schoolId ?: user?.schoolCode ?: ""
+        if (sid.isBlank()) return
+        try {
+            val schoolSnap = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection("schools").document(sid).get().await()
+            val sName = schoolSnap?.getString("name") ?: ""
+            Log.d("DashboardVM", "School name from Firestore: '$sName' (docId=$sid)")
+            if (sName.isNotBlank()) {
+                _uiState.update { it.copy(schoolName = sName) }
+            }
+        } catch (e: Exception) {
+            Log.w("DashboardVM", "Failed to fetch school name for $sid", e)
+        }
+    }
+
+    /**
+     * Run every dashboard data loader concurrently and wait for all to
+     * finish. Each loader is independent (no cross-loader data deps) and
+     * isolates its own failures, so one slow/failing tile never blocks or
+     * aborts the others. Shared by both the initial load and pull-to-
+     * refresh so the two paths can never drift in behaviour again.
+     *
+     * Each loader updates `_uiState.copy` independently;
+     * MutableStateFlow's atomic update handles the concurrent edits.
+     */
+    private suspend fun runAllLoaders(user: User?) = coroutineScope {
+        launch { loadAttendance(user) }
+        launch { loadFees(user) }
+        launch { loadNotices() }
+        launch { loadHomework(user) }
+        loadFlags()
+        launch { loadEvents() }
+        launch { loadSiblings(user) }
+        launch { loadTodaySchedule(user) }
+        launch { loadLatestResult(user) }
+        launch { loadNextPtm(user) }
     }
 
     /**
@@ -257,7 +272,33 @@ class DashboardViewModel @Inject constructor(
                     phone         = current.phone // parent contact stays the same
                 )
                 tokenManager.saveUserDirect(next)
-                _uiState.update { it.copy(user = next) }
+                // Clear the previous child's per-student data BEFORE reloading
+                // so the dashboard never flashes the wrong kid's marks / PTM /
+                // attendance / homework for the beat between switch and reload.
+                _uiState.update {
+                    it.copy(
+                        user = next,
+                        todayAttendance = null,
+                        attendancePercentage = 0f,
+                        attendanceChange = null,
+                        attendanceMonthSummary = null,
+                        attendanceLoadFailed = false,
+                        pendingFeeAmount = 0.0,
+                        feesLoadFailed = false,
+                        pendingHomeworkCount = 0,
+                        homeworkPreview = emptyList(),
+                        homeworkLoadFailed = false,
+                        activeFlagCount = 0,
+                        todaySchedule = null,
+                        latestResult = null,
+                        resultLoadFailed = false,
+                        nextPtm = null,
+                        // Clear events too — the Upcoming Events section merges
+                        // in PTM rows scoped to the child's class/section, so a
+                        // stale list would show the previous child's PTMs.
+                        upcomingEvents = emptyList()
+                    )
+                }
                 // Reload per-student data so KPI tiles reflect the new kid.
                 loadAttendance(next)
                 loadFees(next)
@@ -265,6 +306,9 @@ class DashboardViewModel @Inject constructor(
                 loadTodaySchedule(next)
                 loadLatestResult(next)
                 loadNextPtm(next)
+                // Events reads class/section from the freshly-saved user token
+                // (saveUserDirect above) to re-scope the PTM-as-event rows.
+                loadEvents()
             } catch (e: Exception) {
                 Log.e("DashboardVM", "switchToSibling failed", e)
                 _uiState.update { it.copy(errorMessage = e.message ?: "Failed to switch.") }
@@ -376,11 +420,35 @@ class DashboardViewModel @Inject constructor(
                 emptyList()
             }
 
-            val upcoming = (schoolEvents + ptmEvents).sortedBy { it.startDate }
+            val upcoming = (injectEventCovers(schoolEvents) + ptmEvents).sortedBy { it.startDate }
             Log.d("DashboardVM", "Events loaded: events=${schoolEvents.size} ptms=${ptmEvents.size} upcoming=${upcoming.size}")
             _uiState.update { it.copy(upcomingEvents = upcoming.take(5)) }
         } catch (e: Exception) {
             Log.w("DashboardVM", "Events load failed", e)
+        }
+    }
+
+    /**
+     * Events often carry their photo in the linked gallery album (source=
+     * "event") rather than on the event doc — e.g. "Annual sport day". For any
+     * event with no inline media, borrow the album's `coverImage` so the
+     * dashboard banner shows the picture. Dashboard events use the RAW event id,
+     * which is exactly what the album stores. One album query, only when needed.
+     */
+    private suspend fun injectEventCovers(events: List<Event>): List<Event> {
+        if (events.none { it.mediaUrls.isEmpty() }) return events
+        val albums = runCatching { galleryFirestoreRepo.getAlbums().getOrNull() }
+            .getOrNull().orEmpty()
+            .filter { it.source == "event" && it.coverImage.isNotBlank() }
+        if (albums.isEmpty()) return events
+        return events.map { e ->
+            if (e.mediaUrls.isNotEmpty()) e
+            else {
+                val cover = albums.firstOrNull { a ->
+                    e.eventId == a.eventId || e.eventId.endsWith("_${a.eventId}")
+                }?.coverImage
+                if (cover != null) e.copy(mediaUrls = listOf(EventMedia(url = cover, type = "image"))) else e
+            }
         }
     }
 
@@ -429,16 +497,19 @@ class DashboardViewModel @Inject constructor(
                             attendancePercentage = currentPct,
                             attendanceChange = change,
                             todayAttendance = todayStatus,
-                            attendanceMonthSummary = currentMonthSummary
+                            attendanceMonthSummary = currentMonthSummary,
+                            attendanceLoadFailed = false
                         )
                     }
                 },
                 onFailure = { e ->
                     Log.w("DashboardVM", "Firestore attendance failed", e)
+                    _uiState.update { it.copy(attendanceLoadFailed = true) }
                 }
             )
         } catch (e: Exception) {
             Log.w("DashboardVM", "Firestore attendance exception", e)
+            _uiState.update { it.copy(attendanceLoadFailed = true) }
         }
     }
 
@@ -525,10 +596,17 @@ class DashboardViewModel @Inject constructor(
                     // bottom. We deliberately do NOT filter out overdue
                     // homework — for a parent, "overdue and not submitted"
                     // is exactly what the dashboard needs to surface.
+                    // Sort by the PARSED dueDate, not the raw string — the raw
+                    // string assumed ISO yyyy-MM-dd and mis-ordered any
+                    // non-ISO shape (e.g. dd/MM/yyyy) or time-bearing ISO.
+                    // Reuse the homework list's robust parse so ordering agrees.
                     val activeSorted = homeworkDocs.sortedWith(
                         compareBy(
                             { it.dueDate.isBlank() },
-                            { it.dueDate.takeIf { d -> d.isNotBlank() } ?: "9999-12-31" }
+                            {
+                                com.schoolsync.parent.ui.homework.HomeworkViewModel
+                                    .parseDueDate(it.dueDate)?.time ?: Long.MAX_VALUE
+                            }
                         )
                     )
 
@@ -536,17 +614,20 @@ class DashboardViewModel @Inject constructor(
                     // yet. A submission with status "submitted" or "reviewed"
                     // or "complete" means the parent's task on this homework
                     // is done — should not be on the dashboard prompt.
+                    // FIX 2: use the shared isActionNeeded() predicate (pending
+                    // OR incomplete) so this count agrees with the homework nav
+                    // badge and the profile stat.
                     val pending = activeSorted.filter { hw ->
-                        val status = (submissionsByHwId[hw.id]?.status ?: "pending")
-                            .lowercase().trim()
-                        status == "pending"
+                        val status = submissionsByHwId[hw.id]?.status ?: "pending"
+                        com.schoolsync.parent.data.model.isActionNeeded(status)
                     }
                     pending
                 }.collect { pending ->
                     _uiState.update {
                         it.copy(
                             pendingHomeworkCount = pending.size,
-                            homeworkPreview = pending.take(5)
+                            homeworkPreview = pending.take(5),
+                            homeworkLoadFailed = false
                         )
                     }
                 }
@@ -554,6 +635,32 @@ class DashboardViewModel @Inject constructor(
                 // Normal cancellation when student switches — silent.
             } catch (e: Exception) {
                 Log.w("DashboardVM", "Firestore homework live listener failed", e)
+                _uiState.update { it.copy(homeworkLoadFailed = true) }
+            }
+        }
+    }
+
+    /**
+     * Live active-flag count for the dashboard tile badge. The repository's
+     * observeFlags() flatMapLatch-es on the active user, so this single
+     * listener automatically re-targets on a sibling switch — we just
+     * cancel-and-restart defensively so repeat loadDashboard() calls don't
+     * stack listeners. Failure is swallowed to 0 (the tile simply shows no
+     * badge); the full Red Flags screen is the authoritative error surface.
+     */
+    private fun loadFlags() {
+        flagListenerJob?.cancel()
+        flagListenerJob = viewModelScope.launch {
+            try {
+                redFlagRepository.observeFlags().collect { flags ->
+                    val active = flags.count { it.status == "active" }
+                    _uiState.update { it.copy(activeFlagCount = active) }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // normal on student switch — silent
+            } catch (e: Exception) {
+                Log.w("DashboardVM", "Red-flag count listener failed", e)
+                _uiState.update { it.copy(activeFlagCount = 0) }
             }
         }
     }
@@ -597,43 +704,6 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Pick the student's Active class teacher for the dashboard card.
-     * The repository already filters archived assignments and Inactive
-     * staff (Phase 3 cascade + Active gate), so any entry returned here
-     * is safe to display without further checks. Multiple matches are
-     * defended against with `firstOrNull`.
-     */
-    private suspend fun loadClassTeacher(user: User?) {
-        if (user?.userId.isNullOrBlank()) return
-        try {
-            val res = myTeachersRepo.getMyTeachers()
-            res.fold(
-                onSuccess = { entries ->
-                    val ct = entries.filter { it.assignment.isClassTeacher }.firstOrNull()
-                    // Aggregate every subject this class teacher delivers
-                    // to the same section so the hero card mirrors the
-                    // multi-subject row format used on My Teachers.
-                    val subjects = if (ct != null) {
-                        entries
-                            .filter { it.assignment.teacherId.isNotBlank()
-                                && it.assignment.teacherId == ct.assignment.teacherId }
-                            .map { it.assignment.subjectName.ifBlank { it.assignment.subjectCode } }
-                            .filter { it.isNotBlank() }
-                            .distinct()
-                    } else emptyList()
-                    Log.d("DashboardVM", "Class teacher: ${ct?.staff?.name ?: "none"} subjects=${subjects.size} (${entries.size} total entries)")
-                    _uiState.update { it.copy(classTeacher = ct, classTeacherSubjects = subjects) }
-                },
-                onFailure = { e ->
-                    Log.w("DashboardVM", "Class teacher load failed", e)
-                }
-            )
-        } catch (e: Exception) {
-            Log.w("DashboardVM", "Class teacher load exception", e)
-        }
-    }
-
     private suspend fun loadLatestResult(user: User?) {
         val sid = user?.userId ?: return
         if (sid.isBlank()) return
@@ -651,18 +721,25 @@ class DashboardViewModel @Inject constructor(
                         }
                     }
                     Log.d("DashboardVM", "Latest result: ${latest?.examName ?: "none"} (${results.size} total)")
-                    _uiState.update { it.copy(latestResult = latest) }
+                    _uiState.update { it.copy(latestResult = latest, resultLoadFailed = false) }
                 },
                 onFailure = { e ->
                     Log.w("DashboardVM", "Latest result failed", e)
+                    _uiState.update { it.copy(resultLoadFailed = true) }
                 }
             )
         } catch (e: Exception) {
             Log.w("DashboardVM", "Latest result exception", e)
+            _uiState.update { it.copy(resultLoadFailed = true) }
         }
     }
 
     fun refresh() = loadDashboard()
+
+    /** Dismiss the transient error banner (e.g. a failed sibling switch). */
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
 
     /**
      * Pull-to-refresh entry point. Holds the spinner for ≥ 600ms so
@@ -671,23 +748,19 @@ class DashboardViewModel @Inject constructor(
     fun pullRefresh() {
         viewModelScope.launch {
             Log.d("DashboardVM", "pullRefresh: STARTED")
-            _uiState.update { it.copy(isRefreshing = true) }
+            _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
             val startedAt = System.currentTimeMillis()
             val minSpinnerMs = 600L
             try {
                 val initialUser = studentRepository.currentUser.firstOrNull()
                 val user = healUserProfileIfNeeded(initialUser)
                 _uiState.update { it.copy(user = user) }
-                loadAttendance(user)
-                loadFees(user)
-                loadNotices()
-                loadHomework(user)
-                loadEvents()
-                loadSiblings(user)
-                loadTodaySchedule(user)
-                loadLatestResult(user)
-                loadNextPtm(user)
-                loadClassTeacher(user)
+                fetchSchoolName(user)
+                // Same concurrent, per-loader-isolated fan-out as the initial
+                // load — previously this path ran the loaders sequentially
+                // under one try/catch, so a single failing loader aborted all
+                // the rest and refresh was far slower than cold load.
+                runAllLoaders(user)
             } catch (e: Exception) {
                 Log.w("DashboardVM", "pullRefresh failed", e)
             }

@@ -2,9 +2,6 @@
 
 package com.schoolsync.parent.ui.events
 
-import android.content.Intent
-import android.net.Uri
-
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -46,6 +43,7 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -62,6 +60,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,8 +82,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import com.schoolsync.parent.data.model.EventMedia
-import com.schoolsync.parent.ui.theme.AppColors
 import com.schoolsync.parent.ui.theme.LocalAppColors
+import com.schoolsync.parent.util.AttachmentUrlValidator
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
 
@@ -92,12 +91,15 @@ import com.schoolsync.parent.ui.theme.gradientBackground
 fun EventDetailScreen(
     eventId: String,
     onBack: () -> Unit,
+    onViewPhotos: (String) -> Unit = {},
     viewModel: EventsViewModel = hiltViewModel()
 ) {
     val c = LocalAppColors.current
     val context = LocalContext.current
     val detailState by viewModel.detailState.collectAsStateWithLifecycle()
-    var viewerIndex by remember { mutableIntStateOf(-1) } // -1 = closed
+    // rememberSaveable so the open viewer + which page survives config change
+    // / process death. -1 = closed.
+    var viewerIndex by rememberSaveable { mutableIntStateOf(-1) }
 
     LaunchedEffect(eventId) {
         viewModel.loadEventDetail(eventId)
@@ -179,6 +181,34 @@ fun EventDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Spacer(modifier = Modifier.height(4.dp))
+
+                    // Cover hero — the event's first photo (or a video poster).
+                    val cover = event.mediaUrls.firstOrNull { it.type == "image" }?.url
+                        ?: event.mediaUrls.firstOrNull { !it.thumbnail.isNullOrBlank() }?.thumbnail
+                    if (cover != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                        ) {
+                            AsyncImage(
+                                model = cover,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.4f))
+                                        )
+                                    )
+                            )
+                        }
+                    }
 
                     // Category + Status row
                     Row(
@@ -268,6 +298,39 @@ fun EventDetailScreen(
                         }
                     }
 
+                    // View Photos — jump to the full gallery album generated
+                    // for this event (admin publishes one galleryAlbums doc per
+                    // event that has photos). Hidden entirely when no album.
+                    detailState.eventAlbum?.let { album ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(c.accent.copy(alpha = 0.15f))
+                                .clickable { onViewPhotos(album.albumId) }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PhotoLibrary,
+                                contentDescription = null,
+                                tint = c.accent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = if (album.mediaCount > 0)
+                                    "View Photos (${album.mediaCount})" else "View Photos",
+                                style = TextStyle(
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = c.accent
+                                )
+                            )
+                        }
+                    }
+
                     // Description
                     if (event.description.isNotBlank()) {
                         Column(
@@ -321,11 +384,11 @@ fun EventDetailScreen(
                                         media = media,
                                         onClick = {
                                             if (media.type == "video") {
-                                                // Open video externally
-                                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                                    setDataAndType(Uri.parse(media.url), "video/*")
-                                                }
-                                                context.startActivity(intent)
+                                                // Open video externally — validated
+                                                // (https + firebasestorage host) before dispatch.
+                                                AttachmentUrlValidator.openAttachmentSafely(
+                                                    context, media.url, "event_video"
+                                                )
                                             } else {
                                                 // Open fullscreen image viewer
                                                 viewerIndex = index
@@ -352,10 +415,7 @@ fun EventDetailScreen(
             initialIndex = viewerIndex,
             onDismiss = { viewerIndex = -1 },
             onVideoPlay = { url ->
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(Uri.parse(url), "video/*")
-                }
-                context.startActivity(intent)
+                AttachmentUrlValidator.openAttachmentSafely(context, url, "event_video")
             }
         )
     }
@@ -674,26 +734,5 @@ private fun GalleryViewer(
     }
 }
 
-@Composable
-private fun getCategoryColor(category: String, c: AppColors): Color {
-    return when (category.lowercase()) {
-        "cultural" -> c.purple
-        "sports" -> c.success
-        "academic" -> c.info
-        "exam" -> c.error
-        "holiday" -> c.warning
-        else -> c.accent
-    }
-}
-
-@Composable
-private fun getStatusColor(status: String, c: AppColors): Color {
-    return when (status.lowercase()) {
-        "scheduled" -> c.info
-        "ongoing", "active" -> c.success
-        "completed", "finished" -> c.textTertiary
-        "cancelled" -> c.error
-        "postponed" -> c.warning
-        else -> c.textSecondary
-    }
-}
+// Category / status color helpers live in EventColors.kt (shared with
+// EventsScreen).

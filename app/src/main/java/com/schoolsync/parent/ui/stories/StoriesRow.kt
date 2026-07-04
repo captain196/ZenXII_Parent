@@ -100,7 +100,10 @@ private fun StoryAvatar(
                     colors = listOf(c.accent, c.accentSecondary)            // teal teacher gradient
                 )
             }
-            val ringModifier = if (group.hasUnviewed || isAdmin) {
+            // Instagram-style: colored ring ONLY while unseen; once viewed the
+            // ring greys out — for admin/whole-school posts too (previously
+            // `|| isAdmin` kept them colored even after the parent had seen them).
+            val ringModifier = if (group.hasUnviewed) {
                 Modifier
                     .size(62.dp)
                     .clip(CircleShape)

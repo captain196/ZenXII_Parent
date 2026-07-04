@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -44,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -131,6 +133,12 @@ fun NoticesScreen(
                         CircularProgressIndicator(color = c.accent, modifier = Modifier.size(40.dp))
                     }
                 }
+                // A load FAILURE must not masquerade as an empty inbox — for a
+                // comms channel that false "all caught up" is dangerous. Show a
+                // distinct, retryable error state instead.
+                uiState.errorMessage != null && uiState.notices.isEmpty() -> {
+                    ErrorNoticesState(onRetry = { viewModel.refresh() })
+                }
                 uiState.notices.isEmpty() -> {
                     EmptyNoticesState(
                         onRefresh = { viewModel.refresh() }
@@ -161,8 +169,10 @@ fun NoticesScreen(
             }
         }
 
-        // ── Error toast ─────────────────────────────────────────────
-        uiState.errorMessage?.let { error ->
+        // ── Inline error banner — only when content is already showing (a
+        // transient refresh error). The full-screen ErrorNoticesState covers
+        // the "failed with nothing to show" case above.
+        uiState.errorMessage?.takeIf { uiState.notices.isNotEmpty() }?.let { error ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -248,6 +258,17 @@ private fun NoticeCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            if (!notice.isRead) {
+                Icon(
+                    imageVector = Icons.Filled.Circle,
+                    contentDescription = stringResource(R.string.notices_unread),
+                    tint = c.accent,
+                    modifier = Modifier
+                        .padding(top = 4.dp, end = 6.dp)
+                        .size(8.dp)
+                )
+            }
+
             Icon(
                 imageVector = if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                 contentDescription = stringResource(
@@ -323,13 +344,22 @@ private fun NoticeCard(
                             .clip(RoundedCornerShape(8.dp))
                             .background(catColor.copy(alpha = 0.12f))
                             .clickable {
-                                runCatching {
-                                    ctx.startActivity(
-                                        android.content.Intent(
-                                            android.content.Intent.ACTION_VIEW,
-                                            android.net.Uri.parse(notice.attachmentUrl)
+                                // Only hand http(s) URLs to ACTION_VIEW — never
+                                // intent:/file:/custom schemes from server content.
+                                val url = notice.attachmentUrl.trim()
+                                if (url.startsWith("http://", true) || url.startsWith("https://", true)) {
+                                    runCatching {
+                                        ctx.startActivity(
+                                            android.content.Intent(
+                                                android.content.Intent.ACTION_VIEW,
+                                                android.net.Uri.parse(url)
+                                            )
                                         )
-                                    )
+                                    }.onFailure {
+                                        android.widget.Toast.makeText(ctx, "No app can open this attachment", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    android.widget.Toast.makeText(ctx, "Attachment link is invalid", android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -346,7 +376,12 @@ private fun NoticeCard(
                 }
 
                 if (notice.bodyHtml.isNotBlank()) {
-                    // Rich HTML render via WebView (HR-styled posters)
+                    // Rich HTML render via WebView (HR-styled posters).
+                    // Theme-aware text color so the body is readable in dark
+                    // mode (was hardcoded dark slate → invisible on dark bg).
+                    val htmlTextColor = String.format(
+                        "#%06X", 0xFFFFFF and c.textPrimary.toArgb()
+                    )
                     androidx.compose.ui.viewinterop.AndroidView(
                         factory = { context ->
                             android.webkit.WebView(context).apply {
@@ -361,7 +396,7 @@ private fun NoticeCard(
                                 <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
                                 <style>
                                   body{font-family:system-ui,-apple-system,sans-serif;margin:0;padding:0;
-                                       font-size:14px;line-height:1.5;color:#1e293b;}
+                                       font-size:14px;line-height:1.5;color:$htmlTextColor;}
                                   img{max-width:100%;height:auto;}
                                 </style></head>
                                 <body>${notice.bodyHtml}</body></html>
@@ -417,6 +452,75 @@ private fun localizedCategoryLabel(category: String): String = when (category.lo
     "recruitment" -> stringResource(R.string.notices_category_recruitment)
     "policy" -> stringResource(R.string.notices_category_policy)
     else -> stringResource(R.string.notices_category_general)
+}
+
+@Composable
+private fun ErrorNoticesState(
+    onRetry: () -> Unit
+) {
+    val c = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(c.error.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.NotificationsNone,
+                    contentDescription = null,
+                    tint = c.error,
+                    modifier = Modifier.size(44.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                text = "Couldn't load notices",
+                style = MaterialTheme.typography.titleLarge,
+                color = c.textPrimary,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "This is not a confirmation that there are none — check your connection and retry.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = c.textSecondary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(c.accent)
+                    .clickable(onClick = onRetry)
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Refresh,
+                        contentDescription = null,
+                        tint = c.pillText,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.action_retry),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = c.pillText,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

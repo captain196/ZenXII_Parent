@@ -54,16 +54,22 @@ class GalleryViewModel @Inject constructor(
     private fun loadAlbums() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            try {
-                val albums = galleryRepository.getAlbums()
-                _uiState.update { it.copy(isLoading = false, albums = albums) }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load gallery")
+            galleryRepository.getAlbums().fold(
+                onSuccess = { albums ->
+                    _uiState.update { it.copy(isLoading = false, albums = albums, errorMessage = null) }
+                },
+                onFailure = { e ->
+                    android.util.Log.e("GalleryVM", "loadAlbums failed", e)
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load gallery")
+                    }
                 }
-            }
+            )
         }
     }
+
+    /** Retry after a failed load (error-state button). */
+    fun retry() = loadAlbums()
 
     fun selectCategory(category: String) {
         _uiState.update { it.copy(selectedCategory = category) }
@@ -72,26 +78,31 @@ class GalleryViewModel @Inject constructor(
     fun loadAlbumDetail(albumId: String) {
         viewModelScope.launch {
             _detailState.update { it.copy(isLoading = true, errorMessage = null) }
-            try {
-                val album = galleryRepository.getAlbumWithMedia(albumId)
-                _detailState.update { it.copy(isLoading = false, album = album) }
-            } catch (e: Exception) {
-                _detailState.update {
-                    it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load album")
+            galleryRepository.getAlbumWithMedia(albumId).fold(
+                onSuccess = { album ->
+                    _detailState.update { it.copy(isLoading = false, album = album, errorMessage = null) }
+                },
+                onFailure = { e ->
+                    android.util.Log.e("GalleryVM", "loadAlbumDetail failed", e)
+                    _detailState.update {
+                        it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load album")
+                    }
                 }
-            }
+            )
         }
     }
 
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }
-            try {
-                val albums = galleryRepository.getAlbums()
-                _uiState.update { it.copy(isRefreshing = false, albums = albums) }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message) }
-            }
+            galleryRepository.getAlbums().fold(
+                onSuccess = { albums ->
+                    _uiState.update { it.copy(isRefreshing = false, albums = albums, errorMessage = null) }
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isRefreshing = false, errorMessage = e.message) }
+                }
+            )
         }
     }
 
@@ -101,13 +112,15 @@ class GalleryViewModel @Inject constructor(
             _uiState.update { it.copy(isRefreshing = true) }
             val startedAt = System.currentTimeMillis()
             val minSpinnerMs = 600L
-            try {
-                val albums = galleryRepository.getAlbums()
-                _uiState.update { it.copy(albums = albums) }
-            } catch (e: Exception) {
-                android.util.Log.w("GalleryVM", "pullRefresh failed", e)
-                _uiState.update { it.copy(errorMessage = e.message) }
-            }
+            galleryRepository.getAlbums().fold(
+                onSuccess = { albums ->
+                    _uiState.update { it.copy(albums = albums, errorMessage = null) }
+                },
+                onFailure = { e ->
+                    android.util.Log.w("GalleryVM", "pullRefresh failed", e)
+                    _uiState.update { it.copy(errorMessage = e.message) }
+                }
+            )
             val elapsed = System.currentTimeMillis() - startedAt
             if (elapsed < minSpinnerMs) {
                 kotlinx.coroutines.delay(minSpinnerMs - elapsed)

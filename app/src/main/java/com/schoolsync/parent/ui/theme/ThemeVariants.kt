@@ -3,13 +3,14 @@ package com.schoolsync.parent.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // Change this to preview each prototype. DEFAULT keeps the existing theme.
-val ACTIVE_THEME_VARIANT: ThemeVariant = ThemeVariant.ACADEMIC_OXBLOOD
+val ACTIVE_THEME_VARIANT: ThemeVariant = ThemeVariant.WARM_TERRACOTTA
 
 enum class ThemeVariant {
     DEFAULT,
     CORPORATE_NAVY_GOLD,
     EXECUTIVE_MONOCHROME,
     ACADEMIC_OXBLOOD,
+    WARM_TERRACOTTA,
 }
 
 fun colorsFor(variant: ThemeVariant, isDark: Boolean): AppColors = when (variant) {
@@ -17,6 +18,7 @@ fun colorsFor(variant: ThemeVariant, isDark: Boolean): AppColors = when (variant
     ThemeVariant.CORPORATE_NAVY_GOLD -> if (isDark) NavyGoldDark else NavyGoldLight
     ThemeVariant.EXECUTIVE_MONOCHROME -> if (isDark) ExecutiveDark else ExecutiveLight
     ThemeVariant.ACADEMIC_OXBLOOD -> if (isDark) AcademicDark else AcademicLight
+    ThemeVariant.WARM_TERRACOTTA -> if (isDark) WarmSandDark else WarmSandLight
 }
 
 // ─── #1 Corporate Navy + Gold ────────────────────────────────────────────────
@@ -380,4 +382,129 @@ val AcademicLight = AppColors(
     onBannerMuted = Color(0xB3FFFFFF),
     statusBarColor = Color(0xFFFBF7F0),
     lightStatusBar = true,
+)
+
+// ─── #4 Warm Terracotta + Sand (Pinterest "warm minimal") ────────────────────
+// Cozy, editorial palette: sand/cream surfaces with a clay-terracotta accent in
+// light, and a warm-charcoal base with a softer "clay glow" accent in dark.
+// Semantic colors (success/warning/error/info) are nudged warm so they sit in
+// the same family instead of clashing with the terracotta.
+val WarmSandLight = AppColors(
+    isDark = false,
+    bgStart = Color(0xFFFBF6F0),          // sand
+    bgMid = Color(0xFFF5ECE1),
+    bgEnd = Color(0xFFECDFCF),
+    glass = Color(0xCCFFFCF8),
+    glassBorder = Color(0xA6E4D3C0),
+    glassHighlight = Color(0x1AFFFFFF),
+    accent = Color(0xFFC06B4E),           // terracotta
+    accentSecondary = Color(0xFFA85639),  // deep clay
+    accentBg = Color(0x1AC06B4E),
+    slateBlue = Color(0xFF6B564A),        // warm neutral (repurposed)
+    textPrimary = Color(0xFF2A1E17),      // espresso
+    textSecondary = Color(0xFF6B564A),
+    textTertiary = Color(0xFF9C8A7C),
+    success = Color(0xFF4E8A5B),
+    successBg = Color(0x1E4E8A5B),
+    warning = Color(0xFFC0842E),
+    warningBg = Color(0x14C0842E),
+    error = Color(0xFFB4472F),
+    errorBg = Color(0x14B4472F),
+    info = Color(0xFF4A7FA5),
+    infoBg = Color(0x1A4A7FA5),
+    purple = Color(0xFF7D5A8C),
+    purpleBg = Color(0x147D5A8C),
+    coral = Color(0xFFD2825F),
+    coralBg = Color(0x14D2825F),
+    teal = Color(0xFF3E8C7E),
+    tealBg = Color(0x143E8C7E),
+    attPresent = Color(0xFF4E8A5B),
+    attAbsent = Color(0xFFB4472F),
+    attLeave = Color(0xFFC0842E),
+    attHoliday = Color(0xFF4A7FA5),
+    attVacation = Color(0xFF7D5A8C),
+    surfaceDark = Color(0xFFEFE3D4),
+    surfaceElevated = Color(0xFFFFFCF8),
+    divider = Color(0x14000000),
+    navBg = Color(0x73FFFCF8),
+    navBorder = Color(0x8CE4D3C0),
+    navActive = Color(0xFFC06B4E),
+    navDot = Color(0xFFA85639),
+    navInactive = Color(0xFF9C8A7C),
+    chatSent = Color(0xFFC06B4E),
+    chatReceived = Color(0xFFFFFCF8),
+    banner1Start = Color(0xFFC06B4E),
+    banner1End = Color(0xFFD89873),
+    banner2Start = Color(0xFF4E8A5B),
+    banner2End = Color(0xFF7BB185),
+    banner3Start = Color(0xFFC0842E),
+    banner3End = Color(0xFFE0B266),
+    shimmerBase = Color(0xFFF5ECE1),
+    shimmerHighlight = Color(0xFFFBF6F0),
+    pillBg = Color(0xFFC06B4E),
+    pillText = Color(0xFFFFFFFF),
+    onBanner = Color(0xFFFFFFFF),
+    onBannerMuted = Color(0xB3FFFFFF),
+    statusBarColor = Color(0xFFFBF6F0),
+    lightStatusBar = true,
+)
+
+val WarmSandDark = AppColors(
+    isDark = true,
+    bgStart = Color(0xFF15110D),          // warm charcoal
+    bgMid = Color(0xFF1E1811),
+    bgEnd = Color(0xFF271F17),
+    glass = Color(0x80231C15),
+    glassBorder = Color(0x80554637),
+    glassHighlight = Color(0x0DFFFFFF),
+    accent = Color(0xFFE08E6E),           // clay glow
+    accentSecondary = Color(0xFFC4744F),
+    accentBg = Color(0x1AE08E6E),
+    slateBlue = Color(0xFF4A3B2E),
+    textPrimary = Color(0xFFF6F1EA),
+    textSecondary = Color(0xFFB3A498),
+    textTertiary = Color(0xFF7D6E5F),
+    success = Color(0xFF7FB37E),
+    successBg = Color(0x1A7FB37E),
+    warning = Color(0xFFD9AE63),
+    warningBg = Color(0x14D9AE63),
+    error = Color(0xFFDE6B54),
+    errorBg = Color(0x14DE6B54),
+    info = Color(0xFF6FA0C4),
+    infoBg = Color(0x1A6FA0C4),
+    purple = Color(0xFFB199C4),
+    purpleBg = Color(0x14B199C4),
+    coral = Color(0xFFE5A283),
+    coralBg = Color(0x14E5A283),
+    teal = Color(0xFF6FB3A4),
+    tealBg = Color(0x146FB3A4),
+    attPresent = Color(0xFF7FB37E),
+    attAbsent = Color(0xFFDE6B54),
+    attLeave = Color(0xFFD9AE63),
+    attHoliday = Color(0xFF6FA0C4),
+    attVacation = Color(0xFFB199C4),
+    surfaceDark = Color(0xFF1A140F),
+    surfaceElevated = Color(0xFF251D16),
+    divider = Color(0x0DFFFFFF),
+    navBg = Color(0x731A140F),
+    navBorder = Color(0x66554637),
+    navActive = Color(0xFFF6F1EA),
+    navDot = Color(0xFFE08E6E),
+    navInactive = Color(0xFF7D6E5F),
+    chatSent = Color(0xFFC4744F),
+    chatReceived = Color(0xFF251D16),
+    banner1Start = Color(0xFF4A3B2E),
+    banner1End = Color(0xFF6E5540),
+    banner2Start = Color(0xFF2A4A32),
+    banner2End = Color(0xFF47714E),
+    banner3Start = Color(0xFF6E5320),
+    banner3End = Color(0xFFB08A3E),
+    shimmerBase = Color(0xFF251D16),
+    shimmerHighlight = Color(0xFF33281E),
+    pillBg = Color(0xFFE08E6E),
+    pillText = Color(0xFF15110D),
+    onBanner = Color(0xFFFFFFFF),
+    onBannerMuted = Color(0xB3FFFFFF),
+    statusBarColor = Color(0xFF15110D),
+    lightStatusBar = false,
 )

@@ -68,6 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.schoolsync.parent.ui.components.ClassTeacherCard
 import com.schoolsync.parent.ui.components.bouncyClickable
 import com.schoolsync.parent.ui.theme.AppColors
 import com.schoolsync.parent.ui.theme.LocalAppColors
@@ -77,6 +78,8 @@ import com.schoolsync.parent.ui.theme.gradientBackground
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
+    onNavigateToMyTeachers: () -> Unit = {},
+    onOpenHomework: (String) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val c = LocalAppColors.current
@@ -237,12 +240,21 @@ fun ProfileScreen(
                             bgColor = c.infoBg,
                             modifier = Modifier.weight(1f)
                         )
+                        val pending = uiState.pendingHomeworkCount
+                        val homeworkValue = when {
+                            !uiState.homeworkLoaded -> "\u2014"
+                            pending == 0 -> "All done"
+                            else -> pending.toString()
+                        }
                         StatPill(
-                            value = "\u2014 done",
-                            label = "Homework",
+                            value = homeworkValue,
+                            label = if (uiState.homeworkLoaded && pending > 0) "Pending" else "Homework",
                             valueColor = c.purple,
                             bgColor = c.purpleBg,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            // Pending \u2192 jump into the Pending tab; all done \u2192 open
+                            // the full homework list.
+                            onClick = { onOpenHomework(if (pending > 0) "pending" else "all") }
                         )
                     }
                 }
@@ -336,6 +348,24 @@ fun ProfileScreen(
                             }
                         }
                     }
+                }
+
+                // ── 4b. Class Teacher contact card ──────────────────────
+                // Pinned directly below the student detail card so the
+                // parent's primary point of contact is one tap away. Hidden
+                // when no Active class teacher is assigned.
+                if (uiState.classTeacher != null) {
+                    item {
+                        ClassTeacherCard(
+                            entry = uiState.classTeacher!!,
+                            subjects = uiState.classTeacherSubjects,
+                            onMessage = onNavigateToMyTeachers
+                        )
+                    }
+                } else if (uiState.classTeacherLoading) {
+                    // Skeleton while the first fetch resolves — reserves the
+                    // card's space so nothing pops in / shifts on open.
+                    item { ClassTeacherSkeleton() }
                 }
 
                 // ── 5. Settings Group 1 ─────────────────────────────────
@@ -561,12 +591,51 @@ private fun buildInitials(name: String): String {
 // ─── Stat Pill ────────────────────────────────────────────────────────────────
 
 @Composable
+private fun ClassTeacherSkeleton() {
+    val c = LocalAppColors.current
+    val block = c.shimmerBase.copy(alpha = 0.5f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .glassCard(16.dp)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(block)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.55f)
+                    .height(13.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(block)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .height(11.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(block)
+            )
+        }
+    }
+}
+
+@Composable
 private fun StatPill(
     value: String,
     label: String,
     valueColor: Color,
     bgColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     val c = LocalAppColors.current
 
@@ -574,11 +643,13 @@ private fun StatPill(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(bgColor)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = value,
+            maxLines = 1,
             style = TextStyle(
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,

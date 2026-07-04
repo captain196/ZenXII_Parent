@@ -23,7 +23,7 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:launchMode="singleTop"
             android:resizeableActivity="true"
-            android:screenOrientation="unspecified"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.SchoolSyncParent">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -51,7 +51,7 @@
 
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="school_sync_channel" />
+            android:value="schoolsync_notifications" />
 
     </application>
 </manifest>

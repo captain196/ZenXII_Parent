@@ -8,10 +8,13 @@ import com.schoolsync.parent.data.repository.AttendanceRepository
 import com.schoolsync.parent.data.repository.AuthRepository
 import com.schoolsync.parent.data.repository.AuthResult
 import com.schoolsync.parent.data.repository.StudentRepository
+import com.schoolsync.parent.data.repository.firestore.HomeworkFirestoreRepository
+import com.schoolsync.parent.data.repository.firestore.MyTeachersFirestoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -22,6 +25,19 @@ data class ProfileUiState(
     val user: User? = null,
     val themeMode: String = "system",
     val attendancePercent: Float = 0f,
+
+    // Homework stat pill — real pending count for the ward.
+    // homeworkLoaded distinguishes "still loading" ("—") from a genuine
+    // zero-pending ("All done") state.
+    val pendingHomeworkCount: Int = 0,
+    val homeworkLoaded: Boolean = false,
+
+    // Class teacher contact card
+    val classTeacher: MyTeachersFirestoreRepository.TeacherEntry? = null,
+    val classTeacherSubjects: List<String> = emptyList(),
+    // True until the first class-teacher fetch resolves — drives a skeleton
+    // placeholder so the card doesn't pop in / shift the layout.
+    val classTeacherLoading: Boolean = true,
 
     // Logout
     val showLogoutDialog: Boolean = false,
@@ -48,6 +64,8 @@ class ProfileViewModel @Inject constructor(
     private val studentRepository: StudentRepository,
     private val authRepository: AuthRepository,
     private val attendanceRepository: AttendanceRepository,
+    private val myTeachersRepo: MyTeachersFirestoreRepository,
+    private val homeworkRepo: HomeworkFirestoreRepository,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
@@ -58,6 +76,88 @@ class ProfileViewModel @Inject constructor(
         loadProfile()
         loadTheme()
         loadAttendance()
+        loadClassTeacher()
+        loadHomework()
+    }
+
+    /**
+     * Live pending-homework count for the ward — the same source and rule the
+     * dashboard uses (a homework is "pending" until the student's submission is
+     * submitted/reviewed/complete), so the profile stat never disagrees with
+     * the dashboard.
+     */
+    private fun loadHomework() {
+        viewModelScope.launch {
+            val user = studentRepository.currentUser.firstOrNull()
+            val className = user?.className
+            val section = user?.section
+            val studentId = user?.userId
+            if (className.isNullOrBlank() || section.isNullOrBlank() || studentId.isNullOrBlank()) {
+                _uiState.update { it.copy(pendingHomeworkCount = 0, homeworkLoaded = true) }
+                return@launch
+            }
+            try {
+                combine(
+                    homeworkRepo.observeHomework(className, section),
+                    homeworkRepo.observeSubmissionsForStudent(studentId)
+                ) { homeworkDocs, submissionsByHwId ->
+                    // FIX 2: shared isActionNeeded() predicate (pending OR
+                    // incomplete) so this stat agrees with the nav badge/dashboard.
+                    homeworkDocs.count { hw ->
+                        val status = submissionsByHwId[hw.id]?.status ?: "pending"
+                        com.schoolsync.parent.data.model.isActionNeeded(status)
+                    }
+                }.collect { pending ->
+                    _uiState.update { it.copy(pendingHomeworkCount = pending, homeworkLoaded = true) }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // normal on teardown
+            } catch (e: Exception) {
+                android.util.Log.w("ProfileVM", "Homework count load failed", e)
+                _uiState.update { it.copy(homeworkLoaded = true) }
+            }
+        }
+    }
+
+    /**
+     * Loads the parent's class teacher (the Active teacher flagged as class
+     * teacher for the ward's section) plus every subject they deliver to that
+     * section, mirroring the My Teachers aggregation. Null when none assigned.
+     */
+    private fun loadClassTeacher() {
+        viewModelScope.launch {
+            try {
+                myTeachersRepo.getMyTeachers().fold(
+                    onSuccess = { entries ->
+                        val ct = entries.firstOrNull { it.assignment.isClassTeacher }
+                        val subjects = if (ct != null) {
+                            entries
+                                .filter {
+                                    it.assignment.teacherId.isNotBlank() &&
+                                        it.assignment.teacherId == ct.assignment.teacherId
+                                }
+                                .map { it.assignment.subjectName.ifBlank { it.assignment.subjectCode } }
+                                .filter { it.isNotBlank() }
+                                .distinct()
+                        } else emptyList()
+                        _uiState.update {
+                            it.copy(
+                                classTeacher = ct,
+                                classTeacherSubjects = subjects,
+                                classTeacherLoading = false
+                            )
+                        }
+                    },
+                    onFailure = { e ->
+                        android.util.Log.w("ProfileVM", "Class teacher load failed", e)
+                        _uiState.update { it.copy(classTeacherLoading = false) }
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.w("ProfileVM", "Class teacher load exception", e)
+                _uiState.update { it.copy(classTeacherLoading = false) }
+            }
+        }
     }
 
     private fun loadTheme() {

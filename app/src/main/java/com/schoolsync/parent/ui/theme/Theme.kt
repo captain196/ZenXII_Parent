@@ -84,7 +84,10 @@ fun SchoolSyncTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val appColors = if (darkTheme) DarkColors else LightColors
+    // Resolve from the selected theme variant (ThemeVariants.ACTIVE_THEME_VARIANT)
+    // instead of hardcoding DEFAULT — otherwise the variant switch is dead and
+    // the app always renders LightColors/DarkColors regardless of the setting.
+    val appColors = colorsFor(ACTIVE_THEME_VARIANT, darkTheme)
     val colorScheme = if (darkTheme) buildDarkScheme(appColors) else buildLightScheme(appColors)
 
     val view = LocalView.current

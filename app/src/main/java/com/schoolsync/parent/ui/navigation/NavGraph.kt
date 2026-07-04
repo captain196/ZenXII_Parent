@@ -76,6 +76,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import com.schoolsync.parent.ui.attendance.AttendanceScreen
+import com.schoolsync.parent.ui.search.SearchScreen
 import com.schoolsync.parent.ui.dashboard.DashboardScreen
 import com.schoolsync.parent.ui.events.EventDetailScreen
 import com.schoolsync.parent.ui.events.EventsScreen
@@ -122,11 +123,27 @@ sealed class Route(val route: String) {
     data object Fees : Route("fees")
     data object Messages : Route("messages")
     data object Profile : Route("profile")
+    data object Search : Route("search")
 
     // Academics sub-screens
     data object Attendance : Route("attendance")
     data object Results : Route("results")
-    data object Homework : Route("homework")
+    data object Homework : Route("homework") {
+        // Optional deep-link arg: open straight into a specific homework's
+        // detail page (e.g. tapping a row in the dashboard "Today's Homework"
+        // preview). Plain navigation to "homework" still matches this pattern
+        // and lands on the list, since hwId defaults to "".
+        const val ARG_HW_ID = "hwId"
+        const val ARG_TAB = "tab"   // optional: preselect a list tab ("all", "pending", …)
+        val routeWithArgs = "homework?$ARG_HW_ID={$ARG_HW_ID}&$ARG_TAB={$ARG_TAB}"
+        fun createRoute(hwId: String = "", tab: String = ""): String {
+            val query = buildList {
+                if (hwId.isNotBlank()) add("$ARG_HW_ID=$hwId")
+                if (tab.isNotBlank()) add("$ARG_TAB=$tab")
+            }
+            return if (query.isEmpty()) "homework" else "homework?" + query.joinToString("&")
+        }
+    }
     data object Timetable : Route("timetable")
     data object Exams : Route("exams")
 
@@ -174,7 +191,7 @@ val bottomNavItems = listOf(
     ),
     BottomNavItem(
         route = Route.Academics.route,
-        label = "Academics",
+        label = "Categories",
         selectedIcon = Icons.Filled.School,
         unselectedIcon = Icons.Outlined.School
     ),
@@ -337,9 +354,15 @@ fun MainScreen(
         val target = pendingDeepLink ?: return@LaunchedEffect
         // Allow-listed main-tab routes, plus the events + event_detail routes
         // for push-notification tap deep-links. Unknown targets dropped silently.
-        val allowedTabs     = listOf("fees", "messages", "dashboard", "profile", "events", "notices")
+        // Includes "red_flags" so a flag-alert push actually opens the Red
+        // Flags screen (the MainActivity type→route mapping publishes it; this
+        // allow-list is the second gate that was silently dropping it).
+        val allowedTabs     = listOf("fees", "messages", "dashboard", "profile", "events", "notices", "red_flags")
         val isEventDetail   = target.startsWith("event_detail/")
-        if (target in allowedTabs || isEventDetail) {
+        // "homework" and "homework?hwId=..." both resolve to the Homework
+        // destination (its route args are optional), so allow the whole prefix.
+        val isHomework      = target == "homework" || target.startsWith("homework?")
+        if (target in allowedTabs || isEventDetail || isHomework) {
             navController.navigate(target) {
                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                 launchSingleTop = true
@@ -363,6 +386,12 @@ fun MainScreen(
         label = "navPadding"
     )
 
+    // Story viewer is rendered as a FULL-SCREEN OVERLAY above the NavHost
+    // (not a separate route) so the dashboard it was opened from stays
+    // composed behind it — a swipe-down / pinch-out dismiss fades to reveal
+    // the dashboard, matching the teacher app.
+    var storyViewerTeacherId by remember { mutableStateOf<String?>(null) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -383,12 +412,30 @@ fun MainScreen(
             // ── Main Tabs (bottom bar visible) ──────────────────────────────
 
             composable(Route.Dashboard.route) {
+                // Stories ring row data — same StoryViewModel that backs the
+                // full-screen viewer, so the dashboard ring and the viewer
+                // stay in sync (viewed state, reactions, live updates).
+                val dashStoryViewModel: StoryViewModel = hiltViewModel()
+                val dashStoryState by dashStoryViewModel.uiState.collectAsState()
                 DashboardScreen(
+                    storyGroups = dashStoryState.storyGroups,
+                    storiesLoading = dashStoryState.isLoading,
                     onNavigateToAttendance = { navController.navigate(Route.Attendance.route) },
                     onNavigateToResults = { navController.navigate(Route.Results.route) },
                     onNavigateToFees = { navController.navigate(Route.Fees.route) },
                     onNavigateToTimetable = { navController.navigate(Route.Timetable.route) },
                     onNavigateToHomework = { navController.navigate(Route.Homework.route) },
+                    onOpenHomework = { hwId -> navController.navigate(Route.Homework.createRoute(hwId)) },
+                    // Dashboard search-row grid icon → Categories tab (same
+                    // save/restore behaviour as tapping it in the bottom bar).
+                    onNavigateToAcademics = {
+                        navController.navigate(Route.Academics.route) {
+                            popUpTo(Route.Dashboard.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToSearch = { navController.navigate(Route.Search.route) },
                     onNavigateToNotices = { navController.navigate(Route.Notices.route) },
                     onNavigateToLeave = { navController.navigate(Route.Leave.route) },
                     onNavigateToEvents = { navController.navigate(Route.Events.route) },
@@ -403,9 +450,7 @@ fun MainScreen(
                     onNavigateToRedFlags = { navController.navigate(Route.RedFlags.route) },
                     onNavigateToLibrary = { navController.navigate(Route.Library.route) },
                     onNavigateToMyTeachers = { navController.navigate(Route.MyTeachers.route) },
-                    onNavigateToStoryViewer = { teacherId ->
-                        navController.navigate(Route.StoryViewer.createRoute(teacherId))
-                    },
+                    onNavigateToStoryViewer = { teacherId -> storyViewerTeacherId = teacherId },
                     onNavigateToProfile = {
                         navController.navigate(Route.Profile.route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -453,7 +498,13 @@ fun MainScreen(
                 MessagesScreen(onChatViewChange = { inChatView = it })
             }
 
-            composable(Route.Profile.route) { ProfileScreen(onLogout = onLogout) }
+            composable(Route.Profile.route) {
+                ProfileScreen(
+                    onLogout = onLogout,
+                    onNavigateToMyTeachers = { navController.navigate(Route.MyTeachers.route) },
+                    onOpenHomework = { tab -> navController.navigate(Route.Homework.createRoute(tab = tab)) }
+                )
+            }
 
             // ── Sub-screens (bottom bar hidden, slide transitions) ──────────
 
@@ -490,13 +541,47 @@ fun MainScreen(
             }
 
             composable(
-                Route.Homework.route,
+                Route.Search.route,
+                enterTransition = { fadeIn(tween(fadeDuration)) },
+                exitTransition = { fadeOut(tween(200)) },
+                popEnterTransition = { fadeIn(tween(fadeDuration)) },
+                popExitTransition = { fadeOut(tween(200)) }
+            ) {
+                SearchScreen(
+                    onBack = { navController.popBackStack() },
+                    // Result tap → navigate to its route (feature, homework
+                    // deep-link, event detail, notices, etc.). Drop Search from
+                    // the back stack so Back from the target lands on Dashboard.
+                    onNavigateRoute = { route ->
+                        navController.navigate(route) {
+                            popUpTo(Route.Search.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            composable(
+                Route.Homework.routeWithArgs,
+                arguments = listOf(
+                    navArgument(Route.Homework.ARG_HW_ID) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument(Route.Homework.ARG_TAB) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    }
+                ),
                 enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(slideDuration)) },
                 exitTransition = { fadeOut(tween(200)) },
                 popEnterTransition = { fadeIn(tween(fadeDuration)) },
                 popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(slideDuration)) }
-            ) {
-                HomeworkScreen(onBack = { navController.popBackStack() })
+            ) { backStackEntry ->
+                HomeworkScreen(
+                    onBack = { navController.popBackStack() },
+                    initialHomeworkId = backStackEntry.arguments?.getString(Route.Homework.ARG_HW_ID).orEmpty(),
+                    initialTab = backStackEntry.arguments?.getString(Route.Homework.ARG_TAB).orEmpty()
+                )
             }
 
             composable(
@@ -570,7 +655,10 @@ fun MainScreen(
                 val eventId = backStackEntry.arguments?.getString("eventId") ?: ""
                 EventDetailScreen(
                     eventId = eventId,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onViewPhotos = { albumId ->
+                        navController.navigate(Route.GalleryDetail.createRoute(albumId))
+                    }
                 )
             }
 
@@ -676,24 +764,6 @@ fun MainScreen(
                 )
             }
 
-            composable(
-                route = Route.StoryViewer.route,
-                arguments = listOf(navArgument("teacherId") { type = NavType.StringType }),
-                enterTransition = { fadeIn(tween(200)) },
-                exitTransition = { fadeOut(tween(200)) },
-                popEnterTransition = { fadeIn(tween(200)) },
-                popExitTransition = { fadeOut(tween(200)) }
-            ) { backStackEntry ->
-                val teacherId = backStackEntry.arguments?.getString("teacherId") ?: ""
-                val storyViewModel: StoryViewModel = hiltViewModel()
-                val storyState by storyViewModel.uiState.collectAsState()
-                StoryViewer(
-                    storyGroups = storyState.storyGroups,
-                    initialTeacherId = teacherId,
-                    onClose = { navController.popBackStack() },
-                    onStoryViewed = { storyId -> storyViewModel.markStoryViewed(storyId) }
-                )
-            }
         }
 
         // ── Bottom bar overlay (floats above content) ───────────────────
@@ -713,6 +783,22 @@ fun MainScreen(
                 navController = navController,
                 currentRoute = currentRoute,
                 badges = badgeCounts,
+            )
+        }
+
+        // ── Full-screen story overlay — dashboard stays composed behind, so
+        //    it shows through as the viewer fades on a swipe-down / pinch-out.
+        storyViewerTeacherId?.let { teacherId ->
+            val overlayStoryVm: StoryViewModel = hiltViewModel()
+            val overlayState by overlayStoryVm.uiState.collectAsState()
+            StoryViewer(
+                storyGroups = overlayState.storyGroups,
+                isLoading = overlayState.isLoading,
+                initialTeacherId = teacherId,
+                myReactions = overlayState.myReactions,
+                onClose = { storyViewerTeacherId = null },
+                onStoryViewed = { storyId -> overlayStoryVm.markStoryViewed(storyId) },
+                onReact = { storyId, emoji -> overlayStoryVm.reactToStory(storyId, emoji) }
             )
         }
 
@@ -747,37 +833,23 @@ private fun SmoothBottomBar(
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Soft fade edge so content doesn't hard-cut into the bar
+        // Hairline top divider — crisp separation from content, no floating
+        // pill / drop shadow.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(20.dp)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, c.bgEnd)
-                    )
-                )
+                .height(1.dp)
+                .background(c.divider)
         )
 
-        // Solid bar area — matches app background, no see-through
+        // Flat, edge-to-edge bar: flush to the screen sides & bottom (system
+        // nav-bar inset still respected), solid surface, no shadow.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(c.bgEnd)
+                .background(c.surfaceElevated)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(horizontal = 12.dp)
-                .padding(top = 6.dp, bottom = 8.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(
-                    if (c.isDark) c.surfaceElevated
-                    else Color.White.copy(alpha = 0.75f)
-                )
-                .border(
-                    width = 0.5.dp,
-                    color = c.glassBorder,
-                    shape = RoundedCornerShape(22.dp)
-                )
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+                .padding(top = 8.dp, bottom = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -855,12 +927,6 @@ private fun SmoothNavItem(
         label = "labelAlpha"
     )
 
-    val indicatorAlpha by animateFloatAsState(
-        targetValue = if (isSelected) 1f else 0f,
-        animationSpec = tween(300, easing = FastOutSlowInEasing),
-        label = "indicator"
-    )
-
     val yOffset by animateDpAsState(
         targetValue = if (isSelected) (-2).dp else 0.dp,
         animationSpec = spring(
@@ -882,74 +948,23 @@ private fun SmoothNavItem(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Wrap the icon area so we can paint the unread badge on top of it.
+        // Color-only selection: no pill / underline / dot — the active tab is
+        // signalled purely by accent tint + bolder label.
         Box {
-        if (isSelected) {
-            // PhonePe-style 3D gradient pill behind the active icon.
-            val top = Color(
-                red = (c.navActive.red + (1f - c.navActive.red) * 0.28f).coerceIn(0f, 1f),
-                green = (c.navActive.green + (1f - c.navActive.green) * 0.28f).coerceIn(0f, 1f),
-                blue = (c.navActive.blue + (1f - c.navActive.blue) * 0.28f).coerceIn(0f, 1f),
-                alpha = 1f
-            )
-            val bottom = Color(
-                red = (c.navActive.red * 0.78f).coerceIn(0f, 1f),
-                green = (c.navActive.green * 0.78f).coerceIn(0f, 1f),
-                blue = (c.navActive.blue * 0.78f).coerceIn(0f, 1f),
-                alpha = 1f
-            )
             Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .shadow(
-                        elevation = 8.dp,
-                        shape = RoundedCornerShape(14.dp),
-                        ambientColor = c.navActive,
-                        spotColor = c.navActive
-                    )
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Brush.linearGradient(listOf(top, bottom))),
+                modifier = Modifier.size(width = 46.dp, height = 32.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Top highlight for the glossy sheen.
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.22f),
-                                    Color.Transparent
-                                ),
-                                endY = 55f
-                            )
-                        )
-                )
                 Icon(
-                    imageVector = item.selectedIcon,
+                    imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                     contentDescription = item.label,
-                    tint = Color.White,
+                    tint = if (isSelected) c.navActive else c.navInactive,
                     modifier = Modifier
                         .size(iconSize)
                         .graphicsLayer(alpha = iconAlpha)
                 )
             }
-        } else {
-            Box(
-                modifier = Modifier.size(42.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = item.unselectedIcon,
-                    contentDescription = item.label,
-                    tint = c.navInactive,
-                    modifier = Modifier
-                        .size(iconSize)
-                        .graphicsLayer(alpha = iconAlpha)
-                )
-            }
-        }
-            // Unread badge — only shown when count > 0. Aligned to the
-            // top-right corner of the 42dp icon container.
+            // Unread badge — only shown when count > 0.
             if (badgeCount > 0) {
                 NavUnreadBadge(
                     count = badgeCount,
@@ -960,7 +975,7 @@ private fun SmoothNavItem(
             }
         }
 
-        Spacer(modifier = Modifier.height(3.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = item.label,
@@ -969,16 +984,6 @@ private fun SmoothNavItem(
             color = if (isSelected) c.navActive else c.navInactive,
             modifier = Modifier.graphicsLayer(alpha = labelAlpha),
             maxLines = 1
-        )
-
-        Spacer(modifier = Modifier.height(2.dp))
-
-        Box(
-            modifier = Modifier
-                .size(4.dp)
-                .graphicsLayer(alpha = indicatorAlpha)
-                .clip(CircleShape)
-                .background(c.navDot)
         )
     }
 }
@@ -1028,7 +1033,10 @@ private fun NavUnreadBadge(
 
 private fun isAcademicsChild(currentRoute: String?, itemRoute: String): Boolean {
     if (itemRoute != Route.Academics.route) return false
-    return currentRoute in listOf(
+    // Strip any query args (e.g. "homework?hwId=…") before matching so the
+    // Academics tab still highlights when a child route carries a deep-link arg.
+    val base = currentRoute?.substringBefore("?")
+    return base in listOf(
         Route.Attendance.route,
         Route.Results.route,
         Route.Homework.route,

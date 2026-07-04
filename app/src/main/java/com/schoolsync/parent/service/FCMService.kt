@@ -1,12 +1,10 @@
 package com.schoolsync.parent.service
 
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -28,9 +26,6 @@ class FCMService : FirebaseMessagingService() {
 
     companion object {
         private const val TAG = "FCMService"
-        private const val CHANNEL_ID = "schoolsync_notifications"
-        private const val CHANNEL_NAME = "ZenXii Notifications"
-        private const val CHANNEL_DESCRIPTION = "Notifications from ZenXii"
     }
 
     @Inject
@@ -44,7 +39,10 @@ class FCMService : FirebaseMessagingService() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
+        // Create all channels up front so the manifest default_notification_channel_id
+        // always resolves (backgrounded notification-payload pushes rely on it) and
+        // per-category muting works. Idempotent.
+        NotificationChannels.ensureChannels(this)
     }
 
     override fun onNewToken(token: String) {
@@ -184,8 +182,30 @@ class FCMService : FirebaseMessagingService() {
                         data  = message.data
                     )
                 }
+                // Red-flag alert. The Teacher app queues pushRequests{mark:
+                // "FLAG_CREATED"}; the server dispatcher's exact `type` string
+                // isn't pinned, so match the plausible variants AND fall back to
+                // the raw `mark`. High-severity flags get an urgent title.
+                "red_flag", "flag_created", "red_flag_created", "student_flag" -> {
+                    val severity = message.data["severity"].orEmpty()
+                    val urgent = severity.equals("high", ignoreCase = true)
+                    showNotification(
+                        title = title.ifBlank { if (urgent) "⚠️ Urgent Alert" else "New Alert" },
+                        body = body.ifBlank { "A teacher raised an alert about your child. Tap to view." },
+                        data = message.data
+                    )
+                }
                 else -> {
-                    if (body.isNotBlank()) {
+                    // Fallback: some payloads carry the raw pushRequests `mark`
+                    // instead of a `type`. Catch the flag mark here so an
+                    // unpinned dispatcher still notifies rather than going silent.
+                    if (message.data["mark"] == "FLAG_CREATED") {
+                        showNotification(
+                            title = title.ifBlank { "New Alert" },
+                            body = body.ifBlank { "A teacher raised an alert about your child. Tap to view." },
+                            data = message.data
+                        )
+                    } else if (body.isNotBlank()) {
                         showNotification(title = title, body = body, data = message.data)
                     }
                 }
@@ -210,7 +230,11 @@ class FCMService : FirebaseMessagingService() {
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
+        // Resolve the per-category channel for this payload (falls back to
+        // GENERAL for unknown/missing types). Channels are created in onCreate.
+        val channelId = NotificationChannels.channelForType(data["type"] ?: data["mark"])
+
+        val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.mipmap.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(body)
@@ -226,23 +250,5 @@ class FCMService : FirebaseMessagingService() {
             System.currentTimeMillis().toInt(),
             notificationBuilder.build()
         )
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = CHANNEL_DESCRIPTION
-                enableLights(true)
-                enableVibration(true)
-            }
-
-            val notificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
     }
 }

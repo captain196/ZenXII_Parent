@@ -1,13 +1,16 @@
 package com.schoolsync.parent.ui.redflags
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +27,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -37,6 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -152,7 +159,10 @@ fun RedFlagScreen(
             }
         }
 
-        // Content
+        // Content. Order matters: a load failure must NEVER fall through to the
+        // "No Red Flags / all clear" empty state — for a safety feature that
+        // false reassurance is the worst outcome. So an error with no data
+        // shows a dedicated, retryable error state.
         if (uiState.isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -160,9 +170,32 @@ fun RedFlagScreen(
             ) {
                 CircularProgressIndicator(color = c.accent, modifier = Modifier.size(40.dp))
             }
+        } else if (uiState.errorMessage != null && uiState.allFlags.isEmpty()) {
+            ErrorFlagsState(message = uiState.errorMessage!!, onRetry = viewModel::retry)
         } else if (uiState.activeFlags.isEmpty() && uiState.resolvedFlags.isEmpty()) {
-            EmptyFlagsState()
+            EmptyFlagsState(
+                selectedFilter = uiState.selectedFilter,
+                hasAnyFlags = uiState.allFlags.isNotEmpty()
+            )
         } else {
+            // Content is showing; if a transient error lingers after retries,
+            // surface a slim tappable banner instead of hiding the data.
+            uiState.errorMessage?.let { error ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(c.errorBg)
+                        .clickable { viewModel.retry() }
+                        .padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.Refresh, contentDescription = null, tint = c.error, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("$error  Tap to retry.", color = c.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -199,20 +232,6 @@ fun RedFlagScreen(
                 item { Spacer(modifier = Modifier.height(8.dp)) }
             }
         }
-
-        // Error
-        uiState.errorMessage?.let { error ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(c.errorBg)
-                    .padding(12.dp)
-            ) {
-                Text(text = error, color = c.error, style = MaterialTheme.typography.bodySmall)
-            }
-        }
     }
 }
 
@@ -229,13 +248,15 @@ private fun FlagCard(flag: StudentFlag) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(IntrinsicSize.Min)
             .glassCard(14.dp)
     ) {
-        // Severity indicator bar
+        // Severity indicator bar — tracks the full card height so it never
+        // ends short on tall (multi-line) cards.
         Box(
             modifier = Modifier
                 .width(4.dp)
-                .height(100.dp)
+                .fillMaxHeight()
                 .background(severityColor)
         )
 
@@ -276,13 +297,34 @@ private fun FlagCard(flag: StudentFlag) {
                     )
                 }
 
-                // Status badge
-                Text(
-                    text = if (flag.status == "active") "Active" else "Resolved",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (flag.status == "active") c.error else c.textTertiary,
-                    fontWeight = FontWeight.SemiBold
-                )
+                // Severity + status. Severity is now an explicit LABEL, not
+                // just the colour bar — color-only conveyance failed color-blind
+                // and TalkBack users on the exact signal (High/Med/Low) an
+                // anxious parent needs most.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val severityLabel = flag.severity.replaceFirstChar { it.uppercase() }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(severityColor.copy(alpha = 0.15f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                            .semantics { contentDescription = "Severity: $severityLabel" }
+                    ) {
+                        Text(
+                            text = severityLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = severityColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (flag.status == "active") "Active" else "Resolved",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (flag.status == "active") c.error else c.textTertiary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -356,8 +398,18 @@ private fun SectionHeader(title: String, count: Int, tint: Color) {
 }
 
 @Composable
-private fun EmptyFlagsState() {
+private fun EmptyFlagsState(selectedFilter: String, hasAnyFlags: Boolean) {
     val c = LocalAppColors.current
+    // Distinguish "genuinely nothing" from "nothing matches this filter" — the
+    // old copy always said "no flags at all", which is false (and falsely
+    // reassuring) when a type filter simply has no matches.
+    val filtering = selectedFilter != "all" && hasAnyFlags
+    val title = if (filtering) "Nothing here" else "No Red Flags"
+    val body = if (filtering) {
+        "No ${selectedFilter} flags for your child. Tap “All” to see every alert."
+    } else {
+        "No red flags raised by teachers for your child."
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -373,17 +425,63 @@ private fun EmptyFlagsState() {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "No Red Flags",
+                text = title,
                 style = MaterialTheme.typography.titleLarge,
                 color = c.textSecondary
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "No active red flags raised by teachers for your child.",
+                text = body,
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textTertiary,
                 textAlign = TextAlign.Center
             )
+        }
+    }
+}
+
+@Composable
+private fun ErrorFlagsState(message: String, onRetry: () -> Unit) {
+    val c = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Filled.WifiOff,
+                contentDescription = null,
+                tint = c.textTertiary,
+                modifier = Modifier.size(56.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Couldn't load alerts",
+                style = MaterialTheme.typography.titleLarge,
+                color = c.textSecondary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = c.textTertiary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(c.accent.copy(alpha = 0.15f))
+                    .clickable(onClick = onRetry)
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Refresh, contentDescription = null, tint = c.accent, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Retry", color = c.accent, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

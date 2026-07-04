@@ -17,6 +17,8 @@ data class Notice(
     val attachmentUrl: String = "",
     val priority: String = "Normal",  // Normal, Important, Urgent
     val targetAudience: String = "",  // All, Parents, Students, Teachers
+    /** True once this parent has opened the notice (from circularReads). */
+    val isRead: Boolean = false,
     val rawData: Map<String, Any?> = emptyMap()
 ) {
     companion object {

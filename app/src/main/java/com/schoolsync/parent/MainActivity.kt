@@ -117,7 +117,17 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             "fee_reminder", "fee_defaulter_alert", "fee_payment_confirmed" -> "fees"
             "student_absent", "student_late", "attendance_update"         -> "attendance"
             "leave_approved", "leave_rejected"                            -> "leave"
-            "homework_assigned", "homework_reminder"                      -> "homework"
+            // homework_created / homework_reviewed are the types FCMService
+            // actually emits; keep the legacy two so older payloads still route.
+            // homework_created / homework_reviewed carry an optional homeworkId
+            // (admin-panel Attendance.php push path). When present, deep-link
+            // straight into that homework's detail page; otherwise land on the
+            // homework list.
+            "homework_assigned", "homework_reminder",
+            "homework_created", "homework_reviewed"                       -> {
+                val hwId = intent.getStringExtra("homeworkId")?.takeIf { it.isNotBlank() }
+                if (hwId != null) "homework?hwId=$hwId" else "homework"
+            }
             "result_published", "exam_scheduled"                          -> "results"
             "event", "event_created"                                      -> {
                 // Deep-link straight to the EventDetail screen when the payload
@@ -126,7 +136,12 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                 if (eventId != null) "event_detail/$eventId" else "events"
             }
             "birthday_wish"                                                -> "notices"
-            else -> null
+            // Notice/circular pushes now deep-link to the Notices inbox (was
+            // silently dropped, so tapping a notice notification did nothing).
+            "notice_created", "circular_created", "notice", "circular"     -> "notices"
+            "red_flag", "flag_created", "red_flag_created", "student_flag" -> "red_flags"
+            // Fallback for dispatchers that forward the raw pushRequests `mark`.
+            else -> if (intent.getStringExtra("mark") == "FLAG_CREATED") "red_flags" else null
         } ?: return
         DeepLinkBridge.publish(target)
     }

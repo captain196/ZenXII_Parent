@@ -1,24 +1,40 @@
 package com.schoolsync.parent.ui.auth
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.outlined.School
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import com.schoolsync.parent.R
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -31,58 +47,68 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.ktx.functions
+import com.google.firebase.ktx.Firebase
 import com.schoolsync.parent.ui.theme.LocalAppColors
+import com.schoolsync.parent.ui.theme.glassCard
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-private data class SchoolContact(
+private data class RecoveryContact(
+    val schoolName: String,
     val name: String,
-    val principal: String,
     val phone: String,
     val email: String,
-    val address: String,
 )
 
 private sealed interface LookupState {
     data object Idle : LookupState
     data object Loading : LookupState
-    data class Success(val contact: SchoolContact) : LookupState
+    data class Success(val contact: RecoveryContact) : LookupState
     data class Failure(val message: String) : LookupState
 }
 
 /**
- * "Forgot password?" dialog shown from the login screen. The user enters
- * their school code; we look up the school's admin contact info from
- * Firestore `schools/{code}` and display it. Recovery itself is
- * out-of-band — the parent calls/emails the admin who triggers a reset
- * from the admin panel (which sets the `must_change_password` claim).
- *
- * Firestore rule allows unauthenticated reads of the schools collection
- * for this lookup; the dialog displays only contact-safe fields.
+ * "Forgot password?" dialog shown from the login screen. The parent enters
+ * their child's Student ID; an unauthenticated cloud function
+ * (getRecoveryContact) resolves the school from the ID and returns the
+ * school's recovery contact so they know who to call. Recovery itself is
+ * out-of-band — the admin triggers the reset from the admin panel (which
+ * sets the `must_change_password` claim).
  */
 @Composable
 fun ForgotPasswordDialog(onDismiss: () -> Unit) {
     val c = LocalAppColors.current
     val scope = rememberCoroutineScope()
-    var schoolCode by remember { mutableStateOf("") }
+    var studentId by remember { mutableStateOf("") }
     var state by remember { mutableStateOf<LookupState>(LookupState.Idle) }
 
     fun lookup() {
-        val code = schoolCode.trim()
-        if (code.isEmpty()) {
-            state = LookupState.Failure("Enter your school code first.")
+        val id = studentId.trim()
+        if (id.isEmpty()) {
+            state = LookupState.Failure("Enter your Student ID first.")
+            return
+        }
+        // This is the Parent app — only student (STU) accounts recover here.
+        // Reject obvious non-student IDs (teacher / admin / super-admin) before
+        // the lookup; the server also enforces this by role.
+        if (Regex("^(STA|ADM|SSA|SUP)\\d+$").matches(id.uppercase())) {
+            state = LookupState.Failure("That's not a student account. Enter your child's Student ID (e.g. STU0001).")
             return
         }
         state = LookupState.Loading
         scope.launch {
-            state = fetchSchoolContact(code)
+            state = fetchRecoveryContact(id)
         }
     }
 
@@ -102,25 +128,26 @@ fun ForgotPasswordDialog(onDismiss: () -> Unit) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Passwords can only be reset by your school's admin. " +
-                        "Enter your school code below to see who to contact.",
+                        "Enter your Student ID to see who to contact.",
                     style = TextStyle(fontSize = 13.sp, color = c.textSecondary, lineHeight = 18.sp)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
-                    value = schoolCode,
+                    value = studentId,
                     onValueChange = {
-                        schoolCode = it
+                        studentId = it
                         if (state is LookupState.Failure || state is LookupState.Success) {
                             state = LookupState.Idle
                         }
                     },
-                    label = { Text("School code", style = TextStyle(fontSize = 13.sp)) },
-                    placeholder = { Text("e.g. 10005", style = TextStyle(fontSize = 13.sp)) },
+                    label = { Text("Student ID", style = TextStyle(fontSize = 13.sp)) },
+                    placeholder = { Text("e.g. STU0001", style = TextStyle(fontSize = 13.sp)) },
                     singleLine = true,
                     enabled = state !is LookupState.Loading,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
+                        capitalization = KeyboardCapitalization.Characters,
                         imeAction = ImeAction.Done
                     ),
                     keyboardActions = KeyboardActions(onDone = { lookup() }),
@@ -154,7 +181,7 @@ fun ForgotPasswordDialog(onDismiss: () -> Unit) {
                     }
                     is LookupState.Success -> {
                         Spacer(modifier = Modifier.height(14.dp))
-                        ContactCard(s.contact)
+                        ContactCard(s.contact, studentId.trim())
                     }
                 }
             }
@@ -176,12 +203,18 @@ fun ForgotPasswordDialog(onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun ContactCard(contact: SchoolContact) {
+private fun ContactCard(contact: RecoveryContact, loginId: String) {
     val c = LocalAppColors.current
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .glassCard(14.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // School header
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 Icons.Outlined.School,
@@ -189,9 +222,9 @@ private fun ContactCard(contact: SchoolContact) {
                 tint = c.accent,
                 modifier = Modifier.size(18.dp)
             )
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.size(ROW_GAP))
             Text(
-                text = contact.name.ifBlank { "Your school" },
+                text = contact.schoolName.ifBlank { "Your school" },
                 style = TextStyle(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -199,84 +232,185 @@ private fun ContactCard(contact: SchoolContact) {
                 )
             )
         }
-        if (contact.principal.isNotBlank()) {
-            ContactRow(Icons.Filled.Person, "Principal", contact.principal)
+
+        HorizontalDivider(thickness = 1.dp, color = c.divider)
+
+        if (contact.name.isNotBlank()) {
+            ContactRow(Icons.Filled.Person, "Admin", contact.name)
         }
+
         if (contact.phone.isNotBlank()) {
-            ContactRow(Icons.Filled.Phone, "Phone", contact.phone)
+            ContactRow(Icons.Filled.Phone, "Phone", contact.phone) {
+                IconActionChip(Icons.Filled.Call, "Call") { dial(context, contact.phone) }
+                WhatsAppChip { openWhatsApp(context, contact.phone) }
+                CopyChip { copy(clipboard, context, contact.phone) }
+            }
         }
+
         if (contact.email.isNotBlank()) {
-            ContactRow(Icons.Filled.Email, "Email", contact.email)
+            ContactRow(Icons.Filled.Email, "Email", contact.email) {
+                IconActionChip(Icons.Filled.Email, "Email") { sendEmail(context, contact.email, parentSubject(loginId)) }
+                CopyChip { copy(clipboard, context, contact.email) }
+            }
         }
-        if (contact.address.isNotBlank()) {
-            ContactRow(Icons.Filled.LocationOn, "Address", contact.address)
+    }
+}
+
+// Leading-icon size + gap; reused so the value text and the action row below
+// it line up on the same left edge (icon 18dp + gap 12dp = 30dp indent).
+private val ROW_ICON = 18.dp
+private val ROW_GAP = 12.dp
+private val ROW_INDENT = 30.dp
+
+@Composable
+private fun ContactRow(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    actions: (@Composable () -> Unit)? = null,
+) {
+    val c = LocalAppColors.current
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = c.textTertiary,
+                modifier = Modifier.size(ROW_ICON)
+            )
+            Spacer(Modifier.size(ROW_GAP))
+            Column {
+                Text(
+                    text = label,
+                    style = TextStyle(
+                        fontSize = 11.sp,
+                        color = c.textTertiary,
+                        letterSpacing = 0.3.sp
+                    )
+                )
+                Spacer(Modifier.size(2.dp))
+                Text(
+                    text = value,
+                    style = TextStyle(fontSize = 13.sp, color = c.textPrimary, lineHeight = 16.sp)
+                )
+            }
         }
+        if (actions != null) {
+            Row(
+                modifier = Modifier.padding(start = ROW_INDENT, top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) { actions() }
+        }
+    }
+}
+
+/** Circular accent-tinted icon action (Call, Email). */
+@Composable
+private fun IconActionChip(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
+    val c = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(c.accentBg)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = contentDescription, tint = c.accent, modifier = Modifier.size(17.dp))
+    }
+}
+
+/** WhatsApp action — real brand logo on its green tint, no recoloring. */
+@Composable
+private fun WhatsAppChip(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(Color(0x1A25D366))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_whatsapp),
+            contentDescription = "WhatsApp",
+            tint = Color.Unspecified,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
 @Composable
-private fun ContactRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    value: String,
-) {
+private fun CopyChip(onClick: () -> Unit) {
     val c = LocalAppColors.current
-    Row(verticalAlignment = Alignment.Top) {
-        Icon(
-            icon,
-            contentDescription = label,
-            tint = c.textTertiary,
-            modifier = Modifier.size(16.dp)
-        )
-        Spacer(Modifier.size(8.dp))
-        Column {
-            Text(
-                text = label,
-                style = TextStyle(fontSize = 11.sp, color = c.textTertiary)
-            )
-            Text(
-                text = value,
-                style = TextStyle(fontSize = 13.sp, color = c.textPrimary, lineHeight = 18.sp)
-            )
-        }
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(c.accentBg)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Filled.ContentCopy, contentDescription = "Copy", tint = c.accent, modifier = Modifier.size(15.dp))
     }
 }
 
-private suspend fun fetchSchoolContact(code: String): LookupState {
-    val firestore = FirebaseFirestore.getInstance()
-    return try {
-        // 1) Direct doc lookup — works when docId matches the entered code
-        //    (legacy numeric schoolIds like "10005" and SCH_* ids alike).
-        val direct = firestore.collection("schools").document(code).get().await()
-        val data = if (direct.exists()) direct.data else null
+private fun parentSubject(loginId: String) =
+    "Password reset request – ZenXii Parent" + if (loginId.isNotBlank()) " – $loginId" else ""
 
-        // 2) Fall back to schoolCode-field query for new schools where the
-        //    docId is SCH_XXXXXX but the user only knows their 5-digit code.
-        val resolved = data ?: run {
-            val q = firestore.collection("schools")
-                .whereEqualTo("schoolCode", code)
-                .limit(1)
-                .get()
-                .await()
-            q.documents.firstOrNull()?.data
+private fun dial(context: Context, number: String) {
+    runCatching {
+        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))
+    }.onFailure { Toast.makeText(context, "No dialer app found.", Toast.LENGTH_SHORT).show() }
+}
+
+private fun openWhatsApp(context: Context, number: String) {
+    val digits = number.filter { it.isDigit() }
+    if (digits.isEmpty()) return
+    runCatching {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits")))
+    }.onFailure { Toast.makeText(context, "Couldn't open WhatsApp.", Toast.LENGTH_SHORT).show() }
+}
+
+private fun sendEmail(context: Context, email: String, subject: String) {
+    runCatching {
+        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email")).apply {
+            putExtra(Intent.EXTRA_SUBJECT, subject)
         }
+        context.startActivity(intent)
+    }.onFailure { Toast.makeText(context, "No email app found.", Toast.LENGTH_SHORT).show() }
+}
 
-        if (resolved == null) {
+private fun copy(
+    clipboard: androidx.compose.ui.platform.ClipboardManager,
+    context: Context,
+    value: String,
+) {
+    clipboard.setText(AnnotatedString(value))
+    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+}
+
+private suspend fun fetchRecoveryContact(userId: String): LookupState {
+    return try {
+        val result = Firebase.functions
+            .getHttpsCallable("getRecoveryContact")
+            .call(mapOf("userId" to userId, "audience" to "parent"))
+            .await()
+
+        @Suppress("UNCHECKED_CAST")
+        val data = result.data as? Map<String, Any?> ?: emptyMap()
+        val found = data["found"] as? Boolean ?: false
+        if (!found) {
             LookupState.Failure(
-                "No school found for code \"$code\". Check the code and try again."
+                "No contact found for \"$userId\". Check your Student ID and try again."
             )
         } else {
             LookupState.Success(
-                SchoolContact(
-                    name = (resolved["name"] as? String).orEmpty(),
-                    principal = (resolved["principal"] as? String).orEmpty(),
-                    phone = (resolved["phone"] as? String).orEmpty(),
-                    email = (resolved["email"] as? String).orEmpty(),
-                    address = listOfNotNull(
-                        resolved["address"] as? String,
-                        resolved["city"] as? String,
-                        resolved["state"] as? String,
-                    ).filter { it.isNotBlank() }.joinToString(", "),
+                RecoveryContact(
+                    schoolName = (data["schoolName"] as? String).orEmpty(),
+                    name = (data["name"] as? String).orEmpty(),
+                    phone = (data["number"] as? String).orEmpty(),
+                    email = (data["email"] as? String).orEmpty(),
                 )
             )
         }

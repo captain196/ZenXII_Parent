@@ -28,6 +28,22 @@ class MyTeachersFirestoreRepository @Inject constructor(
 ) {
     companion object { private const val TAG = "MyTeachersRepo" }
 
+    // In-memory cache (survives ViewModel recreation because this repo is a
+    // @Singleton). The class-teacher / teachers list barely changes within a
+    // session, so caching it makes repeat opens of Profile / My Teachers
+    // instant instead of re-hitting Firestore and flashing an empty card.
+    private data class TeachersCacheKey(
+        val schoolId: String, val session: String, val ck: String, val sk: String
+    )
+    private var teachersCacheKey: TeachersCacheKey? = null
+    private var teachersCache: List<TeacherEntry>? = null
+
+    /** Drop the cache (e.g. after a class/section change or on logout). */
+    fun invalidateCache() {
+        teachersCacheKey = null
+        teachersCache = null
+    }
+
     /**
      * One row in the "My Teachers" UI: a single subject assignment joined
      * with the resolved staff profile.
@@ -60,6 +76,12 @@ class MyTeachersFirestoreRepository @Inject constructor(
 
             val ck = Constants.Firebase.classKey(className)
             val sk = Constants.Firebase.sectionKey(section)
+
+            // Serve from cache when the identity matches — instant, no flash.
+            val key = TeachersCacheKey(schoolId, session, ck, sk)
+            teachersCache?.let { cached ->
+                if (teachersCacheKey == key) return Result.success(cached)
+            }
 
             Log.d(TAG, "getMyTeachers: schoolId=$schoolId session=$session class=$ck section=$sk")
 
@@ -117,6 +139,8 @@ class MyTeachersFirestoreRepository @Inject constructor(
                 compareByDescending<TeacherEntry> { it.assignment.isClassTeacher }
                     .thenBy { it.assignment.subjectName.lowercase() }
             )
+            teachersCacheKey = key
+            teachersCache = sorted
             Result.success(sorted)
         } catch (e: Exception) {
             Log.w(TAG, "getMyTeachers failed", e)

@@ -1,5 +1,6 @@
 package com.schoolsync.parent.ui.homework
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -32,6 +33,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +52,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -57,6 +60,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -79,9 +88,70 @@ import com.schoolsync.parent.util.AttachmentUrlValidator
 @Composable
 fun HomeworkScreen(
     onBack: () -> Unit,
+    initialHomeworkId: String = "",
+    initialTab: String = "",
     viewModel: HomeworkViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Deep-link: preselect a list tab (e.g. "pending" when opened from the
+    // profile homework stat). Applied once; the user can switch tabs freely
+    // afterwards.
+    LaunchedEffect(initialTab) {
+        if (initialTab.isNotBlank()) viewModel.setTab(initialTab)
+    }
+
+    // Deep-link: when opened with a specific homework id (e.g. tapping a
+    // dashboard "Today's Homework" row or a search result), jump straight to
+    // its detail page. Until it resolves we show a loader — NOT the list — so
+    // the user never sees the list flash past on the way to the item.
+    // Guarded so it fires only once; afterwards Back returns to the list.
+    val context = LocalContext.current
+    var deepLinkConsumed by remember(initialHomeworkId) { mutableStateOf(initialHomeworkId.isBlank()) }
+    LaunchedEffect(initialHomeworkId, uiState.allHomework, uiState.isLoading) {
+        if (!deepLinkConsumed) {
+            val match = uiState.allHomework.firstOrNull {
+                it.homeworkId == initialHomeworkId || it.hwId == initialHomeworkId
+            }
+            when {
+                match != null -> {
+                    viewModel.selectHomework(match)
+                    deepLinkConsumed = true
+                }
+                // Load finished and the id isn't in this section's list (e.g.
+                // deleted / wrong section) — stop waiting, fall back to the list.
+                // FIX 7: tell the user why we dropped them on the list instead
+                // of silently swallowing the deep link.
+                !uiState.isLoading -> {
+                    deepLinkConsumed = true
+                    android.widget.Toast.makeText(
+                        context,
+                        "Homework not found — it may have been deleted.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+    // True while we're resolving a deep-link and haven't opened the detail yet.
+    val deepLinkPending = !deepLinkConsumed && uiState.selectedHomework == null
+
+    // System back must return to the list (or close the submit dialog) when a
+    // detail is open — without this the back press popped the whole screen
+    // straight to the dashboard.
+    BackHandler(enabled = uiState.selectedHomework != null || uiState.showSubmitDialog) {
+        when {
+            uiState.showSubmitDialog -> viewModel.hideSubmitDialog()
+            uiState.selectedHomework != null -> viewModel.selectHomework(null)
+        }
+    }
+
+    if (deepLinkPending) {
+        // Deep-link resolving: a calm full-screen loader instead of the list,
+        // so opening a specific homework reads as one step, not list-then-item.
+        HomeworkDeepLinkLoading(onBack = onBack)
+        return
+    }
 
     AnimatedContent(
         targetState = uiState.selectedHomework,
@@ -109,6 +179,7 @@ fun HomeworkScreen(
                 SubmitHomeworkDialog(
                     homework = selected,
                     isSubmitting = uiState.markingDone,
+                    submitError = uiState.submitError,
                     onSubmit = { text -> viewModel.markAsDone(selected, text) },
                     onDismiss = { viewModel.hideSubmitDialog() }
                 )
@@ -123,6 +194,45 @@ fun HomeworkScreen(
                 onPullRefresh = { viewModel.pullRefresh() }
             )
         }
+    }
+}
+
+/**
+ * Full-screen loader shown while a deep-linked homework is being resolved, so
+ * the list never flashes on the way to a specific item. Carries a back button
+ * so a slow load never traps the user.
+ */
+@Composable
+private fun HomeworkDeepLinkLoading(onBack: () -> Unit) {
+    val c = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .gradientBackground()
+            .statusBarsPadding()
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(8.dp)
+                .size(44.dp)
+                .clip(RoundedCornerShape(50))
+                .clickable(onClick = onBack),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = c.textPrimary,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        CircularProgressIndicator(
+            color = c.accent,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(40.dp)
+        )
     }
 }
 
@@ -154,9 +264,12 @@ private fun HomeworkListPage(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Glass back button
+            // Glass back button — FIX 6 a11y: 48dp min touch target (glass
+            // visual stays 34dp; minimumInteractiveComponentSize expands only
+            // the touchable/hit area).
             Box(
                 modifier = Modifier
+                    .minimumInteractiveComponentSize()
                     .size(34.dp)
                     .clip(RoundedCornerShape(11.dp))
                     .background(c.glass)
@@ -179,12 +292,27 @@ private fun HomeworkListPage(
                 color = c.textPrimary,
                 modifier = Modifier.weight(1f)
             )
-            if (uiState.className.isNotBlank()) {
-                Text(
-                    text = "${uiState.className} - ${uiState.section}",
-                    fontSize = 11.sp,
-                    color = c.textSecondary
-                )
+            if (uiState.className.isNotBlank() || uiState.userName.isNotBlank()) {
+                // Show whose homework this is (the active child) alongside the
+                // class/section — important on multi-child accounts where the
+                // class alone doesn't identify the sibling.
+                Column(horizontalAlignment = Alignment.End) {
+                    if (uiState.userName.isNotBlank()) {
+                        Text(
+                            text = uiState.userName,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = c.textPrimary
+                        )
+                    }
+                    if (uiState.className.isNotBlank()) {
+                        Text(
+                            text = "${uiState.className} - ${uiState.section}",
+                            fontSize = 11.sp,
+                            color = c.textSecondary
+                        )
+                    }
+                }
             }
         }
 
@@ -213,7 +341,11 @@ private fun HomeworkListPage(
         // data condition (network drop, permission denied, missing index).
         // Previously the banner was below the LazyColumn — a fillMaxSize
         // list pushed it off-screen.
-        uiState.errorMessage?.let { error ->
+        // Only shown when there IS data to caveat as stale. When the list is
+        // empty the content area below shows a full error state + Retry
+        // instead — otherwise the banner stacked on top of the celebratory
+        // "Nothing here" empty state, reading like success-with-a-warning.
+        uiState.errorMessage?.takeIf { uiState.allHomework.isNotEmpty() }?.let { error ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -248,6 +380,15 @@ private fun HomeworkListPage(
                 ) {
                     CircularProgressIndicator(color = c.accent, modifier = Modifier.size(40.dp))
                 }
+            } else if (uiState.errorMessage != null && uiState.allHomework.isEmpty()) {
+                // Listener errored AND we have nothing to show — present a
+                // dedicated error state WITH a Retry action instead of the
+                // celebratory "Nothing here" empty state (which read like a
+                // success). Retry re-runs the live listener via pull-refresh.
+                ErrorHomeworkState(
+                    message = uiState.errorMessage,
+                    onRetry = onPullRefresh
+                )
             } else {
                 com.schoolsync.parent.ui.common.SwipeablePagerTabs(
                     tabs = homeworkTabKeys,
@@ -298,6 +439,10 @@ private data class TabDef(val key: String, val label: String)
 private val tabs = listOf(
     TabDef("all", "All"),
     TabDef("pending", "Pending"),
+    // "Incomplete" = teacher bounced the work back for a redo. It's actionable
+    // (the child must resubmit), so it sits right after Pending rather than
+    // being buried in "All".
+    TabDef("incomplete", "Incomplete"),
     TabDef("submitted", "Submitted"),
     TabDef("graded", "Graded")
 )
@@ -325,6 +470,7 @@ private fun StatusTabChips(
             val count = when (tab.key) {
                 "all" -> allHomework.size
                 "pending" -> allHomework.count { it.studentStatus.lowercase().trim() == "pending" }
+                "incomplete" -> allHomework.count { it.studentStatus.lowercase().trim() == "incomplete" }
                 "submitted" -> allHomework.count { it.studentStatus.lowercase().trim() == "submitted" }
                 "graded" -> allHomework.count { val s = it.studentStatus.lowercase().trim(); s == "reviewed" || s == "complete" }
                 else -> 0
@@ -333,6 +479,9 @@ private fun StatusTabChips(
 
             Row(
                 modifier = Modifier
+                    // FIX 6 a11y: 48dp min touch target for the tab chip (visual
+                    // pill size is unchanged).
+                    .minimumInteractiveComponentSize()
                     .clip(RoundedCornerShape(50))
                     .then(
                         if (isActive) {
@@ -344,6 +493,13 @@ private fun StatusTabChips(
                         }
                     )
                     .clickable { onTabChange(tab.key) }
+                    // a11y: announce as a selectable tab with its count so the
+                    // monospace badge isn't read as a bare number out of context.
+                    .semantics(mergeDescendants = true) {
+                        role = Role.Tab
+                        selected = isActive
+                        contentDescription = "${tab.label}, $count item${if (count == 1) "" else "s"}"
+                    }
                     .padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
@@ -463,6 +619,9 @@ private fun SubjectChip(
     val c = LocalAppColors.current
     Box(
         modifier = Modifier
+            // FIX 6 a11y: 48dp min touch target for the subject chip (visual
+            // pill size is unchanged).
+            .minimumInteractiveComponentSize()
             .clip(RoundedCornerShape(50))
             .then(
                 if (isSelected) {
@@ -474,6 +633,13 @@ private fun SubjectChip(
                 }
             )
             .clickable(onClick = onClick)
+            // a11y: read "<subject> subject filter" with selected state; the
+            // emoji glyph alone carries no text alternative for TalkBack.
+            .semantics(mergeDescendants = true) {
+                role = Role.Tab
+                selected = isSelected
+                contentDescription = "$label subject filter"
+            }
             .padding(horizontal = 12.dp, vertical = 7.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -543,7 +709,12 @@ private fun HomeworkCard(item: Homework, onClick: () -> Unit) {
                     .background(subjectColor.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = info.emoji, fontSize = 20.sp)
+                // a11y: decorative — the subject name is in the subtitle text.
+                Text(
+                    text = info.emoji,
+                    fontSize = 20.sp,
+                    modifier = Modifier.clearAndSetSemantics { }
+                )
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -566,7 +737,7 @@ private fun HomeworkCard(item: Homework, onClick: () -> Unit) {
                         if (item.teacherName.isNotBlank() && item.subject.isNotBlank()) append(" \u00B7 ")
                         if (item.subject.isNotBlank()) append(item.subject)
                     },
-                    fontSize = 10.sp,
+                    fontSize = 11.sp, // FIX 6 a11y: was 10sp
                     color = c.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -600,9 +771,15 @@ private fun HomeworkCard(item: Homework, onClick: () -> Unit) {
                     if (attachCount > 0) {
                         Text(
                             text = "\uD83D\uDCCE $attachCount",
-                            fontSize = 9.sp,
+                            fontSize = 11.sp, // FIX 6 a11y: was 9sp
                             fontWeight = FontWeight.Bold,
-                            color = c.accent
+                            color = c.accent,
+                            // a11y: paperclip emoji has no text alternative \u2014 give
+                            // TalkBack a spoken label instead of the glyph + number.
+                            modifier = Modifier.semantics {
+                                contentDescription =
+                                    "$attachCount attachment${if (attachCount == 1) "" else "s"}"
+                            }
                         )
                     }
                 }
@@ -663,10 +840,48 @@ private fun DotPill(
         Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = text,
-            fontSize = 9.sp,
+            fontSize = 11.sp, // FIX 6 a11y: was 9sp
             fontWeight = FontWeight.Bold,
             color = textColor
         )
+    }
+}
+
+// ── Error State (with retry) ────────────────────────────────────────────────
+
+@Composable
+private fun ErrorHomeworkState(message: String, onRetry: () -> Unit) {
+    val c = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = "⚠️", fontSize = 48.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Couldn't load homework",
+                style = MaterialTheme.typography.titleMedium,
+                color = c.textSecondary,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = c.textTertiary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Button(
+                onClick = onRetry,
+                colors = ButtonDefaults.buttonColors(containerColor = c.accent)
+            ) {
+                Text(text = "Retry", color = Color.White, fontWeight = FontWeight.SemiBold)
+            }
+        }
     }
 }
 
@@ -726,6 +941,12 @@ private fun HomeworkDetailPage(
     else
         resolveStatusInfo(homework.studentStatus, c)
     val isAlreadyDone = HomeworkViewModel.isCompleted(homework)
+    // A teacher can evaluate a homework even when the student never submitted
+    // (studentStatus stays "pending" but a teacherMark exists). In that case
+    // the item is already graded, so the parent must not be able to submit
+    // over it — treat it the same as "done" for the submit button.
+    val alreadyGraded = homework.hasTeacherMark
+    val canSubmit = !isAlreadyDone && !alreadyGraded
 
     Box(
         modifier = Modifier
@@ -736,7 +957,7 @@ private fun HomeworkDetailPage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = if (!isAlreadyDone) 80.dp else 0.dp)
+                .padding(bottom = if (canSubmit) 80.dp else 0.dp)
                 .verticalScroll(rememberScrollState())
         ) {
             // ── Header ──────────────────────────────────────────────────
@@ -746,9 +967,11 @@ private fun HomeworkDetailPage(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Glass back button
+                // Glass back button — FIX 6 a11y: 48dp min touch target
+                // (visual stays 34dp).
                 Box(
                     modifier = Modifier
+                        .minimumInteractiveComponentSize()
                         .size(34.dp)
                         .clip(RoundedCornerShape(11.dp))
                         .background(c.glass)
@@ -880,10 +1103,15 @@ private fun HomeworkDetailPage(
                         // looks like a filename (has a "."). Otherwise the
                         // path-less URL "https://example.com" would surface
                         // "com" as the attachment label.
+                        // FIX 3: derive the filename from the URL's last path
+                        // segment when it looks like a real file (has a "."),
+                        // else fall back to a generic label. `attachmentName` was
+                        // never populated on the live path, so its removal here
+                        // changes nothing except dropping the dead reference.
                         val rawTail = attachment.substringAfterLast("/").substringBefore("?")
                         val fileName = when {
-                            rawTail.isBlank() -> homework.attachmentName.ifBlank { "Attachment" }
-                            !rawTail.contains('.') -> homework.attachmentName.ifBlank { "Attachment" }
+                            rawTail.isBlank() -> "Attachment"
+                            !rawTail.contains('.') -> "Attachment"
                             else -> rawTail
                         }
                         val isPdf = fileName.endsWith(".pdf", ignoreCase = true)
@@ -929,8 +1157,11 @@ private fun HomeworkDetailPage(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "Tap to download",
-                                    fontSize = 10.sp,
+                                    // FIX 8: the tap dispatches ACTION_VIEW (opens
+                                    // the file), it does not download — label it
+                                    // accurately.
+                                    text = "Tap to open",
+                                    fontSize = 11.sp,
                                     color = c.textTertiary
                                 )
                             }
@@ -965,7 +1196,14 @@ private fun HomeworkDetailPage(
                     "reviewed" -> "\uD83C\uDFC6"
                     else -> "\u23F3"
                 }
-                Text(text = statusEmoji, fontSize = 28.sp)
+                // a11y: the emoji is decorative — the adjacent statusInfo.label
+                // text already conveys the status to TalkBack, so clear the
+                // glyph's own semantics to avoid an unreadable announcement.
+                Text(
+                    text = statusEmoji,
+                    fontSize = 28.sp,
+                    modifier = Modifier.clearAndSetSemantics { }
+                )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
@@ -986,6 +1224,65 @@ private fun HomeworkDetailPage(
                         fontSize = 11.sp,
                         color = c.textSecondary
                     )
+                }
+            }
+
+            // ── Teacher evaluation without a student submission ─────────
+            // When the teacher graded the item but the student never
+            // submitted (studentStatus is still "pending"), the "reviewed"
+            // block below won't fire. Surface the score/remark here so the
+            // detail page matches the list card, and rely on canSubmit to
+            // hide the "Mark as done" button.
+            if (alreadyGraded && homework.studentStatus.lowercase().trim() != "reviewed") {
+                Spacer(modifier = Modifier.height(12.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .glassCard(14.dp)
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "Evaluated (no submission)",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = c.warning
+                    )
+                    if (homework.teacherMarkScore >= 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Score",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = c.textSecondary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "${homework.teacherMarkScore}",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = c.success
+                            )
+                        }
+                    }
+                    val remark = homework.teacherMarkRemark.trim()
+                    if (remark.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Teacher's Remark",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = c.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = remark,
+                            fontSize = 14.sp,
+                            color = c.textPrimary,
+                            lineHeight = 20.sp
+                        )
+                    }
                 }
             }
 
@@ -1062,7 +1359,7 @@ private fun HomeworkDetailPage(
         }
 
         // ── Sticky bottom button ────────────────────────────────────────
-        if (!isAlreadyDone) {
+        if (canSubmit) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -1090,8 +1387,11 @@ private fun HomeworkDetailPage(
                             strokeWidth = 2.dp
                         )
                     } else {
+                        // Teacher bounced this back for a redo \u2014 label the action
+                        // as a resubmit so the intent is unmistakable.
+                        val isRedo = homework.studentStatus.lowercase().trim() == "incomplete"
                         Text(
-                            text = "Mark as done \u2713",
+                            text = if (isRedo) "Redo & resubmit \u21bb" else "Mark as done \u2713",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -1161,6 +1461,7 @@ private fun resolveSubjectColor(colorKey: String, c: AppColors): Color = when (c
 private fun SubmitHomeworkDialog(
     homework: com.schoolsync.parent.data.model.Homework,
     isSubmitting: Boolean,
+    submitError: String?,
     onSubmit: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1192,7 +1493,7 @@ private fun SubmitHomeworkDialog(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 androidx.compose.material3.Text(
-                    "Describe what you completed:",
+                    "Describe what you completed (optional):",
                     color = c.textSecondary,
                     fontSize = 13.sp
                 )
@@ -1214,15 +1515,23 @@ private fun SubmitHomeworkDialog(
                     ),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
                 )
+                if (submitError != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    androidx.compose.material3.Text(
+                        submitError,
+                        color = c.error,
+                        fontSize = 12.sp
+                    )
+                }
             }
         },
         confirmButton = {
-            // Trim once — same value gets sent and gates the button so a
-            // whitespace-only submission can't slip through.
+            // Description is optional — "Mark as done" must work even with no
+            // text, so the button stays tappable (only disabled while sending).
             val trimmed = text.trim()
             androidx.compose.material3.Button(
                 onClick = { onSubmit(trimmed) },
-                enabled = !isSubmitting && trimmed.isNotEmpty(),
+                enabled = !isSubmitting,
                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                     containerColor = c.accent
                 ),

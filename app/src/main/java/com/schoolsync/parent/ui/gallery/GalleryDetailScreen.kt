@@ -2,8 +2,6 @@
 
 package com.schoolsync.parent.ui.gallery
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -11,8 +9,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,6 +77,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.schoolsync.parent.data.model.GalleryMedia
 import com.schoolsync.parent.ui.theme.LocalAppColors
+import com.schoolsync.parent.util.AttachmentUrlValidator
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
 
@@ -87,7 +90,9 @@ fun GalleryDetailScreen(
     val c = LocalAppColors.current
     val context = LocalContext.current
     val detailState by viewModel.detailState.collectAsStateWithLifecycle()
-    var viewerIndex by remember { mutableIntStateOf(-1) }
+    // rememberSaveable so an open fullscreen viewer survives config change /
+    // process death.
+    var viewerIndex by rememberSaveable { mutableIntStateOf(-1) }
 
     LaunchedEffect(albumId) {
         viewModel.loadAlbumDetail(albumId)
@@ -210,10 +215,11 @@ fun GalleryDetailScreen(
                                 media = mediaItem,
                                 onClick = {
                                     if (mediaItem.type == "video") {
-                                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                                            setDataAndType(Uri.parse(mediaItem.url), "video/*")
-                                        }
-                                        context.startActivity(intent)
+                                        // Validated (https + firebasestorage host)
+                                        // before ACTION_VIEW dispatch.
+                                        AttachmentUrlValidator.openAttachmentSafely(
+                                            context, mediaItem.url, "gallery_video"
+                                        )
                                     } else {
                                         viewerIndex = index
                                     }
@@ -229,10 +235,9 @@ fun GalleryDetailScreen(
             }
         }
 
-        // Fullscreen image viewer
+        // Fullscreen viewer (images + video poster frames)
         val album = detailState.album
         val allMedia = album?.media ?: emptyList()
-        val imageMedia = allMedia.filter { it.type == "image" }
 
         AnimatedVisibility(
             visible = viewerIndex >= 0 && viewerIndex < allMedia.size,
@@ -244,7 +249,10 @@ fun GalleryDetailScreen(
                     media = allMedia,
                     initialIndex = viewerIndex,
                     onDismiss = { viewerIndex = -1 },
-                    onIndexChange = { viewerIndex = it }
+                    onIndexChange = { viewerIndex = it },
+                    onVideoPlay = { url ->
+                        AttachmentUrlValidator.openAttachmentSafely(context, url, "gallery_video")
+                    }
                 )
             }
         }
@@ -386,17 +394,28 @@ private fun FullscreenGalleryViewer(
     media: List<GalleryMedia>,
     initialIndex: Int,
     onDismiss: () -> Unit,
-    onIndexChange: (Int) -> Unit
+    onIndexChange: (Int) -> Unit,
+    onVideoPlay: (String) -> Unit
 ) {
     val pagerState = rememberPagerState(initialPage = initialIndex, pageCount = { media.size })
     var showControls by remember { mutableStateOf(true) }
+
+    // Zoom/pan for the CURRENT page only; reset when the page changes so each
+    // photo opens un-zoomed. Hoisted out of the page so the pager can lock
+    // scrolling while zoomed.
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var offsetY by remember { mutableFloatStateOf(0f) }
+    val isZoomed = scale > 1.02f
+
     val controlsAlpha by animateFloatAsState(
-        targetValue = if (showControls) 1f else 0f,
+        targetValue = if (showControls && !isZoomed) 1f else 0f,
         animationSpec = tween(200), label = "controls"
     )
 
     LaunchedEffect(pagerState.currentPage) {
         onIndexChange(pagerState.currentPage)
+        scale = 1f; offsetX = 0f; offsetY = 0f
     }
 
     Box(
@@ -406,38 +425,58 @@ private fun FullscreenGalleryViewer(
     ) {
         HorizontalPager(
             state = pagerState,
+            // Lock paging while zoomed so a pan can't accidentally flip pages.
+            userScrollEnabled = !isZoomed,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             val item = media[page]
-            var scale by remember { mutableFloatStateOf(1f) }
-            var offsetX by remember { mutableFloatStateOf(0f) }
-            var offsetY by remember { mutableFloatStateOf(0f) }
+            val isActive = page == pagerState.currentPage
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = { showControls = !showControls },
-                            onDoubleTap = {
-                                scale = if (scale > 1.5f) 1f else 2.5f
-                                offsetX = 0f
-                                offsetY = 0f
+                    .then(
+                        if (isActive) Modifier
+                            // Pinch-zoom + pan. Consumes ONLY 2-finger gestures
+                            // (or 1-finger while already zoomed), so a normal
+                            // single-finger horizontal swipe still reaches the
+                            // pager — this is what was breaking swipe-to-next.
+                            .pointerInput(page) {
+                                awaitEachGesture {
+                                    awaitFirstDown(requireUnconsumed = false)
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        val pressed = event.changes.count { it.pressed }
+                                        val pan = event.calculatePan()
+                                        if (pressed >= 2) {
+                                            val newScale = (scale * event.calculateZoom()).coerceIn(1f, 5f)
+                                            scale = newScale
+                                            val maxX = (size.width * (newScale - 1f) / 2f).coerceAtLeast(0f)
+                                            val maxY = (size.height * (newScale - 1f) / 2f).coerceAtLeast(0f)
+                                            offsetX = (offsetX + pan.x).coerceIn(-maxX, maxX)
+                                            offsetY = (offsetY + pan.y).coerceIn(-maxY, maxY)
+                                            event.changes.forEach { it.consume() }
+                                        } else if (pressed == 1 && scale > 1.02f) {
+                                            val maxX = (size.width * (scale - 1f) / 2f).coerceAtLeast(0f)
+                                            val maxY = (size.height * (scale - 1f) / 2f).coerceAtLeast(0f)
+                                            offsetX = (offsetX + pan.x).coerceIn(-maxX, maxX)
+                                            offsetY = (offsetY + pan.y).coerceIn(-maxY, maxY)
+                                            event.changes.forEach { it.consume() }
+                                        }
+                                    } while (event.changes.any { it.pressed })
+                                }
                             }
-                        )
-                    }
-                    .pointerInput(Unit) {
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            scale = (scale * zoom).coerceIn(1f, 5f)
-                            if (scale > 1f) {
-                                offsetX += pan.x
-                                offsetY += pan.y
-                            } else {
-                                offsetX = 0f
-                                offsetY = 0f
+                            .pointerInput(page) {
+                                detectTapGestures(
+                                    onTap = { showControls = !showControls },
+                                    onDoubleTap = {
+                                        if (scale > 1.5f) { scale = 1f; offsetX = 0f; offsetY = 0f }
+                                        else scale = 2.5f
+                                    }
+                                )
                             }
-                        }
-                    },
+                        else Modifier
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 val imageUrl = if (item.type == "video" && !item.thumbnail.isNullOrBlank()) {
@@ -451,13 +490,34 @@ private fun FullscreenGalleryViewer(
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer(
-                            scaleX = scale,
-                            scaleY = scale,
-                            translationX = offsetX,
-                            translationY = offsetY
+                        .then(
+                            if (isActive) Modifier.graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offsetX,
+                                translationY = offsetY
+                            ) else Modifier
                         )
                 )
+
+                // Video play affordance — opens the video externally (validated).
+                if (item.type == "video") {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.5f))
+                            .clickable { onVideoPlay(item.url) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayCircle,
+                            contentDescription = "Play video",
+                            tint = Color.White,
+                            modifier = Modifier.size(44.dp)
+                        )
+                    }
+                }
             }
         }
 

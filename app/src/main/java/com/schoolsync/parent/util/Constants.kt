@@ -161,18 +161,9 @@ object Constants {
             "Schools/$schoolCode/Operations/Transport/Assignments/$studentId"
 
         // ── Events ───────────────────────────────────────────────────────
-
-        /** Schools/{schoolCode}/Events/List/ */
-        fun eventsPath(schoolCode: String): String =
-            "Schools/$schoolCode/Events/List"
-
-        /** Schools/{schoolCode}/Events/Media/{eventId}/ */
-        fun eventMediaPath(schoolCode: String, eventId: String): String =
-            "Schools/$schoolCode/Events/Media/$eventId"
-
-        /** Schools/{schoolCode}/Events/Participants/{eventId}/ */
-        fun eventParticipantsPath(schoolCode: String, eventId: String): String =
-            "Schools/$schoolCode/Events/Participants/$eventId"
+        // Legacy RTDB event paths (eventsPath / eventMediaPath /
+        // eventParticipantsPath) removed — events are Firestore-primary via
+        // EventFirestoreRepository and the RTDB helpers had zero call sites.
 
         // ── Gallery ──────────────────────────────────────────────────────
 

@@ -26,10 +26,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -110,6 +112,66 @@ fun GalleryScreen(
                     }
                 }
 
+                // Distinguish a real load failure (undeployed index /
+                // PERMISSION_DENIED) from a genuinely empty gallery: the
+                // former gets an error message + Retry, not the "no photos"
+                // empty state that looks identical and hides the problem.
+                uiState.errorMessage != null && uiState.albums.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Filled.CloudOff,
+                                contentDescription = null,
+                                tint = c.textTertiary,
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Couldn't load gallery",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = c.textSecondary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Something went wrong loading photos. Please try again.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = c.textTertiary,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(c.accent.copy(alpha = 0.15f))
+                                    .clickable { viewModel.retry() }
+                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Refresh,
+                                    contentDescription = null,
+                                    tint = c.accent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Retry",
+                                    style = TextStyle(
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = c.accent
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
                 uiState.albums.isEmpty() -> {
                     Box(
                         modifier = Modifier
@@ -179,8 +241,10 @@ fun GalleryScreen(
             }
         }
 
-        // Error
-        uiState.errorMessage?.let { error ->
+        // Inline error banner — only when albums are already showing (a
+        // refresh failed). A first-load failure is handled by the full
+        // error state above, so we don't double up here.
+        uiState.errorMessage?.takeIf { uiState.albums.isNotEmpty() }?.let { error ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

@@ -134,13 +134,16 @@ fun EventsScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "No Upcoming Events",
+                                // The list shows ALL events (past + upcoming),
+                                // not just upcoming, so the label must not imply
+                                // upcoming-only.
+                                text = "No Events",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = c.textSecondary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Upcoming events will appear here when published by the school.",
+                                text = "Events will appear here when published by the school.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = c.textTertiary,
                                 textAlign = TextAlign.Center
@@ -210,6 +213,10 @@ private fun EventListCard(
     val c = LocalAppColors.current
     val (categoryColor, categoryGradStart, categoryGradEnd) = getCategoryColors(event.category, c)
 
+    // Cover = first photo (or a video's poster). Shown as the card header.
+    val cover = event.mediaUrls.firstOrNull { it.type == "image" }?.url
+        ?: event.mediaUrls.firstOrNull { !it.thumbnail.isNullOrBlank() }?.thumbnail
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -217,17 +224,43 @@ private fun EventListCard(
             .bouncyClickable(onClick = onClick)
             .animateContentSize()
     ) {
-        // Gradient accent bar at top
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(categoryGradStart, categoryGradEnd)
-                    )
+        if (cover != null) {
+            // Cover header — the event's first media.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            ) {
+                AsyncImage(
+                    model = cover,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
                 )
-        )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f))
+                            )
+                        )
+                )
+            }
+        } else {
+            // Gradient accent bar at top
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(categoryGradStart, categoryGradEnd)
+                        )
+                    )
+            )
+        }
 
         Column(
             modifier = Modifier.padding(16.dp),
@@ -340,8 +373,9 @@ private fun EventListCard(
                 )
             }
 
-            // Media preview row
-            if (event.mediaUrls.isNotEmpty()) {
+            // Media preview row — only when there's MORE than the cover, so a
+            // single-photo event isn't shown twice.
+            if (event.mediaUrls.size > 1) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -417,35 +451,5 @@ private fun InfoRow(
     }
 }
 
-private data class CategoryColorSet(
-    val main: Color,
-    val gradStart: Color,
-    val gradEnd: Color
-)
-
-@Composable
-private fun getCategoryColors(category: String, c: com.schoolsync.parent.ui.theme.AppColors): CategoryColorSet {
-    return when (category.lowercase()) {
-        "cultural" -> CategoryColorSet(c.purple, c.banner3Start, c.banner3End)
-        "sports" -> CategoryColorSet(c.success, c.banner2Start, c.banner2End)
-        "academic" -> CategoryColorSet(c.info, c.banner1Start, c.banner1End)
-        "exam" -> CategoryColorSet(c.error, c.error.copy(alpha = 0.5f), c.error.copy(alpha = 0.2f))
-        "holiday" -> CategoryColorSet(c.warning, c.warning.copy(alpha = 0.5f), c.warning.copy(alpha = 0.2f))
-        // PTM = synthesized event from `ptmEvents`. Distinct dark-blue tint
-        // so the row visibly reads as a meeting and not a regular event.
-        "ptm" -> CategoryColorSet(Color(0xFF1565C0), Color(0xFF1565C0).copy(alpha = 0.5f), Color(0xFF1565C0).copy(alpha = 0.2f))
-        else -> CategoryColorSet(c.accent, c.banner1Start, c.banner1End)
-    }
-}
-
-@Composable
-private fun getStatusColor(status: String, c: com.schoolsync.parent.ui.theme.AppColors): Color {
-    return when (status.lowercase()) {
-        "scheduled" -> c.info
-        "ongoing", "active" -> c.success
-        "completed", "finished" -> c.textTertiary
-        "cancelled" -> c.error
-        "postponed" -> c.warning
-        else -> c.textSecondary
-    }
-}
+// Category / status color helpers live in EventColors.kt (shared with
+// EventDetailScreen).

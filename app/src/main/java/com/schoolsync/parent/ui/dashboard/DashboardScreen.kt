@@ -1,5 +1,10 @@
 package com.schoolsync.parent.ui.dashboard
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -17,6 +22,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,12 +31,29 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Assignment
+import androidx.compose.material.icons.outlined.Assessment
+import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.Celebration
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.EventAvailable
+import androidx.compose.material.icons.outlined.EventBusy
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.LocalLibrary
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.Grading
@@ -47,6 +71,8 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.LocationOn
@@ -70,11 +96,17 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,6 +121,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -134,6 +170,7 @@ fun DashboardScreen(
     onNavigateToFees: () -> Unit,
     onNavigateToTimetable: () -> Unit,
     onNavigateToHomework: () -> Unit = {},
+    onOpenHomework: (String) -> Unit = {},
     onNavigateToNotices: () -> Unit,
     onNavigateToLeave: () -> Unit = {},
     onNavigateToEvents: () -> Unit = {},
@@ -145,15 +182,28 @@ fun DashboardScreen(
     onNavigateToLibrary: () -> Unit = {},
     onNavigateToMyTeachers: () -> Unit = {},
     onNavigateToStoryViewer: (String) -> Unit = {},
+    /** Active stories grouped by author, surfaced as the tappable ring
+     *  row at the top of the dashboard. Empty = no ring rendered. */
+    storyGroups: List<com.schoolsync.parent.data.model.TeacherStoryGroup> = emptyList(),
+    /** True while the stories listener is still delivering its first
+     *  snapshot — drives a shimmer ring so the row doesn't pop in. */
+    storiesLoading: Boolean = false,
     onNavigateToProfile: () -> Unit = {},
+    onNavigateToAcademics: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val c = LocalAppColors.current
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     val defaultStudentName = stringResource(R.string.dashboard_default_student_name)
+
+    // Bumped whenever the dashboard resumes, so the personalized Quick Actions
+    // re-rank to reflect features the parent used since they last saw it.
+    var usageTick by remember { mutableStateOf(0) }
 
     // Only refresh on genuine background → foreground transitions.
     // The initial load is kicked off from init{} in the ViewModel,
@@ -163,7 +213,10 @@ fun DashboardScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refresh()
+                usageTick++
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -175,19 +228,20 @@ fun DashboardScreen(
             DrawerContent(
                 userName = uiState.user?.name ?: defaultStudentName,
                 schoolName = uiState.schoolName.ifBlank { uiState.user?.schoolDisplayName ?: "" },
+                photoUrl = uiState.user?.profilePic ?: "",
                 onClose = { scope.launch { drawerState.close() } },
-                onAttendance = { scope.launch { drawerState.close() }; onNavigateToAttendance() },
-                onResults    = { scope.launch { drawerState.close() }; onNavigateToResults() },
-                onFees       = { scope.launch { drawerState.close() }; onNavigateToFees() },
-                onTimetable  = { scope.launch { drawerState.close() }; onNavigateToTimetable() },
+                onAttendance = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "attendance"); onNavigateToAttendance() },
+                onResults    = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "results"); onNavigateToResults() },
+                onFees       = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "fees"); onNavigateToFees() },
+                onTimetable  = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "timetable"); onNavigateToTimetable() },
                 onHomework   = { scope.launch { drawerState.close() }; onNavigateToHomework() },
                 onNotices    = { scope.launch { drawerState.close() }; onNavigateToNotices() },
-                onLeave      = { scope.launch { drawerState.close() }; onNavigateToLeave() },
-                onEvents     = { scope.launch { drawerState.close() }; onNavigateToEvents() },
-                onGallery    = { scope.launch { drawerState.close() }; onNavigateToGallery() },
-                onLibrary    = { scope.launch { drawerState.close() }; onNavigateToLibrary() },
+                onLeave      = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "leave"); onNavigateToLeave() },
+                onEvents     = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "events"); onNavigateToEvents() },
+                onGallery    = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "gallery"); onNavigateToGallery() },
+                onLibrary    = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "library"); onNavigateToLibrary() },
                 onMyTeachers = { scope.launch { drawerState.close() }; onNavigateToMyTeachers() },
-                onRedFlags   = { scope.launch { drawerState.close() }; onNavigateToRedFlags() },
+                onRedFlags   = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "redflags"); onNavigateToRedFlags() },
                 onProfile    = { scope.launch { drawerState.close() }; onNavigateToProfile() }
             )
         }
@@ -216,7 +270,7 @@ fun DashboardScreen(
                     user?.rollNo?.takeIf { it.isNotBlank() }?.let { "Roll #$it" }
                 ).joinToString(" · ")
 
-                Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+                Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
                     TopBar(
                         firstName = firstName,
                         initials = initials,
@@ -232,16 +286,39 @@ fun DashboardScreen(
                     ) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 28.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
+                        // Search + grid row — sits directly under the header,
+                        // matching the design-system home layout.
+                        item("search_row") {
+                            DashboardSearchRow(
+                                onSearch = onNavigateToSearch,
+                                onGrid = onNavigateToAcademics
+                            )
+                        }
+
+                        // Stories ring row — active teacher/admin stories for
+                        // this child's class-section (+ school-wide). Tapping a
+                        // ring opens the full-screen viewer. Gated so no empty
+                        // gap appears when there are no active stories.
+                        if (storyGroups.isNotEmpty()) {
+                            item("stories_row") {
+                                com.schoolsync.parent.ui.stories.StoriesRow(
+                                    storyGroups = storyGroups,
+                                    onTeacherClick = onNavigateToStoryViewer
+                                )
+                            }
+                        } else if (storiesLoading) {
+                            // Skeleton ring while the first snapshot loads, so
+                            // the row fades in smoothly instead of popping.
+                            item("stories_shimmer") { StoriesRowShimmer() }
+                        }
+
                         // 🎂 Birthday banner — only appears when the selected
                         // ward's DOB month-day matches today. Shown above
                         // everything else so the parent can't miss it.
                         val __isBday = isWardBirthdayToday(user?.dob)
-                        android.util.Log.d("BirthdayBanner",
-                            "dob='${user?.dob}' today='${java.text.SimpleDateFormat("MM-dd", java.util.Locale.US).format(java.util.Date())}' isBday=$__isBday"
-                        )
                         if (__isBday) {
                             item("birthday_banner") {
                                 BirthdayBanner(wardName = displayName)
@@ -258,6 +335,45 @@ fun DashboardScreen(
                                     siblings = uiState.siblings,
                                     onSelect = { viewModel.switchToSibling(it) }
                                 )
+                            }
+                        }
+
+                        // Highlights — promotional / event banner carousel,
+                        // collapsible. Matches the design-system "Highlights"
+                        // section directly under the search row. Shows real
+                        // school events; hidden entirely when there are none.
+                        if (uiState.upcomingEvents.isNotEmpty()) {
+                            item("highlights") {
+                                var expanded by rememberSaveable { mutableStateOf(true) }
+                                CollapsibleSection(
+                                    title = "Highlights",
+                                    expanded = expanded,
+                                    onToggle = { expanded = !expanded },
+                                    actionLabel = "View All",
+                                    onAction = onNavigateToEvents
+                                ) {
+                                    val gradients = listOf(
+                                        c.banner1Start to c.banner1End,
+                                        c.banner2Start to c.banner2End,
+                                        c.banner3Start to c.banner3End
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        uiState.upcomingEvents.take(6).forEachIndexed { index, event ->
+                                            val isPtm = event.category.equals("ptm", ignoreCase = true)
+                                            HighlightBannerCard(
+                                                event = event,
+                                                gradient = gradients[index % gradients.size],
+                                                onClick = {
+                                                    if (isPtm) onNavigateToPtm(event.eventId)
+                                                    else        onNavigateToEventDetail(event.eventId)
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -285,20 +401,8 @@ fun DashboardScreen(
                             PulseStrip(pulses = pulses)
                         }
 
-                        // Class Teacher chip — compact contact card placed
-                        // alongside the contextual hero strips so the parent
-                        // sees their primary point of contact without scrolling
-                        // past KPIs and lists. Hidden entirely when no Active
-                        // class teacher is assigned (loader returns null).
-                        uiState.classTeacher?.let { entry ->
-                            item("class_teacher_card") {
-                                ClassTeacherCard(
-                                    entry = entry,
-                                    subjects = uiState.classTeacherSubjects,
-                                    onMessage = onNavigateToMyTeachers
-                                )
-                            }
-                        }
+                        // (Class Teacher card now lives on the Profile page,
+                        // below the student profile section.)
 
                         // What's Now — shows the current period live so the
                         // parent knows what the child is doing right now.
@@ -314,29 +418,18 @@ fun DashboardScreen(
                             }
                         }
 
-                        // Upcoming Events list (with View All). Only renders
-                        // when there are events.
-                        if (uiState.upcomingEvents.isNotEmpty()) {
-                            item("upcoming_events") {
-                                UpcomingEventsSection(
-                                    events = uiState.upcomingEvents,
-                                    onEventClick = onNavigateToEventDetail,
-                                    onPtmClick   = onNavigateToPtm,
-                                    onViewAll = onNavigateToEvents
-                                )
-                            }
-                        }
+                        // (Upcoming Events now surface in the Highlights
+                        // carousel near the top of the dashboard.)
 
                         item("kpi_grid") {
                             KpiGrid(
                                 attendancePct = uiState.attendancePercentage,
                                 attendanceChange = uiState.attendanceChange,
-                                pendingFeeAmount = uiState.pendingFeeAmount,
-                                feesLoadFailed = uiState.feesLoadFailed,
+                                attendanceFailed = uiState.attendanceLoadFailed,
                                 homeworkCount = uiState.pendingHomeworkCount,
+                                homeworkFailed = uiState.homeworkLoadFailed,
                                 noticeCount = uiState.recentNotices.size,
                                 onAttendance = onNavigateToAttendance,
-                                onFees = onNavigateToFees,
                                 onHomework = onNavigateToHomework,
                                 onNotices = onNavigateToNotices
                             )
@@ -348,7 +441,8 @@ fun DashboardScreen(
                             item("homework_preview") {
                                 HomeworkPreviewSection(
                                     items = uiState.homeworkPreview,
-                                    onViewAll = onNavigateToHomework
+                                    onViewAll = onNavigateToHomework,
+                                    onOpenItem = { hw -> onOpenHomework(hw.id) }
                                 )
                             }
                         }
@@ -368,8 +462,8 @@ fun DashboardScreen(
                         // More rows into one unified 4-col × 2-row grid so
                         // there's a single place to jump from, no artificial
                         // split between "quick" and "more".
-                        item("shortcuts_bento") {
-                            ShortcutsBento(
+                        item("quick_actions") {
+                            QuickActionsSection(
                                 onFees = onNavigateToFees,
                                 onAttendance = onNavigateToAttendance,
                                 onResults = onNavigateToResults,
@@ -379,7 +473,12 @@ fun DashboardScreen(
                                 onLibrary = onNavigateToLibrary,
                                 onGallery = onNavigateToGallery,
                                 onPtm = onNavigateToPtmList,
-                                onRedFlags = onNavigateToRedFlags
+                                onRedFlags = onNavigateToRedFlags,
+                                onHomework = onNavigateToHomework,
+                                homeworkCount = uiState.pendingHomeworkCount,
+                                flagCount = uiState.activeFlagCount,
+                                usageTick = usageTick,
+                                userId = user?.userId.orEmpty()
                             )
                         }
 
@@ -390,16 +489,26 @@ fun DashboardScreen(
             }
 
             uiState.errorMessage?.let { error ->
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
                         .padding(16.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(c.errorBg)
-                        .padding(12.dp)
-                        .align(Alignment.BottomCenter)
+                        .padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(error, color = c.error, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        error,
+                        color = c.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = { viewModel.clearError() }) {
+                        Text("Dismiss", color = c.error, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
@@ -455,61 +564,216 @@ private fun TopBar(
     }
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
-                modifier = Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onMenuClick),
+                modifier = Modifier.minimumInteractiveComponentSize().size(40.dp).clip(CircleShape)
+                    .clickable(onClick = onMenuClick)
+                    .semantics { role = Role.Button; contentDescription = "Open menu" },
                 contentAlignment = Alignment.Center
             ) {
-                Pop3DIcon(
-                    icon = Icons.Filled.Menu,
-                    color = c.accent,
-                    bgSize = 40.dp,
-                    iconSize = 22.dp,
-                    shape = RoundedCornerShape(12.dp)
-                )
+                HamburgerIcon(tint = c.textPrimary)
             }
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(14.dp))
             Column {
                 Text(stringResource(greetingRes), style = MaterialTheme.typography.labelMedium, color = c.textSecondary)
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(firstName, style = MaterialTheme.typography.headlineSmall, color = c.textPrimary, fontWeight = FontWeight.Bold)
-                if (classLabel.isNotBlank()) {
-                    Text(
-                        text = classLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = c.textSecondary
-                    )
-                }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Notification bell — rounded-square with a small unread dot.
             Box(
-                modifier = Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onNotificationClick),
+                modifier = Modifier.minimumInteractiveComponentSize().size(40.dp).clip(RoundedCornerShape(12.dp))
+                    .background(c.accentBg).clickable(onClick = onNotificationClick)
+                    .semantics { role = Role.Button },
                 contentAlignment = Alignment.Center
             ) {
+                Icon(Icons.Filled.Notifications, stringResource(R.string.cd_notifications), tint = c.textSecondary, modifier = Modifier.size(18.dp))
                 Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(c.glass),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Notifications, stringResource(R.string.cd_notifications), tint = c.textPrimary, modifier = Modifier.size(20.dp))
-                }
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(c.error)
+                )
             }
+            // Avatar — rounded-square gradient with initials.
             Box(
-                modifier = Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onProfileClick),
+                modifier = Modifier.minimumInteractiveComponentSize().size(42.dp).clip(RoundedCornerShape(14.dp)).background(
+                    Brush.linearGradient(listOf(c.accent, c.accentSecondary))
+                ).clickable(onClick = onProfileClick)
+                    .semantics { role = Role.Button; contentDescription = "Open profile" },
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(
-                        Brush.linearGradient(listOf(c.accent, c.accentSecondary))
-                    ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(initials, style = MaterialTheme.typography.labelLarge, color = c.onBanner, fontWeight = FontWeight.Bold)
-                }
+                Text(initials, style = MaterialTheme.typography.labelLarge, color = c.onBanner, fontWeight = FontWeight.Bold)
             }
+        }
+    }
+}
+
+/**
+ * Custom hamburger glyph matching the design system — three rounded lines
+ * of decreasing width (top longest, middle shortest). Plain stroke, no
+ * background, so it reads as a lightweight menu affordance.
+ */
+@Composable
+private fun HamburgerIcon(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(width = 22.dp, height = 16.dp)) {
+        val sw = 1.8.dp.toPx()
+        val w = size.width
+        val yTop = sw / 2f
+        val yMid = size.height / 2f
+        val yBot = size.height - sw / 2f
+        drawLine(tint, Offset(0f, yTop), Offset(w, yTop), strokeWidth = sw, cap = StrokeCap.Round)
+        drawLine(tint, Offset(0f, yMid), Offset(w * 0.62f, yMid), strokeWidth = sw, cap = StrokeCap.Round)
+        drawLine(tint, Offset(0f, yBot), Offset(w * 0.82f, yBot), strokeWidth = sw, cap = StrokeCap.Round)
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Search row — glass search field + accent grid/bento button
+// ───────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun DashboardSearchRow(onSearch: () -> Unit, onGrid: () -> Unit) {
+    val c = LocalAppColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .height(46.dp)
+                .glassCard(14.dp)
+                .clickable(onClick = onSearch)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.Search, null, tint = c.textTertiary, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(10.dp))
+            Text("Search…", style = MaterialTheme.typography.bodyMedium, color = c.textTertiary)
+        }
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(c.accent)
+                .clickable(onClick = onGrid),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.GridView, null, tint = c.onBanner, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Collapsible section — header with a chevron toggle that minimizes /
+// maximizes the section body. Used by every dashboard section.
+// ───────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun CollapseToggle(expanded: Boolean, onToggle: () -> Unit) {
+    val c = LocalAppColors.current
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 0f else 180f,
+        animationSpec = tween(300),
+        label = "chevron-rotation"
+    )
+    Box(
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .size(26.dp)
+            .clip(CircleShape)
+            .background(c.accentBg)
+            .clickable(onClick = onToggle)
+            .semantics { role = Role.Button },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            Icons.Filled.KeyboardArrowDown,
+            contentDescription = if (expanded) "Collapse" else "Expand",
+            tint = c.textTertiary,
+            modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = rotation }
+        )
+    }
+}
+
+@Composable
+private fun CollapsibleSection(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    val c = LocalAppColors.current
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = c.textPrimary, fontWeight = FontWeight.SemiBold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (expanded && actionLabel != null && onAction != null) {
+                    Text(
+                        actionLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = c.accent,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.clickable(onClick = onAction).padding(end = 10.dp)
+                    )
+                }
+                CollapseToggle(expanded = expanded, onToggle = onToggle)
+            }
+        }
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                content()
+            }
+        }
+    }
+}
+
+/**
+ * Plain section header — title with an optional right-aligned text link
+ * (e.g. "View All →"). No collapse chevron; used by every section except
+ * Highlights, matching the design-system home layout.
+ */
+@Composable
+private fun PlainSectionHeader(
+    title: String,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
+) {
+    val c = LocalAppColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(title, style = MaterialTheme.typography.titleMedium, color = c.textPrimary, fontWeight = FontWeight.SemiBold)
+        if (actionLabel != null && onAction != null) {
+            Text(
+                actionLabel,
+                style = MaterialTheme.typography.labelLarge,
+                color = c.accentSecondary,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.clickable(onClick = onAction)
+            )
         }
     }
 }
@@ -593,294 +857,58 @@ private fun StudentIdCard(
 private fun KpiGrid(
     attendancePct: Float,
     attendanceChange: Float?,
-    pendingFeeAmount: Double,
-    feesLoadFailed: Boolean,
+    attendanceFailed: Boolean,
     homeworkCount: Int,
+    homeworkFailed: Boolean,
     noticeCount: Int,
     onAttendance: () -> Unit,
-    onFees: () -> Unit,
     onHomework: () -> Unit,
     onNotices: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionHeader(title = "Overview")
+        PlainSectionHeader(title = "Overview")
+        // Bento: Attendance is the tall hero tile (left); Homework and Notices
+        // stack in the right column. Heights driven by weights so the left
+        // tile matches the combined right column exactly.
         Row(
-            modifier = Modifier.fillMaxWidth().height(170.dp),
+            modifier = Modifier.fillMaxWidth().height(212.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             AttendanceRingCard(
                 percentage = attendancePct,
                 change = attendanceChange,
+                loadFailed = attendanceFailed,
                 modifier = Modifier.weight(1f).fillMaxHeight()
                     .bouncyClickable(onClick = onAttendance)
             )
-            FeesDueCard(
-                amount = pendingFeeAmount,
-                loadFailed = feesLoadFailed,
-                modifier = Modifier.weight(1f).fillMaxHeight()
-                    .bouncyClickable(onClick = onFees)
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().height(110.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            CountTileCard(
-                icon = Icons.AutoMirrored.Filled.Assignment,
-                iconColor = Color(0xFFE65100),
-                label = "Homework",
-                value = homeworkCount.toString(),
-                sublabel = if (homeworkCount == 1) "task pending" else "tasks pending",
-                modifier = Modifier.weight(1f).fillMaxHeight()
-                    .bouncyClickable(onClick = onHomework)
-            )
-            CountTileCard(
-                icon = Icons.Filled.Campaign,
-                iconColor = Color(0xFF6A1B9A),
-                label = "Notices",
-                value = noticeCount.toString(),
-                sublabel = if (noticeCount == 1) "new circular" else "new circulars",
-                modifier = Modifier.weight(1f).fillMaxHeight()
-                    .bouncyClickable(onClick = onNotices)
-            )
-        }
-    }
-}
-
-@Composable
-private fun ClassTeacherCard(
-    entry: MyTeachersFirestoreRepository.TeacherEntry,
-    subjects: List<String>,
-    onMessage: () -> Unit,
-) {
-    val c = LocalAppColors.current
-    val context = LocalContext.current
-    val staff = entry.staff
-    val assignment = entry.assignment
-
-    // Display name prefers the live staff doc; assignment.teacherName is
-    // a snapshot fallback for the rare case the staff lookup failed.
-    val displayName = staff?.name?.takeIf { it.isNotBlank() }
-        ?: assignment.teacherName.ifBlank { "Class Teacher" }
-    val photo = staff?.profilePic.orEmpty()
-    val phoneRaw = staff?.phone.orEmpty().trim()
-
-    // Two-letter initials (first + last word) — feels more "named" than
-    // a single letter, and works for "Vipul Tiwari" → "VT".
-    val initials = run {
-        val parts = displayName.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-        when {
-            parts.isEmpty() -> "?"
-            parts.size == 1 -> parts[0].take(2).uppercase()
-            else -> (parts.first().take(1) + parts.last().take(1)).uppercase()
-        }
-    }
-
-    // Class/section pulled from assignment, not staff profile.
-    val classSection = listOf(assignment.className, assignment.section)
-        .filter { it.isNotBlank() }
-        .joinToString(" / ")
-    val subjectsLine = subjects.joinToString(" • ")
-
-    // Wide-shallow rectangle: avatar (left) | info column (centre, weight=1) |
-    // action icons (right). Outer horizontal padding tightened from 16dp →
-    // 10dp so the card stretches further across the screen and reads
-    // distinctly as a horizontal strip rather than a square chip.
-    //
-    // Coloring: indigo palette (was teal accent). Card-local constants so
-    // the rest of the dashboard's accent system stays unchanged — only
-    // this card uses the indigo treatment so the class-teacher tile reads
-    // as visually pinned and distinct from the surrounding tiles.
-    val cardPrimary   = Color(0xFF4F46E5)   // indigo-600
-    val cardSecondary = Color(0xFF7C3AED)   // violet-600
-    val cardShape = RoundedCornerShape(18.dp)
-    val cardBrush = Brush.horizontalGradient(
-        colors = listOf(
-            cardPrimary.copy(alpha = 0.22f),
-            cardSecondary.copy(alpha = 0.10f),
-            cardPrimary.copy(alpha = 0.04f),
-        ),
-    )
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 4.dp)
-            .clip(cardShape)
-            .background(cardBrush, cardShape)
-            .border(1.dp, cardPrimary.copy(alpha = 0.28f), cardShape)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // Avatar — solid indigo fill so the colored circle anchors the card
-        // visually. White initials sit on top for high contrast.
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .clip(CircleShape)
-                .background(cardPrimary),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (photo.isNotBlank()) {
-                AsyncImage(
-                    model = photo,
-                    contentDescription = displayName,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().clip(CircleShape),
-                )
-            } else {
-                Text(
-                    text = initials,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    letterSpacing = 0.5.sp,
-                )
-            }
-        }
-        Spacer(Modifier.width(11.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            // Solid indigo badge — clearer signal of role.
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(cardPrimary)
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "CLASS TEACHER",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    letterSpacing = 0.6.sp,
+                CountTileCard(
+                    icon = Icons.AutoMirrored.Outlined.Assignment,
+                    iconColor = Color(0xFFE65100),
+                    label = "Homework",
+                    value = if (homeworkFailed) "—" else homeworkCount.toString(),
+                    sublabel = when {
+                        homeworkFailed -> "Tap to retry"
+                        homeworkCount == 1 -> "task pending"
+                        else -> "tasks pending"
+                    },
+                    modifier = Modifier.fillMaxWidth().weight(1f)
+                        .bouncyClickable(onClick = onHomework)
+                )
+                CountTileCard(
+                    icon = Icons.Outlined.Campaign,
+                    iconColor = Color(0xFF6A1B9A),
+                    label = "Notices",
+                    value = noticeCount.toString(),
+                    sublabel = if (noticeCount == 1) "new circular" else "new circulars",
+                    modifier = Modifier.fillMaxWidth().weight(1f)
+                        .bouncyClickable(onClick = onNotices)
                 )
             }
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = displayName,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = c.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            // Class / section row — School icon (indigo) + class label.
-            if (classSection.isNotBlank()) {
-                Spacer(Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.School,
-                        contentDescription = null,
-                        tint = cardPrimary,
-                        modifier = Modifier.size(11.dp),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = classSection,
-                        fontSize = 11.sp,
-                        color = c.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            // Dedicated subjects row — MenuBook icon (violet) + violet
-            // "Teaches:" lead-in.
-            if (subjectsLine.isNotBlank()) {
-                Spacer(Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                        contentDescription = null,
-                        tint = cardSecondary,
-                        modifier = Modifier.size(11.dp),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "Teaches: ",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = cardSecondary,
-                    )
-                    Text(
-                        text = subjectsLine,
-                        fontSize = 11.sp,
-                        color = c.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
         }
-
-        // Right-side icon-only actions — solid-fill accent circles so they
-        // pop against the gradient backdrop. Call only renders when the
-        // staff doc has a phone; both honour the runtime active check
-        // (loader filters Inactive staff but a deactivation can race with
-        // a tap).
-        Spacer(Modifier.width(8.dp))
-        if (phoneRaw.isNotBlank()) {
-            ClassTeacherIconAction(
-                icon = Icons.Filled.Call,
-                accentBg = cardPrimary,
-                iconTint = Color.White,
-                label = "Call",
-                onClick = {
-                    val isActive = staff?.status?.equals("Active", ignoreCase = true) == true
-                    if (!isActive) {
-                        Toast.makeText(context, "Class teacher is not currently active.", Toast.LENGTH_SHORT).show()
-                        return@ClassTeacherIconAction
-                    }
-                    try {
-                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phoneRaw))
-                        context.startActivity(intent)
-                    } catch (_: Exception) {
-                        Toast.makeText(context, "Could not open dialer.", Toast.LENGTH_SHORT).show()
-                    }
-                },
-            )
-            Spacer(Modifier.width(6.dp))
-        }
-        ClassTeacherIconAction(
-            icon = Icons.Filled.Chat,
-            accentBg = cardSecondary,
-            iconTint = Color.White,
-            label = "Message",
-            onClick = {
-                val isActive = staff?.status?.equals("Active", ignoreCase = true) == true
-                if (isActive) {
-                    onMessage()
-                } else {
-                    Toast.makeText(context, "Class teacher is not currently active.", Toast.LENGTH_SHORT).show()
-                }
-            },
-        )
-    }
-}
-
-/** Compact filled-circle icon button for the class-teacher card. */
-@Composable
-private fun ClassTeacherIconAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    accentBg: Color,
-    iconTint: Color,
-    label: String,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(accentBg)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = iconTint,
-            modifier = Modifier.size(16.dp),
-        )
     }
 }
 
@@ -888,62 +916,92 @@ private fun ClassTeacherIconAction(
 private fun AttendanceRingCard(
     percentage: Float,
     change: Float?,
+    loadFailed: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val c = LocalAppColors.current
     val whole = percentage.toInt()
     val decimal = ".${((percentage - whole) * 10).toInt().coerceAtLeast(0)}%"
     val animatedSweep by animateFloatAsState(
-        targetValue = percentage / 100f * 360f,
+        // When the load failed we don't sweep the ring at all — a 0° arc
+        // reads as "no data" rather than a misleading real 0%.
+        targetValue = if (loadFailed) 0f else percentage / 100f * 360f,
         animationSpec = Motion.slow(),
         label = "attendanceSweep"
     )
     Column(
-        modifier = modifier.glassCard(20.dp).padding(14.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+        modifier = modifier.glassCard(20.dp).padding(16.dp)
     ) {
         Text("ATTENDANCE", style = OverlineLabel, color = c.textTertiary)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(72.dp), contentAlignment = Alignment.Center) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val stroke = 7.dp.toPx()
-                    val arcSize = Size(size.width - stroke, size.height - stroke)
-                    val topLeft = Offset(stroke / 2f, stroke / 2f)
-                    drawArc(
-                        color = c.glassBorder,
-                        startAngle = 0f, sweepAngle = 360f, useCenter = false,
-                        topLeft = topLeft, size = arcSize,
-                        style = Stroke(width = stroke, cap = StrokeCap.Round)
-                    )
-                    drawArc(
-                        brush = Brush.sweepGradient(listOf(c.accent, c.success, c.accent)),
-                        startAngle = -90f, sweepAngle = animatedSweep, useCenter = false,
-                        topLeft = topLeft, size = arcSize,
-                        style = Stroke(width = stroke, cap = StrokeCap.Round)
-                    )
-                }
-                Text(
-                    "$whole%",
-                    style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                    color = c.textPrimary
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Big ring centered in the tile, with the whole number large and the
+        // decimal small beneath it.
+        Box(
+            modifier = Modifier.align(Alignment.CenterHorizontally).size(112.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val stroke = 9.dp.toPx()
+                val arcSize = Size(size.width - stroke, size.height - stroke)
+                val topLeft = Offset(stroke / 2f, stroke / 2f)
+                drawArc(
+                    color = c.glassBorder,
+                    startAngle = 0f, sweepAngle = 360f, useCenter = false,
+                    topLeft = topLeft, size = arcSize,
+                    style = Stroke(width = stroke, cap = StrokeCap.Round)
+                )
+                drawArc(
+                    brush = Brush.sweepGradient(listOf(c.accent, c.success, c.accent)),
+                    startAngle = -90f, sweepAngle = animatedSweep, useCenter = false,
+                    topLeft = topLeft, size = arcSize,
+                    style = Stroke(width = stroke, cap = StrokeCap.Round)
                 )
             }
-            Spacer(modifier = Modifier.width(10.dp))
-            Column {
-                Text("This month", style = MaterialTheme.typography.labelSmall, color = c.textTertiary)
-                Text("$whole$decimal", style = MetricSmall, color = c.textPrimary)
-                if (change != null) {
-                    val isRise = change >= 0f
-                    val arrow = if (isRise) "▲" else "▼"
-                    val color = if (isRise) c.success else c.error
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (loadFailed) {
+                    // Failed-to-load state: dash + retry hint instead of 0%.
                     Text(
-                        "$arrow ${"%.1f".format(kotlin.math.abs(change))}%",
+                        "—",
+                        style = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.Bold),
+                        color = c.textTertiary
+                    )
+                    Text(
+                        "Tap to retry",
                         style = MaterialTheme.typography.labelSmall,
-                        color = color,
-                        fontWeight = FontWeight.SemiBold
+                        color = c.warning
+                    )
+                } else {
+                    Text(
+                        "$whole",
+                        style = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp),
+                        color = c.textPrimary
+                    )
+                    Text(
+                        decimal,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = c.textTertiary
                     )
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Centered trend footer — e.g. "↑ +1.2% this month".
+        if (change != null && !loadFailed) {
+            val isRise = change >= 0f
+            val arrow = if (isRise) "↑" else "↓"
+            val sign = if (isRise) "+" else "−"
+            val color = if (isRise) c.success else c.error
+            Text(
+                "$arrow $sign${"%.1f".format(kotlin.math.abs(change))}% this month",
+                style = MaterialTheme.typography.labelMedium,
+                color = color,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
         }
     }
 }
@@ -1036,14 +1094,23 @@ private fun CountTileCard(
         modifier = modifier.glassCard(16.dp).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Pop3DIcon(
-            icon = icon,
-            color = iconColor,
-            bgSize = 44.dp,
-            iconSize = 22.dp,
-            shape = RoundedCornerShape(13.dp)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
+        // Flat tinted icon chip — no 3D gradient, matching the minimal
+        // icon language used across the dashboard.
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(13.dp))
+                .background(iconColor.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(label.uppercase(), style = OverlineLabel, color = c.textTertiary)
             Text(value, style = MetricLarge, color = c.textPrimary)
@@ -1057,14 +1124,53 @@ private fun CountTileCard(
 // ───────────────────────────────────────────────────────────────────────────
 
 private data class QuickAction(
+    val key: String,
     val icon: ImageVector,
     val color: Color,
     val label: String,
-    val onClick: () -> Unit
+    val emoji: String,
+    val onClick: () -> Unit,
+    val badgeCount: Int = 0
 )
 
+/**
+ * SharedPreferences store for per-feature usage (count + last-used time),
+ * scoped PER USER so each logged-in parent/ward gets their own priority list.
+ * Blank userId falls back to a shared store (pre-login / unknown user).
+ */
+private fun featureUsagePrefsName(userId: String): String =
+    if (userId.isBlank()) "feature_usage" else "feature_usage_$userId"
+
+/** Records one use of [key] for [userId] — bumps count + last-used timestamp. */
+private fun recordFeatureUse(context: android.content.Context, userId: String, key: String) {
+    val p = context.getSharedPreferences(featureUsagePrefsName(userId), android.content.Context.MODE_PRIVATE)
+    val count = p.getInt("c_$key", 0) + 1
+    p.edit().putInt("c_$key", count).putLong("t_$key", System.currentTimeMillis()).apply()
+}
+
+/**
+ * Ranks [allKeys] by how THIS user actually uses them: most-used first,
+ * most-recent as the tie-break, then the default authoring order. Returns
+ * the top [limit].
+ */
+private fun rankedFeatureKeys(
+    context: android.content.Context,
+    userId: String,
+    allKeys: List<String>,
+    limit: Int
+): List<String> {
+    val p = context.getSharedPreferences(featureUsagePrefsName(userId), android.content.Context.MODE_PRIVATE)
+    return allKeys
+        .sortedWith(
+            compareByDescending<String> { p.getInt("c_$it", 0) }
+                .thenByDescending { p.getLong("t_$it", 0L) }
+                .thenBy { allKeys.indexOf(it) }
+        )
+        .take(limit)
+}
+
 @Composable
-private fun ShortcutsBento(
+private fun QuickActionsSection(
     onFees: () -> Unit,
     onAttendance: () -> Unit,
     onResults: () -> Unit,
@@ -1074,68 +1180,120 @@ private fun ShortcutsBento(
     onLibrary: () -> Unit,
     onGallery: () -> Unit,
     onPtm: () -> Unit = {},
-    onRedFlags: () -> Unit = {}
+    onRedFlags: () -> Unit = {},
+    onHomework: () -> Unit = {},
+    homeworkCount: Int = 0,
+    flagCount: Int = 0,
+    usageTick: Int = 0,
+    userId: String = ""
 ) {
     val c = LocalAppColors.current
-    // Ordered by parent-value: daily → weekly → occasional.
-    // Red Flags is placed up-front (red icon) since it surfaces urgent
-    // teacher-raised concerns parents need to act on quickly.
-    val actions = listOf(
-        QuickAction(Icons.Filled.Flag,                                Color(0xFFD32F2F),  "Red Flags",   onRedFlags),
-        QuickAction(Icons.Filled.Payment,                             c.accent,           "Pay Fees",    onFees),
-        QuickAction(Icons.Filled.CalendarMonth,                       Color(0xFF1565C0),  "Attendance",  onAttendance),
-        QuickAction(Icons.AutoMirrored.Filled.Grading,                Color(0xFF2E7D32),  "Results",     onResults),
-        QuickAction(Icons.Filled.Schedule,                            Color(0xFFC62828),  "Timetable",   onTimetable),
-        QuickAction(Icons.AutoMirrored.Filled.EventNote,              Color(0xFF00838F),  "Leave",       onLeave),
-        QuickAction(Icons.Filled.Event,                               Color(0xFFAD1457),  "Events",      onEvents),
-        QuickAction(Icons.Filled.EventAvailable,                      Color(0xFF6A1B9A),  "PTM",         onPtm),
-        QuickAction(Icons.AutoMirrored.Filled.MenuBook,               Color(0xFF4527A0),  "Library",     onLibrary),
-        QuickAction(Icons.Filled.Collections,                         Color(0xFFEF6C00),  "Gallery",     onGallery)
+    val context = LocalContext.current
+    // Full catalogue. Default order (used when there's no usage history yet)
+    // is by parent-value: daily → weekly → occasional. Each carries an emoji
+    // glyph rendered on a white squircle tile (see QuickActionTile).
+    val all = listOf(
+        QuickAction("homework",  Icons.Outlined.Assignment,     Color(0xFFEF6C00), "Homework",   "📝", onHomework, badgeCount = homeworkCount),
+        QuickAction("redflags",  Icons.Outlined.Flag,           Color(0xFFD32F2F), "Red Flags",  "🚩", onRedFlags, badgeCount = flagCount),
+        QuickAction("fees",      Icons.Outlined.CreditCard,     c.accent,          "Pay Fees",   "💳", onFees),
+        QuickAction("attendance",Icons.Outlined.EventAvailable, Color(0xFF1565C0), "Attendance", "✅", onAttendance),
+        QuickAction("results",   Icons.Outlined.Assessment,     Color(0xFF2E7D32), "Results",    "📊", onResults),
+        QuickAction("timetable", Icons.Outlined.Schedule,       Color(0xFFC62828), "Timetable",  "📅", onTimetable),
+        QuickAction("leave",     Icons.Outlined.EventBusy,      Color(0xFF00838F), "Leave",      "🏖️", onLeave),
+        QuickAction("events",    Icons.Outlined.Celebration,    Color(0xFFAD1457), "Events",     "🎉", onEvents),
+        QuickAction("ptm",       Icons.Outlined.Groups,         Color(0xFF6A1B9A), "PTM",        "👥", onPtm),
+        QuickAction("library",   Icons.Outlined.LocalLibrary,   Color(0xFF4527A0), "Library",    "📚", onLibrary),
+        QuickAction("gallery",   Icons.Outlined.PhotoLibrary,   Color(0xFFEF6C00), "Gallery",    "🖼️", onGallery)
     )
+    // Single horizontally-scrollable row. usage-ranked so the parent's most-
+    // used / recent features lead; the whole catalogue stays swipe-reachable
+    // instead of being split across a grid + side menu.
+    val shown = remember(usageTick, userId) {
+        val ranked = rankedFeatureKeys(context, userId, all.map { it.key }, all.size)
+        ranked.mapNotNull { k -> all.firstOrNull { it.key == k } }
+    }
     Column {
-        SectionHeader(title = "Shortcuts")
-        Spacer(modifier = Modifier.height(12.dp))
-        // 4 × 2 bento — one unified tile size so nothing feels secondary.
-        actions.chunked(4).forEachIndexed { rowIdx, row ->
-            if (rowIdx > 0) Spacer(modifier = Modifier.height(10.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { action ->
-                    QuickActionTile(action, modifier = Modifier.weight(1f))
-                }
-                // Pad incomplete final row so tiles keep their width.
-                repeat(4 - row.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
+        PlainSectionHeader(title = "Quick Actions")
+        Spacer(modifier = Modifier.height(14.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp)
+        ) {
+            items(shown, key = { it.key }) { action ->
+                QuickActionTile(
+                    action = action,
+                    onClick = { recordFeatureUse(context, userId, action.key); action.onClick() }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun QuickActionTile(action: QuickAction, modifier: Modifier = Modifier) {
+private fun QuickActionTile(
+    action: QuickAction,
+    onClick: () -> Unit = action.onClick,
+    modifier: Modifier = Modifier
+) {
     val c = LocalAppColors.current
+    // Compact minimal tile: a plain neutral icon-chip (no per-action color) over
+    // a soft label. Fixed narrow width so many fit in the horizontal scroll; an
+    // optional red count badge tucks over the chip's top-right.
     Column(
         modifier = modifier
-            .glassCard(14.dp)
-            .clickable(onClick = action.onClick)
-            .padding(vertical = 12.dp),
+            .width(68.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Pop3DIcon(
-            icon = action.icon,
-            color = action.color,
-            bgSize = 48.dp,
-            iconSize = 24.dp,
-            shape = RoundedCornerShape(15.dp)
-        )
-        Spacer(modifier = Modifier.height(6.dp))
+        Box {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(c.surfaceElevated)
+                    .border(1.dp, c.divider, RoundedCornerShape(18.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = action.icon,
+                    contentDescription = null,
+                    tint = c.textSecondary,
+                    modifier = Modifier.size(25.dp)
+                )
+            }
+            if (action.badgeCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 6.dp, y = (-6).dp)
+                        .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE53935))
+                        .border(2.dp, c.bgStart, CircleShape)
+                        .padding(horizontal = 5.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        if (action.badgeCount > 99) "99+" else action.badgeCount.toString(),
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(7.dp))
         Text(
             action.label,
-            style = MaterialTheme.typography.labelMedium,
-            color = c.textPrimary,
+            style = MaterialTheme.typography.labelSmall,
+            color = c.textSecondary,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
 }
@@ -1519,6 +1677,110 @@ private fun EventBannerCard(event: Event, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Highlights banner — gradient promo-style card matching the design system.
+ * Populated with real school events: category tag top-left, emoji top-right,
+ * title + (date · location) at the bottom, over a soft gradient.
+ */
+@Composable
+private fun HighlightBannerCard(
+    event: Event,
+    gradient: Pair<Color, Color>,
+    onClick: () -> Unit
+) {
+    val category = event.category.lowercase()
+    val emoji = when (category) {
+        "cultural" -> "🎭"; "sports" -> "⚽"
+        "academic" -> "📚"; "exam" -> "📝"
+        "holiday" -> "🎉"
+        "ptm"     -> "👥"; else -> "📅"
+    }
+    val tag = event.category.ifBlank { "Event" }.replaceFirstChar { it.uppercase() }
+    val sub = listOfNotNull(
+        formatEventDate(event.startDate).ifBlank { event.startDate }.takeIf { it.isNotBlank() },
+        event.location.takeIf { it.isNotBlank() }
+    ).joinToString(" · ")
+
+    Box(
+        modifier = Modifier
+            .width(280.dp)
+            .height(130.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.linearGradient(listOf(gradient.first, gradient.second)))
+            .clickable(onClick = onClick)
+    ) {
+        // Event cover photo (from the event's media, or borrowed from its
+        // gallery album) as a full-bleed backdrop behind the gradient scrim.
+        val firstImage = event.mediaUrls.firstOrNull { it.type == "image" }?.url
+        if (firstImage != null) {
+            AsyncImage(
+                model = firstImage,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Black.copy(alpha = 0.25f), Color.Black.copy(alpha = 0.78f))
+                        )
+                    )
+            )
+        }
+        // Decorative soft circle, top-right, bleeding off the edge.
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 20.dp, y = (-20).dp)
+                .size(80.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.06f))
+        )
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White.copy(alpha = 0.15f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(tag, style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.SemiBold)
+                }
+                Text(emoji, fontSize = 26.sp)
+            }
+            Column {
+                Text(
+                    event.title.ifBlank { "School event" },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (sub.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        sub,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.65f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
 /** Days between today and the given ISO date (yyyy-MM-dd). Null on parse failure. */
 private fun computeDaysUntil(iso: String): Long? {
     if (iso.isBlank()) return null
@@ -1552,7 +1814,10 @@ private data class Pulse(
     val subtitle: String,
     val icon: ImageVector,
     val tint: Color,
-    val onClick: () -> Unit
+    val onClick: () -> Unit,
+    // Short call-to-action shown on the right of the minimal pill (e.g. "Pay",
+    // "View"). Blank hides the action chevron — used for calm/celebrate states.
+    val action: String = ""
 )
 
 private enum class PulseKind { FEES, PTM, ATTENDANCE, HOMEWORK, EVENT, NOTICE, CELEBRATE }
@@ -1583,11 +1848,12 @@ private fun buildPulses(
         val amt = formatRupees(pendingFeeAmount)
         out += Pulse(
             kind = PulseKind.FEES,
-            title = "Fees due: $amt",
+            title = "Fees due · $amt",
             subtitle = "Tap to pay securely",
             icon = Icons.Filled.CreditCard,
-            tint = Color(0xFFD84315),
-            onClick = onFees
+            tint = c.warning,
+            onClick = onFees,
+            action = "Pay"
         )
     }
 
@@ -1604,11 +1870,12 @@ private fun buildPulses(
         }
         out += Pulse(
             kind = PulseKind.PTM,
-            title = "PTM: $timing",
+            title = "PTM \u00B7 $timing",
             subtitle = "Tap to RSVP \u00B7 ${nextPtm.title.ifBlank { "Parent-Teacher Meeting" }}",
             icon = Icons.Filled.EventAvailable,
-            tint = Color(0xFF1565C0),
-            onClick = { onPtm(nextPtm.ptmEventId.ifBlank { nextPtm.id }) }
+            tint = c.info,
+            onClick = { onPtm(nextPtm.ptmEventId.ifBlank { nextPtm.id }) },
+            action = "RSVP"
         )
     }
 
@@ -1626,11 +1893,12 @@ private fun buildPulses(
                 title = "${nextEvent.title.ifBlank { "School event" }} · $when_",
                 subtitle = nextEvent.location.ifBlank { "Tap for details" },
                 icon = Icons.Filled.Event,
-                tint = Color(0xFFAD1457),
+                tint = c.coral,
                 onClick = {
                     if (nextEvent.eventId.isNotBlank()) onEventDetail(nextEvent.eventId)
                     else onEvents()
-                }
+                },
+                action = "View"
             )
         }
     }
@@ -1640,26 +1908,28 @@ private fun buildPulses(
         when {
             attendancePct < 75f -> out += Pulse(
                 kind = PulseKind.ATTENDANCE,
-                title = "Attendance low: ${attendancePct.toInt()}%",
+                title = "Attendance low · ${attendancePct.toInt()}%",
                 subtitle = "Below 75% — schools often require 75%+",
                 icon = Icons.Filled.Warning,
-                tint = Color(0xFFEF6C00),
-                onClick = onAttendance
+                tint = c.warning,
+                onClick = onAttendance,
+                action = "View"
             )
             attendanceChange != null && attendanceChange < -3f -> out += Pulse(
                 kind = PulseKind.ATTENDANCE,
-                title = "Attendance dropping",
+                title = "Attendance dropping · -${"%.1f".format(kotlin.math.abs(attendanceChange))}%",
                 subtitle = "Down ${"%.1f".format(kotlin.math.abs(attendanceChange))}% this month",
                 icon = Icons.AutoMirrored.Filled.TrendingDown,
-                tint = Color(0xFFEF6C00),
-                onClick = onAttendance
+                tint = c.warning,
+                onClick = onAttendance,
+                action = "View"
             )
             attendancePct >= 92f -> out += Pulse(
                 kind = PulseKind.CELEBRATE,
-                title = "Great attendance!",
+                title = "Great attendance · ${attendancePct.toInt()}%",
                 subtitle = "${attendancePct.toInt()}% this month · keep it up",
                 icon = Icons.AutoMirrored.Filled.TrendingUp,
-                tint = Color(0xFF2E7D32),
+                tint = c.success,
                 onClick = onAttendance
             )
         }
@@ -1669,11 +1939,12 @@ private fun buildPulses(
     if (pendingHomework > 0) {
         out += Pulse(
             kind = PulseKind.HOMEWORK,
-            title = "$pendingHomework homework pending",
+            title = "Homework · $pendingHomework pending",
             subtitle = "Review with your child today",
             icon = Icons.AutoMirrored.Filled.Assignment,
-            tint = Color(0xFFE65100),
-            onClick = onHomework
+            tint = c.teal,
+            onClick = onHomework,
+            action = "View"
         )
     }
 
@@ -1681,11 +1952,12 @@ private fun buildPulses(
     if (noticeCount > 0) {
         out += Pulse(
             kind = PulseKind.NOTICE,
-            title = "$noticeCount new notice${if (noticeCount == 1) "" else "s"}",
+            title = "Notices · $noticeCount new",
             subtitle = "From school · tap to read",
             icon = Icons.Filled.Campaign,
-            tint = Color(0xFF6A1B9A),
-            onClick = onNotices
+            tint = c.purple,
+            onClick = onNotices,
+            action = "Read"
         )
     }
 
@@ -1706,8 +1978,9 @@ private fun buildPulses(
 @Composable
 private fun PulseStrip(pulses: List<Pulse>) {
     Column {
-        SectionHeader(title = "Today's Pulse")
-        Spacer(modifier = Modifier.height(10.dp))
+        PlainSectionHeader(title = "Today's Pulse")
+        Spacer(modifier = Modifier.height(12.dp))
+        // Colored alert pills in a horizontal scroll.
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1724,36 +1997,39 @@ private fun PulseCard(pulse: Pulse) {
     val c = LocalAppColors.current
     Row(
         modifier = Modifier
-            .width(260.dp)
-            .glassCard(16.dp)
+            .widthIn(min = 236.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(pulse.tint.copy(alpha = 0.10f))
+            .border(1.dp, c.divider, RoundedCornerShape(16.dp))
             .clickable(onClick = pulse.onClick)
-            .padding(12.dp),
+            .padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Pop3DIcon(
-            icon = pulse.icon,
-            color = pulse.tint,
-            bgSize = 42.dp,
-            iconSize = 22.dp,
-            shape = RoundedCornerShape(12.dp)
+        // Status dot in the pulse's tint, with a soft colored glow.
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .shadow(elevation = 4.dp, shape = CircleShape, ambientColor = pulse.tint, spotColor = pulse.tint)
+                .clip(CircleShape)
+                .background(pulse.tint)
         )
         Spacer(modifier = Modifier.width(10.dp))
-        Column(modifier = Modifier.fillMaxHeight()) {
+        Text(
+            text = pulse.title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = c.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        if (pulse.action.isNotBlank()) {
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
-                pulse.title,
-                style = MaterialTheme.typography.labelLarge,
-                color = c.textPrimary,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                pulse.subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = c.textSecondary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                text = "${pulse.action} →",
+                style = MaterialTheme.typography.bodyMedium,
+                color = pulse.tint,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
             )
         }
     }
@@ -1775,21 +2051,29 @@ private fun formatRupees(amount: Double): String {
     return "\u20B9${nf.format(intAmt)}"
 }
 
-/** Days between today (local) and the given ISO yyyy-MM-dd. Null on parse failure. */
+/**
+ * Whole IST calendar-days between today and the given date string. Null on
+ * parse failure. Robust to the time-bearing ISO ("…T23:59:59+05:30"), bare
+ * "yyyy-MM-dd", and the other shapes the homework list handles — it reuses
+ * HomeworkViewModel.parseDueDate so labels agree across screens. Difference is
+ * computed on IST calendar-day boundaries (Asia/Kolkata), consistent with the
+ * homework due-date labels.
+ */
 private fun daysUntilIso(iso: String): Long? {
     if (iso.isBlank()) return null
-    return try {
-        val parser = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-        parser.isLenient = false
-        val target = parser.parse(iso) ?: return null
-        val now = java.util.Calendar.getInstance().apply {
+    val target = com.schoolsync.parent.ui.homework.HomeworkViewModel.parseDueDate(iso) ?: return null
+    val ist = java.util.TimeZone.getTimeZone("Asia/Kolkata")
+    fun istDayIndex(d: java.util.Date): Long {
+        val c = java.util.Calendar.getInstance(ist).apply {
+            time = d
             set(java.util.Calendar.HOUR_OF_DAY, 0)
             set(java.util.Calendar.MINUTE, 0)
             set(java.util.Calendar.SECOND, 0)
             set(java.util.Calendar.MILLISECOND, 0)
-        }.timeInMillis
-        (target.time - now) / (1000L * 60L * 60L * 24L)
-    } catch (_: Exception) { null }
+        }
+        return c.timeInMillis / 86_400_000L
+    }
+    return istDayIndex(target) - istDayIndex(java.util.Date())
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -1930,28 +2214,15 @@ private fun currentMinuteOfDay(): Int {
 @Composable
 private fun HomeworkPreviewSection(
     items: List<com.schoolsync.parent.data.model.firestore.HomeworkDoc>,
-    onViewAll: () -> Unit
+    onViewAll: () -> Unit,
+    onOpenItem: (com.schoolsync.parent.data.model.firestore.HomeworkDoc) -> Unit
 ) {
-    val c = LocalAppColors.current
     Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SectionHeader(title = "Today's Homework")
-            Row(
-                modifier = Modifier.clickable(onClick = onViewAll),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("View All", style = MaterialTheme.typography.labelLarge, color = c.accent, fontWeight = FontWeight.Medium)
-                Icon(Icons.Filled.ChevronRight, null, tint = c.accent, modifier = Modifier.size(18.dp))
-            }
-        }
+        PlainSectionHeader(title = "Today's Homework", actionLabel = "View All ›", onAction = onViewAll)
         Spacer(modifier = Modifier.height(12.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items.take(3).forEach { hw ->
-                HomeworkRow(hw = hw, onClick = onViewAll)
+                HomeworkRow(hw = hw, onClick = { onOpenItem(hw) })
             }
         }
     }
@@ -1968,36 +2239,48 @@ private fun HomeworkRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .glassCard(12.dp)
+            .glassCard(16.dp)
             .clickable(onClick = onClick)
-            .padding(12.dp),
+            .padding(horizontal = 18.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Pop3DIcon(
-            icon = Icons.AutoMirrored.Filled.Assignment,
-            color = tint,
-            bgSize = 38.dp,
-            iconSize = 20.dp,
-            shape = RoundedCornerShape(11.dp)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
+        // Flat, minimal icon chip — subtle tinted square instead of the
+        // heavy 3D gradient, so the card reads calm and uncluttered.
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(tint.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Assignment,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (hw.subject.isNotBlank()) {
                     Text(
                         hw.subject.uppercase(),
-                        style = OverlineLabel,
+                        style = MaterialTheme.typography.labelSmall,
                         color = tint,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
                 if (due.label.isNotBlank()) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(due.tint.copy(alpha = 0.18f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .background(due.tint.copy(alpha = 0.14f))
+                            .padding(horizontal = 9.dp, vertical = 2.dp)
                     ) {
                         Text(
                             due.label,
@@ -2008,16 +2291,17 @@ private fun HomeworkRow(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(7.dp))
             Text(
                 hw.title.ifBlank { "(Untitled)" },
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium,
                 color = c.textPrimary,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             if (hw.teacherName.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     hw.teacherName,
                     style = MaterialTheme.typography.labelSmall,
@@ -2027,6 +2311,7 @@ private fun HomeworkRow(
                 )
             }
         }
+        Spacer(modifier = Modifier.width(12.dp))
         Icon(
             Icons.Filled.ChevronRight,
             contentDescription = null,
@@ -2052,23 +2337,26 @@ private fun formatHomeworkDue(dueDate: String): DueLabel {
     }
 }
 
-/** Stable subject → color mapping so the same subject always tints the same. */
+/**
+ * Subject → color mapping. Reuses the homework list's subject→colorKey map
+ * (getSubjectInfo) so the same subject tints identically on the dashboard and
+ * the homework screen, instead of the old hashCode palette which disagreed.
+ */
 @Composable
 private fun subjectColor(subject: String): Color {
     val c = LocalAppColors.current
-    val palette = listOf(
-        Color(0xFF1565C0),  // blue
-        Color(0xFF2E7D32),  // green
-        Color(0xFFEF6C00),  // orange
-        Color(0xFF6A1B9A),  // purple
-        Color(0xFFC62828),  // red
-        Color(0xFF00838F),  // teal
-        Color(0xFFAD1457),  // pink
-        Color(0xFF4527A0)   // indigo
-    )
     if (subject.isBlank()) return c.accent
-    val hash = subject.hashCode().let { if (it < 0) -it else it }
-    return palette[hash % palette.size]
+    return when (com.schoolsync.parent.ui.homework.getSubjectInfo(subject).colorKey) {
+        "accent" -> c.accent
+        "success" -> c.success
+        "purple" -> c.purple
+        "coral" -> c.coral
+        "teal" -> c.teal
+        "warning" -> c.warning
+        "info" -> c.info
+        "error" -> c.error
+        else -> c.accent
+    }
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -2352,6 +2640,48 @@ private fun SectionHeader(title: String) {
 // Shimmer
 // ───────────────────────────────────────────────────────────────────────────
 
+/** Skeleton for the stories ring row — a strip of pulsing circles with
+ *  a short name bar, matching the app's shimmer style. */
+@Composable
+private fun StoriesRowShimmer() {
+    val c = LocalAppColors.current
+    val transition = rememberInfiniteTransition(label = "storiesShimmer")
+    val alpha by transition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "storiesShimmerAlpha"
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        repeat(4) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(c.shimmerBase.copy(alpha = alpha))
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .width(44.dp)
+                        .height(9.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(c.shimmerBase.copy(alpha = alpha))
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun DashboardShimmer() {
     val c = LocalAppColors.current
@@ -2394,6 +2724,7 @@ private fun DashboardShimmer() {
 private fun DrawerContent(
     userName: String,
     schoolName: String,
+    photoUrl: String = "",
     onClose: () -> Unit,
     onAttendance: () -> Unit,
     onResults: () -> Unit,
@@ -2423,10 +2754,22 @@ private fun DrawerContent(
                 .statusBarsPadding()
         ) {
             Box(
-                modifier = Modifier.size(56.dp).clip(CircleShape).background(c.onBanner.copy(alpha = 0.20f)),
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(c.onBanner.copy(alpha = 0.20f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(buildInitials(userName), style = MaterialTheme.typography.titleLarge, color = c.onBanner, fontWeight = FontWeight.Bold)
+                if (photoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = photoUrl,
+                        contentDescription = "Profile",
+                        modifier = Modifier.size(56.dp).clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(buildInitials(userName), style = MaterialTheme.typography.titleLarge, color = c.onBanner, fontWeight = FontWeight.Bold)
+                }
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(userName, style = MaterialTheme.typography.titleLarge, color = c.onBanner, fontWeight = FontWeight.Bold)

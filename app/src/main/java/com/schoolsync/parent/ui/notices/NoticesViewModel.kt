@@ -35,25 +35,27 @@ class NoticesViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(NoticesUiState())
     val uiState: StateFlow<NoticesUiState> = _uiState.asStateFlow()
 
+    /** IDs the parent has opened (from circularReads), updated optimistically. */
+    private var readIds: Set<String> = emptySet()
+
     init {
         loadNotices()
         observeNotices()
     }
 
-    /** Notices newer than 24h are surfaced as the "new" badge count. */
+    /** Badge = genuinely UNREAD notices (from read receipts), not a 24h clock. */
     private fun publishBadge(notices: List<Notice>) {
-        val cutoff = System.currentTimeMillis() - 24L * 60 * 60 * 1000
-        val recent = notices.count { it.timestamp > cutoff }
-        badgeBus.setCount("notices", recent)
+        badgeBus.setCount("notices", notices.count { !it.isRead })
     }
 
     private fun loadNotices() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            readIds = communicationFirestoreRepo.getReadCircularIds()
 
             communicationFirestoreRepo.getCirculars().fold(
                 onSuccess = { circulars ->
-                    val notices = circulars.map { it.toNotice() }
+                    val notices = circulars.map { it.toNotice(readIds) }
                     publishBadge(notices)
                     _uiState.update { it.copy(isLoading = false, notices = notices) }
                 },
@@ -74,7 +76,7 @@ class NoticesViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 communicationFirestoreRepo.observeCirculars().collect { circulars ->
-                    val notices = circulars.map { it.toNotice() }
+                    val notices = circulars.map { it.toNotice(readIds) }
                     publishBadge(notices)
                     _uiState.update { it.copy(notices = notices, isLoading = false) }
                 }
@@ -85,10 +87,22 @@ class NoticesViewModel @Inject constructor(
     }
 
     fun toggleExpanded(noticeId: String) {
+        val opening = _uiState.value.expandedNoticeId != noticeId
         _uiState.update {
             it.copy(
                 expandedNoticeId = if (it.expandedNoticeId == noticeId) null else noticeId
             )
+        }
+        // Opening a notice marks it read: optimistic local update + best-effort
+        // receipt write (idempotent). Badge recomputes from unread.
+        if (opening && noticeId !in readIds) {
+            readIds = readIds + noticeId
+            _uiState.update { st ->
+                val updated = st.notices.map { if (it.noticeId == noticeId) it.copy(isRead = true) else it }
+                publishBadge(updated)
+                st.copy(notices = updated)
+            }
+            viewModelScope.launch { communicationFirestoreRepo.markCircularRead(noticeId) }
         }
     }
 
@@ -98,7 +112,7 @@ class NoticesViewModel @Inject constructor(
 
             communicationFirestoreRepo.getCirculars().fold(
                 onSuccess = { circulars ->
-                    val notices = circulars.map { it.toNotice() }
+                    val notices = circulars.map { it.toNotice(readIds) }
                     _uiState.update { it.copy(isRefreshing = false, notices = notices) }
                 },
                 onFailure = { e ->
@@ -119,7 +133,7 @@ class NoticesViewModel @Inject constructor(
             try {
                 communicationFirestoreRepo.getCirculars().fold(
                     onSuccess = { circulars ->
-                        val notices = circulars.map { it.toNotice() }
+                        val notices = circulars.map { it.toNotice(readIds) }
                         _uiState.update { it.copy(notices = notices) }
                     },
                     onFailure = { e ->
@@ -138,7 +152,7 @@ class NoticesViewModel @Inject constructor(
         }
     }
 
-    private fun CircularDoc.toNotice(): Notice {
+    private fun CircularDoc.toNotice(read: Set<String>): Notice {
         val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         return Notice(
             noticeId = id,
@@ -155,7 +169,8 @@ class NoticesViewModel @Inject constructor(
             priority = priority,
             attachmentUrl = attachmentUrl,
             date = sentAt.toDateOrNull()?.let { dateFormatter.format(it) } ?: "",
-            timestamp = sentAt.toEpochMillisOrNull() ?: 0L
+            timestamp = sentAt.toEpochMillisOrNull() ?: 0L,
+            isRead = id in read
         )
     }
 }

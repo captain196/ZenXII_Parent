@@ -14,7 +14,6 @@ import com.schoolsync.parent.data.remote.FeesApi
 import com.schoolsync.parent.data.repository.AttendanceRepository
 import com.schoolsync.parent.data.repository.AuthRepository
 import com.schoolsync.parent.data.repository.DataRepository
-import com.schoolsync.parent.data.repository.EventRepository
 import com.schoolsync.parent.data.repository.HomeworkRepository
 import com.schoolsync.parent.data.repository.MessageRepository
 import com.schoolsync.parent.data.repository.NoticeRepository
@@ -224,15 +223,6 @@ object AppModule {
         tokenManager: TokenManager
     ): NoticeRepository {
         return NoticeRepository(firebaseService, tokenManager)
-    }
-
-    @Provides
-    @Singleton
-    fun provideEventRepository(
-        firebaseService: FirebaseService,
-        tokenManager: TokenManager
-    ): EventRepository {
-        return EventRepository(firebaseService, tokenManager)
     }
 
     @Provides
