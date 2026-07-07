@@ -318,10 +318,13 @@ object AppModule {
     @Singleton
     fun provideTransportFirestoreRepository(
         firestoreService: FirestoreService,
-        firebaseService: FirebaseService,
         tokenManager: TokenManager
     ): TransportFirestoreRepository {
-        return TransportFirestoreRepository(firestoreService, firebaseService, tokenManager)
+        // F10 (2026-07-07) — FirebaseService (RTDB) dependency removed.
+        // The pre-existing observeVehicleLive was RTDB-backed and dead
+        // code (zero callers). Live vehicle tracking will use Firestore
+        // tripLogs.gps_session_id once the future GPS phase populates it.
+        return TransportFirestoreRepository(firestoreService, tokenManager)
     }
 
     @Provides

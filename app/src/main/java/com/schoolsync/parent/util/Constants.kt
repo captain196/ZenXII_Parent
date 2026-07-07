@@ -302,6 +302,14 @@ object Constants {
         const val GEO_FENCES = "geoFences"
         const val SOS_ALERTS = "sosAlerts"
 
+        // F10 (2026-07-07) — Parent App Transport consumer collections
+        // (STAFF + FEE_DEMANDS already declared earlier in this class)
+        const val TRANSPORT_ATTENDANCE = "transportAttendance"
+        const val TRANSPORT_EVENTS = "transportEvents"
+        const val EVENT_TRIP_ASSIGNMENTS = "eventTripAssignments"
+        const val ROUTE_SUSPENSIONS = "routeSuspensions"
+        const val NOTIFICATION_PREFERENCES = "notificationPreferences"
+
         // Hostel
         const val HOSTEL_ROOMS = "hostelRooms"
         const val HOSTEL_ALLOCATIONS = "hostelAllocations"

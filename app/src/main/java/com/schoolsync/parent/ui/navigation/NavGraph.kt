@@ -157,6 +157,18 @@ sealed class Route(val route: String) {
     data object ReceiptDetail : Route("receipt_detail/{receiptId}") {
         fun createRoute(receiptId: String) = "receipt_detail/$receiptId"
     }
+
+    // F10 (2026-07-07) — Parent App Transport (LC-20, LC-21)
+    data object TransportHome : Route("transport_home")
+    data object TransportMyBus : Route("transport_my_bus/{studentId}") {
+        fun createRoute(studentId: String) = "transport_my_bus/$studentId"
+    }
+    data object TransportHistory : Route("transport_history/{studentId}") {
+        fun createRoute(studentId: String) = "transport_history/$studentId"
+    }
+    data object TransportEvents : Route("transport_events")
+    data object TransportFees : Route("transport_fees")
+    data object TransportPreferences : Route("transport_preferences")
 }
 
 data class BottomNavItem(
@@ -414,7 +426,8 @@ fun MainScreen(
                             launchSingleTop = true
                             restoreState = true
                         }
-                    }
+                    },
+                    onNavigateToTransport = { navController.navigate(Route.TransportHome.route) }
                 )
             }
 
@@ -705,6 +718,62 @@ fun MainScreen(
                     initialTeacherId = teacherId,
                     onClose = { navController.popBackStack() },
                     onStoryViewed = { storyId -> storyViewModel.markStoryViewed(storyId) }
+                )
+            }
+
+            // ── F10 (2026-07-07) Parent App Transport (LC-20, LC-21) ────────
+            composable(Route.TransportHome.route) {
+                com.schoolsync.parent.ui.transport.TransportHomeScreen(
+                    onNavigateMyBus     = { studentId -> navController.navigate(Route.TransportMyBus.createRoute(studentId)) },
+                    onNavigateHistory   = { studentId -> navController.navigate(Route.TransportHistory.createRoute(studentId)) },
+                    onNavigateEvents    = { navController.navigate(Route.TransportEvents.route) },
+                    onNavigateFees      = { navController.navigate(Route.TransportFees.route) },
+                    onNavigatePreferences = { navController.navigate(Route.TransportPreferences.route) },
+                    onBack              = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Route.TransportMyBus.route,
+                arguments = listOf(navArgument("studentId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val sid = backStackEntry.arguments?.getString("studentId") ?: ""
+                com.schoolsync.parent.ui.transport.MyBusScreen(
+                    studentId = sid,
+                    onBack    = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Route.TransportHistory.route,
+                arguments = listOf(navArgument("studentId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val sid = backStackEntry.arguments?.getString("studentId") ?: ""
+                com.schoolsync.parent.ui.transport.TransportHistoryScreen(
+                    studentId = sid,
+                    onBack    = { navController.popBackStack() }
+                )
+            }
+            composable(Route.TransportEvents.route) {
+                com.schoolsync.parent.ui.transport.TransportEventsScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Route.TransportFees.route) {
+                com.schoolsync.parent.ui.transport.TransportFeesScreen(
+                    onBack             = { navController.popBackStack() },
+                    onGoToFeesModule   = {
+                        // Reuse existing Fees Razorpay journey — no
+                        // parallel payment flow (F10 architecture).
+                        navController.navigate(Route.Fees.route) {
+                            popUpTo(Route.Dashboard.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
+            }
+            composable(Route.TransportPreferences.route) {
+                com.schoolsync.parent.ui.transport.TransportPreferencesScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

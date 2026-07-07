@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.Grading
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.DirectionsBus
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.material.icons.filled.Call
@@ -148,6 +149,7 @@ fun DashboardScreen(
     onNavigateToMyTeachers: () -> Unit = {},
     onNavigateToStoryViewer: (String) -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
+    onNavigateToTransport: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val c = LocalAppColors.current
@@ -382,7 +384,8 @@ fun DashboardScreen(
                                 onLibrary = onNavigateToLibrary,
                                 onGallery = onNavigateToGallery,
                                 onPtm = onNavigateToPtmList,
-                                onRedFlags = onNavigateToRedFlags
+                                onRedFlags = onNavigateToRedFlags,
+                                onTransport = onNavigateToTransport
                             )
                         }
 
@@ -1078,7 +1081,8 @@ private fun ShortcutsBento(
     onLibrary: () -> Unit,
     onGallery: () -> Unit,
     onPtm: () -> Unit = {},
-    onRedFlags: () -> Unit = {}
+    onRedFlags: () -> Unit = {},
+    onTransport: () -> Unit = {}
 ) {
     val c = LocalAppColors.current
     // Ordered by parent-value: daily → weekly → occasional.
@@ -1095,7 +1099,11 @@ private fun ShortcutsBento(
         QuickAction(Icons.Filled.Event,                               Color(0xFFAD1457),  "Events",      onEvents),
         QuickAction(Icons.Filled.EventAvailable,                      Color(0xFF6A1B9A),  "PTM",         onPtm),
         QuickAction(Icons.AutoMirrored.Filled.MenuBook,               Color(0xFF4527A0),  "Library",     onLibrary),
-        QuickAction(Icons.Filled.Collections,                         Color(0xFFEF6C00),  "Gallery",     onGallery)
+        QuickAction(Icons.Filled.Collections,                         Color(0xFFEF6C00),  "Gallery",     onGallery),
+        // F10 (2026-07-07) — Parent App Transport entry point (LC-20 + LC-21).
+        // Routes to TransportHomeScreen; from there parents see per-child
+        // bus cards + drill-in to History / Events / Fees / Preferences.
+        QuickAction(Icons.Filled.DirectionsBus,                       Color(0xFF00695C),  "Transport",   onTransport)
     )
     Column {
         SectionHeader(title = "Shortcuts")

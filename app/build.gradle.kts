@@ -144,6 +144,17 @@ dependencies {
     // Razorpay checkout
     implementation("com.razorpay:checkout:1.6.38")
 
+    // F10 (2026-07-07) — Google Maps SDK for future GPS live-tracking.
+    // Added at F10 to prepare the app dependency graph; NO live tracking
+    // is wired at F10 (operator directive — the map surface remains
+    // hidden / shows "Live tracking coming soon" until the dedicated
+    // GPS phase). play-services-maps for the map view;
+    // maps-compose for Composable integration; play-services-location
+    // for future device geolocation (parent-side, optional consent).
+    implementation("com.google.android.gms:play-services-maps:19.0.0")
+    implementation("com.google.maps.android:maps-compose:4.4.1")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
     // Tests
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
