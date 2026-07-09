@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -69,6 +70,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -137,25 +140,27 @@ fun StoryViewer(
     BackHandler(onBack = onClose)
 
     if (storyGroups.isEmpty()) {
-        // Spinner while empty. We must NOT close on the FIRST empty frame:
-        // on a cold open the overlay's own StoryViewModel is fresh, and its
-        // Firestore listener emits an `onStart` empty placeholder that flips
-        // isLoading=false for a single frame BEFORE the first real snapshot
-        // arrives. Closing on that placeholder flash-closed the viewer on the
-        // very first tap (the 2nd tap reused the now-warm VM, so it worked).
-        // Instead: keep the spinner and wait a short settle window. If real
-        // groups arrive, this whole block leaves composition and the effect
-        // below is cancelled; only a genuinely empty result (which never
-        // happens when opened from a populated ring) falls through to close.
-        Box(
-            modifier = Modifier.fillMaxSize().background(Color.Black),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(36.dp))
-        }
-        LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(1500)
-            onClose()
+        // Honor isLoading: while the backing VM's Firestore listener is still
+        // loading (including the onStart empty placeholder before the first
+        // real snapshot), show a spinner and NEVER auto-close. We only close
+        // when NOT loading AND the set is genuinely empty. With the hoisted
+        // shared StoryViewModel the overlay opens onto warm data, so this
+        // branch is normally never even reached — but honoring isLoading makes
+        // it correct regardless. (The old blind `delay(1500); onClose()`,
+        // which ignored isLoading, is what flash-closed the viewer on first tap.)
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .semantics { contentDescription = "Loading stories" },
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(36.dp))
+            }
+        } else {
+            // Genuinely nothing to show — close once (no artificial delay).
+            LaunchedEffect(Unit) { onClose() }
         }
         return
     }
@@ -321,7 +326,10 @@ private fun StoryPage(
                     } else {
                         coil.compose.AsyncImage(
                             model = story.mediaUrl,
-                            contentDescription = null,
+                            contentDescription = buildString {
+                                append("Story from ${group.teacherName}")
+                                if (story.caption.isNotBlank()) append(": ${story.caption}")
+                            },
                             contentScale = ContentScale.Fit,
                             onSuccess = { imageDisplayed = true },
                             modifier = Modifier.fillMaxSize()
@@ -482,14 +490,20 @@ private fun StoryPage(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
                                 .clickable { trayVisible = true }
+                                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                                 .padding(8.dp)
+                                .semantics {
+                                    contentDescription =
+                                        if (myEmoji != null) "You reacted $myEmoji. Tap to change your reaction"
+                                        else "React to this story"
+                                }
                         ) {
                             if (myEmoji != null) {
                                 Text(text = myEmoji, style = MaterialTheme.typography.titleMedium)
                             } else {
                                 Icon(
                                     Icons.Filled.KeyboardArrowUp,
-                                    contentDescription = "React",
+                                    contentDescription = null,
                                     tint = Color.White,
                                     modifier = Modifier.size(28.dp)
                                 )
@@ -565,7 +579,10 @@ private fun ReactionTray(selected: String?, onReact: (String) -> Unit) {
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(if (isSel) Color.White.copy(alpha = 0.22f) else Color.Transparent)
-                    .clickable { onReact(emoji) },
+                    .clickable { onReact(emoji) }
+                    .semantics {
+                        contentDescription = if (isSel) "Reacted with $emoji" else "React with $emoji"
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -660,7 +677,7 @@ private fun TopChrome(
                     if (group.teacherPic.isNotBlank()) {
                         coil.compose.AsyncImage(
                             model = group.teacherPic,
-                            contentDescription = null,
+                            contentDescription = "${group.teacherName}'s profile photo",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.size(36.dp).clip(CircleShape)
                         )
@@ -748,7 +765,11 @@ private fun VideoStoryPlayer(
             player.release()
         }
     }
-    LaunchedEffect(player, isCurrentPage) {
+    // Poll playback position ONLY while actually playing (current page and not
+    // paused). Gating stops the 50ms loop when the story is paused, off-screen,
+    // or the reaction tray/zoom pauses it — no needless wakeups per frame.
+    LaunchedEffect(player, isCurrentPage, isPaused) {
+        if (isPaused || !isCurrentPage) return@LaunchedEffect
         while (true) {
             val dur = player.duration
             if (dur > 0) onProgress((player.currentPosition.toFloat() / dur).coerceIn(0f, 1f))

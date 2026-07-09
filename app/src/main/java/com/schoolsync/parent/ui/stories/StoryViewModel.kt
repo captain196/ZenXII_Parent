@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -61,6 +63,19 @@ class StoryViewModel @Inject constructor(
     private val seenIds = MutableStateFlow<Set<String>>(emptySet())
 
     init {
+        // SEC-1: (re)build this parent's SERVER-SIDE audience entitlement doc
+        // (storyAudience/{uid}) on app-start AND whenever the active child's
+        // class/section changes, BEFORE/independently of the stories listener,
+        // so class-targeted stories become visible. Fire-and-forget: never
+        // block the UI, ignore failure (the parent then temporarily sees only
+        // whole-school stories — fail-safe, never a leak). The first emit
+        // covers app-start/login; subsequent distinct emits cover child-switch.
+        viewModelScope.launch {
+            tokenManager.user
+                .map { Triple(it.schoolId.ifBlank { it.schoolCode }, it.className, it.section) }
+                .distinctUntilChanged()
+                .collect { runCatching { storyRepo.refreshAudienceIndex() } }
+        }
         // Live seen-state → drives the ring's grey/colored transition.
         viewModelScope.launch { storyRepo.observeSeenStoryIds().collect { seenIds.value = it } }
         viewModelScope.launch { hydrateMyReactions() }
@@ -89,10 +104,18 @@ class StoryViewModel @Inject constructor(
     // filtered by userId.
     private suspend fun hydrateMyReactions() {
         try {
-            val userId = tokenManager.user.firstOrNull()?.userId.orEmpty()
+            val user = tokenManager.user.firstOrNull()
+            val userId = user?.userId.orEmpty()
             if (userId.isBlank()) return
+            // SEC-3: the reactions collection-group READ rule is now tenant-
+            // bound (reaction.schoolId == caller's school_id claim), so the
+            // query MUST carry the same schoolId filter or Firestore rejects
+            // it wholesale. If we can't resolve the school, emit nothing.
+            val school = user?.schoolId?.ifBlank { user.schoolCode }.orEmpty()
+            if (school.isBlank()) return
             val snap = FirebaseFirestore.getInstance()
                 .collectionGroup("reactions")
+                .whereEqualTo("schoolId", school)
                 .whereEqualTo("userId", userId)
                 .get().await()
             val map = mutableMapOf<String, String>()

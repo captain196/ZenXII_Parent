@@ -25,7 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.EventNote
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
@@ -118,6 +120,65 @@ fun EventsScreen(
                     }
                 }
 
+                // Load FAILED (no PTMs to fall back on) — a distinct error+Retry
+                // state, NOT the calm "No Events" empty state that looks identical
+                // and hides the problem. Mirrors the Gallery screen.
+                uiState.errorMessage != null && uiState.events.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Filled.CloudOff,
+                                contentDescription = null,
+                                tint = c.textTertiary,
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Couldn't load events",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = c.textSecondary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Something went wrong loading events. Please try again.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = c.textTertiary,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(c.accent.copy(alpha = 0.15f))
+                                    .clickable { viewModel.refresh() }
+                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Refresh,
+                                    contentDescription = null,
+                                    tint = c.accent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Retry",
+                                    style = TextStyle(
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = c.accent
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
                 uiState.events.isEmpty() -> {
                     Box(
                         modifier = Modifier
@@ -185,8 +246,10 @@ fun EventsScreen(
             }
         }
 
-        // Error message
-        uiState.errorMessage?.let { error ->
+        // Inline error banner — only when events are ALREADY showing (a refresh
+        // failed). An empty-list failure is handled by the full-screen error+Retry
+        // state above, so we don't double up here.
+        uiState.errorMessage?.takeIf { uiState.events.isNotEmpty() }?.let { error ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -234,7 +297,7 @@ private fun EventListCard(
             ) {
                 AsyncImage(
                     model = cover,
-                    contentDescription = null,
+                    contentDescription = event.title.ifBlank { "Event photo" },
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -390,17 +453,19 @@ private fun EventListCard(
                                 .background(c.glass),
                             contentAlignment = Alignment.Center
                         ) {
-                            val imageUrl = if (media.type == "video" && !media.thumbnail.isNullOrBlank()) {
-                                media.thumbnail
-                            } else {
-                                media.url
+                            val posterUrl = when {
+                                media.type != "video" -> media.url
+                                !media.thumbnail.isNullOrBlank() -> media.thumbnail
+                                else -> null
                             }
-                            AsyncImage(
-                                model = imageUrl,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            if (!posterUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = posterUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                             if (media.type == "video") {
                                 Box(
                                     modifier = Modifier

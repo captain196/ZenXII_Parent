@@ -128,7 +128,21 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                 val hwId = intent.getStringExtra("homeworkId")?.takeIf { it.isNotBlank() }
                 if (hwId != null) "homework?hwId=$hwId" else "homework"
             }
-            "result_published", "exam_scheduled"                          -> "results"
+            // LOW-7: thread the examId so the correct exam opens instead of
+            // always landing on exam index 0.
+            // TODO: the sender does not yet carry studentId; the parent app is
+            //  single-student per session, so child-switching isn't actionable
+            //  here — revisit if multi-child sessions land.
+            "result_published"                                            -> {
+                val examId = intent.getStringExtra("examId")?.takeIf { it.isNotBlank() }
+                if (examId != null) "results?examId=$examId" else "results"
+            }
+            // MED-6: exam_scheduled now routes to the Exam Schedule screen
+            // (previously misrouted to Results).
+            "exam_scheduled"                                              -> {
+                val examId = intent.getStringExtra("examId")?.takeIf { it.isNotBlank() }
+                if (examId != null) "exams?examId=$examId" else "exams"
+            }
             "event", "event_created"                                      -> {
                 // Deep-link straight to the EventDetail screen when the payload
                 // carries an eventId; otherwise drop back to the events list.

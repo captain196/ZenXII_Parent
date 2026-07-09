@@ -149,6 +149,9 @@ import com.schoolsync.parent.data.model.Event
 import com.schoolsync.parent.data.model.Notice
 import com.schoolsync.parent.data.repository.firestore.MyTeachersFirestoreRepository
 import com.schoolsync.parent.ui.components.bouncyClickable
+import com.schoolsync.parent.ui.results.ResultStatus
+import com.schoolsync.parent.ui.results.formatPercentageChip
+import com.schoolsync.parent.ui.results.resolveResultStatus
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.MetricLarge
 import com.schoolsync.parent.ui.theme.MetricSmall
@@ -342,6 +345,11 @@ fun DashboardScreen(
                         // collapsible. Matches the design-system "Highlights"
                         // section directly under the search row. Shows real
                         // school events; hidden entirely when there are none.
+                        if (uiState.upcomingEvents.isEmpty() && uiState.isLoading) {
+                            // Skeleton while events are still loading on first
+                            // open, so the Highlights rail fades in smoothly.
+                            item("highlights_shimmer") { HighlightsShimmer() }
+                        }
                         if (uiState.upcomingEvents.isNotEmpty()) {
                             item("highlights") {
                                 var expanded by rememberSaveable { mutableStateOf(true) }
@@ -2511,14 +2519,24 @@ private fun LatestResultCard(
     onClick: () -> Unit
 ) {
     val c = LocalAppColors.current
+    // Nullable percentage (CC-8): an absentee has no percentage — don't render 0%.
+    // HIGH-2: pass/fail/absent resolved by the pure, unit-tested helper.
     val pct = result.percentage
+    val status = resolveResultStatus(
+        passFail = result.passFail,
+        percentage = result.percentage,
+        absent = result.absent,
+        passingPercent = result.passingPercent
+    )
+    val isAbsent = status == ResultStatus.ABSENT
     val tint = when {
+        pct == null -> c.textTertiary
         pct >= 80 -> c.success
         pct >= 60 -> c.accent
         pct >= 40 -> c.warning
         else      -> c.error
     }
-    val passed = result.passFail.equals("Pass", ignoreCase = true) || (pct >= 33 && result.passFail.isBlank())
+    val passed = status == ResultStatus.PASS
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -2577,7 +2595,7 @@ private fun LatestResultCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "${pct.toInt()}%",
+                    formatPercentageChip(pct),
                     style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold),
                     color = Color.White
                 )
@@ -2607,16 +2625,26 @@ private fun LatestResultCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+                val badgeColor = when {
+                    isAbsent -> c.textSecondary
+                    passed -> c.success
+                    else -> c.error
+                }
+                val badgeText = when {
+                    isAbsent -> "ABSENT"
+                    passed -> "PASSED"
+                    else -> result.passFail.ifBlank { "REVIEW" }.uppercase()
+                }
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
-                        .background(if (passed) c.success.copy(alpha = 0.18f) else c.error.copy(alpha = 0.18f))
+                        .background(badgeColor.copy(alpha = 0.18f))
                         .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        if (passed) "PASSED" else (result.passFail.ifBlank { "REVIEW" }).uppercase(),
+                        badgeText,
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (passed) c.success else c.error,
+                        color = badgeColor,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -2675,6 +2703,47 @@ private fun StoriesRowShimmer() {
                         .width(44.dp)
                         .height(9.dp)
                         .clip(RoundedCornerShape(4.dp))
+                        .background(c.shimmerBase.copy(alpha = alpha))
+                )
+            }
+        }
+    }
+}
+
+/** Skeleton for the "Highlights" (upcoming events) rail — shown while the
+ *  first dashboard load is still fetching events, so the section fades in
+ *  instead of popping. Mirrors the real banner-card row's shape/size. */
+@Composable
+private fun HighlightsShimmer() {
+    val c = LocalAppColors.current
+    val transition = rememberInfiniteTransition(label = "highlightsShimmer")
+    val alpha by transition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "highlightsShimmerAlpha"
+    )
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+        // Section-header skeleton
+        Box(
+            modifier = Modifier
+                .padding(vertical = 8.dp)
+                .width(110.dp)
+                .height(16.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(c.shimmerBase.copy(alpha = alpha))
+        )
+        // Banner-card skeletons (match HighlightBannerCard footprint)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .width(200.dp)
+                        .height(96.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .background(c.shimmerBase.copy(alpha = alpha))
                 )
             }

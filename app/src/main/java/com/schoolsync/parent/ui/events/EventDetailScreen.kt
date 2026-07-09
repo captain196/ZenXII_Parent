@@ -38,7 +38,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.EventNote
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LocationOn
@@ -146,6 +148,66 @@ fun EventDetailScreen(
                 }
             }
 
+            // A real load failure (network / permission / missing index) is
+            // distinct from a genuinely deleted event — surface it with a Retry
+            // instead of the identical-looking "not found" state that hides the
+            // problem and offers no recovery. Mirrors the Events list screen.
+            detailState.errorMessage != null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Filled.CloudOff,
+                            contentDescription = null,
+                            tint = c.textTertiary,
+                            modifier = Modifier.size(64.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Couldn't load this event",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = c.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Check your connection and try again.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = c.textTertiary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(c.accent.copy(alpha = 0.15f))
+                                .clickable { viewModel.loadEventDetail(eventId) }
+                                .padding(horizontal = 20.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Refresh,
+                                contentDescription = null,
+                                tint = c.accent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Retry",
+                                style = TextStyle(
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = c.accent
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
             detailState.event == null -> {
                 Box(
                     modifier = Modifier
@@ -194,7 +256,7 @@ fun EventDetailScreen(
                         ) {
                             AsyncImage(
                                 model = cover,
-                                contentDescription = null,
+                                contentDescription = event.title.ifBlank { "Event photo" },
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -482,19 +544,22 @@ private fun MediaItem(media: EventMedia, onClick: () -> Unit = {}) {
         contentAlignment = Alignment.Center
     ) {
         if (media.url.isNotBlank()) {
-            // Use thumbnail for videos, url for images
-            val imageUrl = if (media.type == "video" && !media.thumbnail.isNullOrBlank()) {
-                media.thumbnail
-            } else {
-                media.url
+            // Poster only (photo, or a video's poster frame). Don't feed a raw
+            // .mp4 to Coil — a poster-less video shows the play overlay below.
+            val posterUrl = when {
+                media.type != "video" -> media.url
+                !media.thumbnail.isNullOrBlank() -> media.thumbnail
+                else -> null
             }
 
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = "Event media",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            if (!posterUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = posterUrl,
+                    contentDescription = "Event media",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
             // Video play overlay
             if (media.type == "video") {
@@ -574,8 +639,13 @@ private fun GalleryViewer(
             beyondBoundsPageCount = 1
         ) { page ->
             val media = mediaList[page]
-            val imageUrl = if (media.type == "video" && !media.thumbnail.isNullOrBlank())
-                media.thumbnail!! else media.url
+            // Poster only — a poster-less video shows just the play button
+            // (no heavy / flaky raw-.mp4 frame decode).
+            val posterUrl = when {
+                media.type != "video" -> media.url
+                !media.thumbnail.isNullOrBlank() -> media.thumbnail
+                else -> null
+            }
 
             var scale by remember { mutableFloatStateOf(1f) }
             var offX by remember { mutableFloatStateOf(0f) }
@@ -611,17 +681,19 @@ private fun GalleryViewer(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = imageUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer(
-                            scaleX = scale, scaleY = scale,
-                            translationX = offX, translationY = offY
-                        )
-                )
+                if (!posterUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = posterUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = scale, scaleY = scale,
+                                translationX = offX, translationY = offY
+                            )
+                    )
+                }
 
                 // Video play button overlay
                 if (media.type == "video") {
@@ -690,8 +762,11 @@ private fun GalleryViewer(
                 Spacer(modifier = Modifier.width(16.dp))
                 mediaList.forEachIndexed { i, media ->
                     val isActive = i == pagerState.currentPage
-                    val thumbUrl = if (media.type == "video" && !media.thumbnail.isNullOrBlank())
-                        media.thumbnail!! else media.url
+                    val posterUrl = when {
+                        media.type != "video" -> media.url
+                        !media.thumbnail.isNullOrBlank() -> media.thumbnail
+                        else -> null
+                    }
                     val thumbAlpha by animateFloatAsState(
                         targetValue = if (isActive) 1f else 0.4f,
                         animationSpec = tween(200), label = "thumb$i"
@@ -713,12 +788,14 @@ private fun GalleryViewer(
                                 }
                             }
                     ) {
-                        AsyncImage(
-                            model = thumbUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (!posterUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = posterUrl,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                         if (media.type == "video") {
                             Icon(
                                 Icons.Filled.PlayCircle, null,

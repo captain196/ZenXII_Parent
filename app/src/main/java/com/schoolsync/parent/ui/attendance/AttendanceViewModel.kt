@@ -7,6 +7,7 @@ import com.schoolsync.parent.data.model.AttendanceData
 import com.schoolsync.parent.data.model.AttendanceStatus
 import com.schoolsync.parent.data.model.User
 import com.schoolsync.parent.data.repository.firestore.AttendanceFirestoreRepository
+import com.schoolsync.parent.data.repository.firestore.AttendanceNotFoundException
 import com.schoolsync.parent.util.debugLog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,6 +63,9 @@ data class AttendanceUiState(
     val attendanceData: AttendanceData? = null,
     val stats: AttendanceStats = AttendanceStats(),
     val errorMessage: String? = null,
+    /** True only when the month genuinely has no record yet (distinct from a
+     *  load error). Lets the UI show "Not recorded yet" instead of a red 0%. */
+    val isEmptyMonth: Boolean = false,
     val todayStatus: AttendanceStatus? = null,
     val currentStreak: Int = 0,
     val bestStreak: Int = 0,
@@ -208,6 +212,8 @@ class AttendanceViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
+                                errorMessage = null,
+                                isEmptyMonth = false,
                                 attendanceData = data,
                                 stats = stats,
                                 todayStatus = todayStatus,
@@ -218,27 +224,38 @@ class AttendanceViewModel @Inject constructor(
                         }
                     },
                     onFailure = { e ->
-                        // Phase 7s: "no document for this month" is a
-                        // legitimate empty state, not an error worth
-                        // showing the user. Reset all the per-month
-                        // fields to defaults so the UI renders an
-                        // empty month cleanly instead of carrying
-                        // over the previous selection's numbers.
-                        debugLog("[AttendanceVM][I] No attendance for ${month.monthName} ${month.year}: ${e.message}")
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = null,
-                                attendanceData = AttendanceData.decodeOrEmpty(
-                                    month = month.monthName,
-                                    year = month.year,
-                                    rawString = null
-                                ),
-                                stats = AttendanceStats(),
-                                todayStatus = null,
-                                recentDays = emptyList(),
-                                totalSchoolDays = 0
-                            )
+                        if (e is AttendanceNotFoundException) {
+                            // Legitimate empty state — the month simply has no
+                            // record yet. Render an empty month cleanly (no error).
+                            debugLog("[AttendanceVM][I] No attendance for ${month.monthName} ${month.year}")
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = null,
+                                    isEmptyMonth = true,
+                                    attendanceData = AttendanceData.decodeOrEmpty(
+                                        month = month.monthName,
+                                        year = month.year,
+                                        rawString = null
+                                    ),
+                                    stats = AttendanceStats(),
+                                    todayStatus = null,
+                                    recentDays = emptyList(),
+                                    totalSchoolDays = 0
+                                )
+                            }
+                        } else {
+                            // REAL failure (offline / permission / missing index).
+                            // Do NOT paint a red 0% month — surface the error and
+                            // let the user retry. Keep prior data on screen if any.
+                            debugLog("[AttendanceVM][E] Attendance load failed for ${month.monthName} ${month.year}: ${e.message}")
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isEmptyMonth = false,
+                                    errorMessage = "Couldn't load attendance. Check your connection and try again."
+                                )
+                            }
                         }
                     }
                 )

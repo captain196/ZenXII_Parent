@@ -397,8 +397,12 @@ private fun TodayStatusBanner(
         }
 
         if (totalSchoolDays > 0) {
+            // Was "Day $dayOfYear of $totalSchoolDays" — paired the calendar
+            // day-of-YEAR (e.g. 188) with this MONTH's working-day count (~22),
+            // rendering nonsense like "Day 188 of 22". Show the month's working
+            // days plainly instead (dayOfYear is no longer used here).
             Text(
-                text = "Day $dayOfYear of $totalSchoolDays",
+                text = "$totalSchoolDays school days this month",
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 color = colors.textTertiary

@@ -127,7 +127,15 @@ sealed class Route(val route: String) {
 
     // Academics sub-screens
     data object Attendance : Route("attendance")
-    data object Results : Route("results")
+    data object Results : Route("results") {
+        // Optional deep-link arg: preselect a specific exam's result (e.g. from
+        // a `result_published` push). Plain navigation to "results" still
+        // matches and lands on the first exam, since examId defaults to "".
+        const val ARG_EXAM_ID = "examId"
+        val routeWithArgs = "results?$ARG_EXAM_ID={$ARG_EXAM_ID}"
+        fun createRoute(examId: String = ""): String =
+            if (examId.isBlank()) "results" else "results?$ARG_EXAM_ID=$examId"
+    }
     data object Homework : Route("homework") {
         // Optional deep-link arg: open straight into a specific homework's
         // detail page (e.g. tapping a row in the dashboard "Today's Homework"
@@ -145,7 +153,15 @@ sealed class Route(val route: String) {
         }
     }
     data object Timetable : Route("timetable")
-    data object Exams : Route("exams")
+    data object Exams : Route("exams") {
+        // Optional deep-link arg: open a specific exam's schedule (e.g. from an
+        // `exam_scheduled` push). Plain navigation to "exams" still matches and
+        // falls back to the nearest available exam, since examId defaults to "".
+        const val ARG_EXAM_ID = "examId"
+        val routeWithArgs = "exams?$ARG_EXAM_ID={$ARG_EXAM_ID}"
+        fun createRoute(examId: String = ""): String =
+            if (examId.isBlank()) "exams" else "exams?$ARG_EXAM_ID=$examId"
+    }
 
     // Other screens
     data object Notices : Route("notices")
@@ -340,6 +356,17 @@ fun MainScreen(
     val badgeViewModel: BadgeViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     val badgeCounts by badgeViewModel.counts.collectAsState()
 
+    // ── Shared Stories VM (hoisted to MainScreen scope) ─────────────────────
+    // One warm StoryViewModel backs BOTH the dashboard ring row AND the
+    // full-screen overlay. Previously each spun up its OWN cold hiltViewModel
+    // (dashboard-scoped vs Main-scoped), so opening the overlay started an
+    // EMPTY VM whose Firestore listener emitted an onStart empty placeholder —
+    // the viewer flash-closed on the first tap. Sharing one instance means the
+    // overlay reuses the already-loaded storyGroups, so it never sees a
+    // transient empty set and only closes on a genuinely empty result.
+    val storyViewModel: StoryViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    val storyState by storyViewModel.uiState.collectAsState()
+
     // Track whether the Messages screen is currently inside an open chat —
     // when true we hide the bottom bar so the chat input isn't covered.
     var inChatView by remember { mutableStateOf(false) }
@@ -362,7 +389,10 @@ fun MainScreen(
         // "homework" and "homework?hwId=..." both resolve to the Homework
         // destination (its route args are optional), so allow the whole prefix.
         val isHomework      = target == "homework" || target.startsWith("homework?")
-        if (target in allowedTabs || isEventDetail || isHomework) {
+        // result_published / exam_scheduled deep links (optional examId arg).
+        val isResults       = target == "results" || target.startsWith("results?")
+        val isExams         = target == "exams" || target.startsWith("exams?")
+        if (target in allowedTabs || isEventDetail || isHomework || isResults || isExams) {
             navController.navigate(target) {
                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                 launchSingleTop = true
@@ -389,7 +419,9 @@ fun MainScreen(
     // Story viewer is rendered as a FULL-SCREEN OVERLAY above the NavHost
     // (not a separate route) so the dashboard it was opened from stays
     // composed behind it — a swipe-down / pinch-out dismiss fades to reveal
-    // the dashboard, matching the teacher app.
+    // the dashboard, matching the teacher app. It is backed by the SAME
+    // hoisted `storyViewModel` above as the dashboard ring, so the overlay
+    // opens onto already-loaded data (no cold-start flash).
     var storyViewerTeacherId by remember { mutableStateOf<String?>(null) }
 
     Box(
@@ -412,14 +444,13 @@ fun MainScreen(
             // ── Main Tabs (bottom bar visible) ──────────────────────────────
 
             composable(Route.Dashboard.route) {
-                // Stories ring row data — same StoryViewModel that backs the
-                // full-screen viewer, so the dashboard ring and the viewer
-                // stay in sync (viewed state, reactions, live updates).
-                val dashStoryViewModel: StoryViewModel = hiltViewModel()
-                val dashStoryState by dashStoryViewModel.uiState.collectAsState()
+                // Stories ring row data — the SAME hoisted StoryViewModel that
+                // backs the full-screen viewer, so the dashboard ring and the
+                // viewer stay in sync (viewed state, reactions, live updates)
+                // AND the overlay opens onto warm data.
                 DashboardScreen(
-                    storyGroups = dashStoryState.storyGroups,
-                    storiesLoading = dashStoryState.isLoading,
+                    storyGroups = storyState.storyGroups,
+                    storiesLoading = storyState.isLoading,
                     onNavigateToAttendance = { navController.navigate(Route.Attendance.route) },
                     onNavigateToResults = { navController.navigate(Route.Results.route) },
                     onNavigateToFees = { navController.navigate(Route.Fees.route) },
@@ -522,7 +553,13 @@ fun MainScreen(
             }
 
             composable(
-                Route.Results.route,
+                Route.Results.routeWithArgs,
+                arguments = listOf(
+                    navArgument(Route.Results.ARG_EXAM_ID) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    }
+                ),
                 enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(slideDuration)) },
                 exitTransition = { fadeOut(tween(200)) },
                 popEnterTransition = { fadeIn(tween(fadeDuration)) },
@@ -537,6 +574,27 @@ fun MainScreen(
                             restoreState = true
                         }
                     }
+                )
+            }
+
+            // MED-6: Exam Schedule — previously orphaned (no composable
+            // registration). Wired here so the `exam_scheduled` push has a real
+            // destination instead of misrouting to Results.
+            composable(
+                Route.Exams.routeWithArgs,
+                arguments = listOf(
+                    navArgument(Route.Exams.ARG_EXAM_ID) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    }
+                ),
+                enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(slideDuration)) },
+                exitTransition = { fadeOut(tween(200)) },
+                popEnterTransition = { fadeIn(tween(fadeDuration)) },
+                popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(slideDuration)) }
+            ) {
+                com.schoolsync.parent.ui.exams.ExamScheduleScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
 
@@ -789,16 +847,14 @@ fun MainScreen(
         // ── Full-screen story overlay — dashboard stays composed behind, so
         //    it shows through as the viewer fades on a swipe-down / pinch-out.
         storyViewerTeacherId?.let { teacherId ->
-            val overlayStoryVm: StoryViewModel = hiltViewModel()
-            val overlayState by overlayStoryVm.uiState.collectAsState()
             StoryViewer(
-                storyGroups = overlayState.storyGroups,
-                isLoading = overlayState.isLoading,
+                storyGroups = storyState.storyGroups,
+                isLoading = storyState.isLoading,
                 initialTeacherId = teacherId,
-                myReactions = overlayState.myReactions,
+                myReactions = storyState.myReactions,
                 onClose = { storyViewerTeacherId = null },
-                onStoryViewed = { storyId -> overlayStoryVm.markStoryViewed(storyId) },
-                onReact = { storyId, emoji -> overlayStoryVm.reactToStory(storyId, emoji) }
+                onStoryViewed = { storyId -> storyViewModel.markStoryViewed(storyId) },
+                onReact = { storyId, emoji -> storyViewModel.reactToStory(storyId, emoji) }
             )
         }
 

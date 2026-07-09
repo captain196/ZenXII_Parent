@@ -31,6 +31,26 @@ object StorySharedConfig {
     //   ⚠ MUST stay byte-identical to teacher StorySharedConfig +
     //     admin Stories.php.
 
+    /**
+     * Whole-school sentinel stored INSIDE audienceClassKeys so the parent's
+     * server-side `array-contains-any` query can match school-wide stories
+     * without a bypassable client filter (SEC-1). Writers emit `[AUDIENCE_ALL]`
+     * for a whole-school story; the parent query passes `[myKeys…, AUDIENCE_ALL]`.
+     *   ⚠ MUST stay byte-identical to teacher StorySharedConfig + admin Stories.php.
+     */
+    const val AUDIENCE_ALL = "*"
+
+    /**
+     * Canonical "is this a whole-school story?" test for READ-side code.
+     * Whole-school = legacy empty list (pre-v1 docs) OR carries the
+     * [AUDIENCE_ALL] sentinel (current writers emit `["*"]`). Any reader that
+     * used to check `audienceClassKeys.isEmpty()` must use this instead, or
+     * `["*"]` docs render a raw "*" chip / get mis-classified.
+     *   ⚠ MUST stay byte-identical to teacher StorySharedConfig + admin PHP.
+     */
+    fun isWholeSchool(audienceClassKeys: List<String>): Boolean =
+        audienceClassKeys.isEmpty() || AUDIENCE_ALL in audienceClassKeys
+
     /** Canonical class+section token, e.g. ("Class 8th","Section A") → "8-a". */
     fun audienceKey(className: String, section: String): String =
         "${canonClassToken(className)}-${canonSectionToken(section)}"

@@ -53,9 +53,12 @@ data class StoryDoc(
 
     // ── Audience scoping (v1) ──────────────────────────────────────
     /** Canonical class-section tokens this story targets (see
-     *  StorySharedConfig.audienceKey), e.g. ["8-a"]. EMPTY = school-wide
-     *  (every pre-v1 doc → empty → visible to all). The parent app
-     *  filters client-side against the active child's class/section. */
+     *  StorySharedConfig.audienceKey), e.g. ["8-a"]. A whole-school story
+     *  now carries the sentinel [StorySharedConfig.AUDIENCE_ALL] ("*") — NOT
+     *  an empty list — so the server-enforced arrayContainsAny query matches
+     *  it. Audience is filtered SERVER-SIDE (repo query + Firestore rule); no
+     *  client-side display logic keys off this field. Legacy empty-audience
+     *  docs no longer match and simply expire within 24h. */
     val audienceClassKeys: List<String> = emptyList(),
 
     // ── Reactions (v1) ─────────────────────────────────────────────
