@@ -270,6 +270,25 @@ fun EventDetailScreen(
                                     )
                             )
                         }
+                    } else {
+                        // No photo — polished category-colored hero + glyph so the
+                        // detail screen reads as intentional rather than empty.
+                        val cc = getCategoryColors(event.category, c)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Brush.linearGradient(listOf(cc.gradStart, cc.gradEnd))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = eventCategoryIcon(event.category),
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.85f),
+                                modifier = Modifier.size(46.dp)
+                            )
+                        }
                     }
 
                     // Category + Status row

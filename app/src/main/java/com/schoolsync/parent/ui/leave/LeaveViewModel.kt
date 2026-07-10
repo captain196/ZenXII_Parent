@@ -1,5 +1,6 @@
 package com.schoolsync.parent.ui.leave
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.local.TokenManager
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -31,13 +33,30 @@ data class LeaveUiState(
     val errorMessage: String? = null,
     val studentName: String = "",
     val className: String = "",
-    val section: String = ""
+    val section: String = "",
+    /** id of the leave whose cancel request is currently in flight (null = none). */
+    val cancellingId: String? = null
 )
+
+/** Spec: student leave span capped at 60 days inclusive. */
+private const val MAX_STUDENT_LEAVE_DAYS = 60L
+
+/** PAR-M1: cap the wait on an offline-first Firestore write before we
+ *  surface it as a durable (locally-queued) success. */
+private const val WRITE_TIMEOUT_MS = 6_000L
+
+// PAR-M2: SavedStateHandle keys for the in-progress leave draft.
+private const val KEY_TYPE = "leave_draft_type"
+private const val KEY_REASON = "leave_draft_reason"
+private const val KEY_START = "leave_draft_start"
+private const val KEY_END = "leave_draft_end"
+private const val KEY_SHOW = "leave_draft_show"
 
 @HiltViewModel
 class LeaveViewModel @Inject constructor(
     private val leaveRepository: LeaveFirestoreRepository,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LeaveUiState())
@@ -46,7 +65,42 @@ class LeaveViewModel @Inject constructor(
     private var studentId: String = ""
 
     init {
+        restoreDraft()   // PAR-M2: recover an in-progress leave draft on process death
         loadStudentInfo()
+    }
+
+    // ── PAR-M2: leave-draft persistence across process death ────────────────
+    private fun restoreDraft() {
+        val start = savedStateHandle.get<Long>(KEY_START)
+            ?.takeIf { it >= 0 }?.let { LocalDate.ofEpochDay(it) }
+        val end = savedStateHandle.get<Long>(KEY_END)
+            ?.takeIf { it >= 0 }?.let { LocalDate.ofEpochDay(it) }
+        _uiState.update {
+            it.copy(
+                selectedLeaveType = savedStateHandle.get<String>(KEY_TYPE) ?: it.selectedLeaveType,
+                reason = savedStateHandle.get<String>(KEY_REASON) ?: it.reason,
+                startDate = start,
+                endDate = end,
+                showApplyForm = savedStateHandle.get<Boolean>(KEY_SHOW) ?: it.showApplyForm
+            )
+        }
+    }
+
+    private fun persistDraft() {
+        val s = _uiState.value
+        savedStateHandle[KEY_TYPE] = s.selectedLeaveType
+        savedStateHandle[KEY_REASON] = s.reason
+        savedStateHandle[KEY_START] = s.startDate?.toEpochDay() ?: -1L
+        savedStateHandle[KEY_END] = s.endDate?.toEpochDay() ?: -1L
+        savedStateHandle[KEY_SHOW] = s.showApplyForm
+    }
+
+    private fun clearDraft() {
+        savedStateHandle[KEY_TYPE] = "CL"
+        savedStateHandle[KEY_REASON] = ""
+        savedStateHandle[KEY_START] = -1L
+        savedStateHandle[KEY_END] = -1L
+        savedStateHandle[KEY_SHOW] = false
     }
 
     private fun loadStudentInfo() {
@@ -110,28 +164,42 @@ class LeaveViewModel @Inject constructor(
                 errorMessage = null
             )
         }
+        persistDraft()
     }
 
     fun updateLeaveType(type: String) {
         _uiState.update { it.copy(selectedLeaveType = type) }
+        persistDraft()
     }
 
     fun updateStartDate(date: LocalDate) {
         _uiState.update {
             it.copy(startDate = date, endDate = if (it.endDate != null && it.endDate < date) date else it.endDate)
         }
+        persistDraft()
     }
 
     fun updateEndDate(date: LocalDate) {
-        _uiState.update { it.copy(endDate = date) }
+        // Fix (MEDIUM): clamp End >= Start (Start already clamps End forward).
+        _uiState.update {
+            val start = it.startDate
+            it.copy(endDate = if (start != null && date < start) start else date)
+        }
+        persistDraft()
     }
 
     fun updateReason(reason: String) {
         _uiState.update { it.copy(reason = reason) }
+        persistDraft()
     }
 
     fun submitLeave() {
         val state = _uiState.value
+        // Fix (double-submit race): synchronous in-flight guard BEFORE launch.
+        // Two fast taps otherwise both pass validation and create duplicate
+        // pending leaves (millis-based ids never collide).
+        if (state.isSubmitting) return
+
         val start = state.startDate ?: run {
             _uiState.update { it.copy(errorMessage = "Please select start date") }
             return
@@ -150,51 +218,128 @@ class LeaveViewModel @Inject constructor(
             _uiState.update { it.copy(errorMessage = "End date must be on or after start date") }
             return
         }
-        if (state.reason.isBlank()) {
+        // Fix (validation): cap span at 60 inclusive days (spec §4, student).
+        val spanDays = ChronoUnit.DAYS.between(start, end) + 1
+        if (spanDays > MAX_STUDENT_LEAVE_DAYS) {
+            _uiState.update { it.copy(errorMessage = "Leave cannot exceed $MAX_STUDENT_LEAVE_DAYS days") }
+            return
+        }
+        val reason = state.reason.trim()
+        if (reason.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Please enter a reason") }
+            return
+        }
+        // Fix (validation): overlap guard against existing pending/approved leaves.
+        if (overlapsExisting(state.leaveHistory, start, end)) {
+            _uiState.update { it.copy(errorMessage = "This range overlaps an existing leave application") }
             return
         }
 
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-        val numberOfDays = (ChronoUnit.DAYS.between(start, end) + 1).toInt()
+        val numberOfDays = spanDays.toInt()
+
+        // Set the guard SYNCHRONOUSLY so a second tap early-returns above.
+        _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
+            // PAR-M1: the offline-first Firestore SDK never server-acks a write
+            // while offline, so awaiting it hangs the spinner forever. Race the
+            // write against a timeout — local writes are durable, so a timeout is
+            // treated as success ("will sync when back online").
+            val result = withTimeoutOrNull(WRITE_TIMEOUT_MS) {
+                leaveRepository.submitLeave(
+                    studentId = studentId,
+                    studentName = state.studentName,
+                    className = state.className,
+                    section = state.section,
+                    leaveType = state.selectedLeaveType,
+                    startDate = start.format(formatter),
+                    endDate = end.format(formatter),
+                    numberOfDays = numberOfDays,
+                    reason = reason
+                )
+            }
 
-            leaveRepository.submitLeave(
-                studentId = studentId,
-                studentName = state.studentName,
-                className = state.className,
-                section = state.section,
-                leaveType = state.selectedLeaveType,
-                startDate = start.format(formatter),
-                endDate = end.format(formatter),
-                numberOfDays = numberOfDays,
-                reason = state.reason
-            ).onSuccess {
-                _uiState.update {
-                    it.copy(
-                        isSubmitting = false,
-                        submitSuccess = true,
-                        showApplyForm = false
-                    )
+            when {
+                result == null || result.isSuccess -> {
+                    // Server-acked OR queued offline — both are a durable success.
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            submitSuccess = true,
+                            showApplyForm = false
+                        )
+                    }
+                    clearDraft()  // PAR-M2: draft consumed
+                    // Fix (LOW): non-blocking refresh instead of full-screen spinner.
+                    refreshHistory()
                 }
-                loadLeaveHistory()
-            }.onFailure { err ->
-                _uiState.update {
-                    it.copy(isSubmitting = false, errorMessage = err.message)
+                else -> {
+                    _uiState.update {
+                        it.copy(isSubmitting = false, errorMessage = result.exceptionOrNull()?.message)
+                    }
                 }
             }
         }
     }
 
-    fun cancelLeave(leaveId: String) {
+    /**
+     * Overlap guard: true if [start]..[end] intersects any existing
+     * pending/approved leave (case-insensitive status, per spec).
+     */
+    private fun overlapsExisting(
+        history: List<LeaveApplicationDoc>,
+        start: LocalDate,
+        end: LocalDate
+    ): Boolean {
+        val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        return history.any { leave ->
+            val active = leave.status.equals("pending", ignoreCase = true) ||
+                leave.status.equals("approved", ignoreCase = true)
+            if (!active) return@any false
+            val s = runCatching { LocalDate.parse(leave.startDate, fmt) }.getOrNull()
+            val e = runCatching { LocalDate.parse(leave.endDate, fmt) }.getOrNull()
+            if (s == null || e == null) return@any false
+            // ranges overlap iff start <= existingEnd AND existingStart <= end
+            !start.isAfter(e) && !s.isAfter(end)
+        }
+    }
+
+    /** Reload history without flipping the blocking full-screen spinner. */
+    private fun refreshHistory() {
         viewModelScope.launch {
-            leaveRepository.cancelLeave(leaveId)
-                .onSuccess { loadLeaveHistory() }
-                .onFailure { err ->
-                    _uiState.update { it.copy(errorMessage = err.message) }
+            _uiState.update { it.copy(isRefreshing = true) }
+            leaveRepository.getLeaveHistory(studentId)
+                .onSuccess { leaves ->
+                    _uiState.update { it.copy(isRefreshing = false, leaveHistory = leaves) }
                 }
+                .onFailure {
+                    _uiState.update { it.copy(isRefreshing = false) }
+                }
+        }
+    }
+
+    fun cancelLeave(leaveId: String) {
+        // Fix (LOW): in-flight guard so a double-tap can't fire two cancels.
+        if (_uiState.value.cancellingId != null) return
+        _uiState.update { it.copy(cancellingId = leaveId) }
+        viewModelScope.launch {
+            // PAR-M1: same offline-first hang — race the write against a timeout
+            // so the per-row spinner always resolves. Local delete is durable.
+            val result = withTimeoutOrNull(WRITE_TIMEOUT_MS) {
+                leaveRepository.cancelLeave(leaveId)
+            }
+            when {
+                result == null || result.isSuccess -> {
+                    _uiState.update { it.copy(cancellingId = null) }
+                    refreshHistory()
+                }
+                else -> {
+                    _uiState.update {
+                        it.copy(cancellingId = null, errorMessage = result.exceptionOrNull()?.message)
+                    }
+                }
+            }
         }
     }
 

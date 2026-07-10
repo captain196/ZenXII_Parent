@@ -13,7 +13,11 @@ enum class AttendanceStatus(val code: Char, val label: String) {
     LEAVE('L', "Leave"),
     HOLIDAY('H', "Holiday"),
     TRIP('T', "Tardy"),
-    VACATION('V', "Vacation");
+    // 'V' is the admin's PADDING code for unmarked days (and the fallback
+    // bucket for any code the app doesn't recognise). It is NOT a real
+    // "vacation" status — it means "no record". Excluded from working days
+    // and suppressed everywhere user-facing (banner, calendar, recent list).
+    VACATION('V', "Not recorded");
 
     companion object {
         /**

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.Event
 import com.schoolsync.parent.data.model.EventMedia
+import com.schoolsync.parent.data.model.hasUsableCover
 import com.schoolsync.parent.data.model.GalleryAlbum
 import com.schoolsync.parent.data.model.firestore.EventDoc
 import com.schoolsync.parent.data.model.firestore.PtmEventDoc
@@ -134,7 +135,7 @@ class EventsViewModel @Inject constructor(
                                     // If the event has no inline media, borrow the
                                     // album cover so the detail hero shows a photo.
                                     val ev = st.event
-                                    val enriched = if (ev != null && ev.mediaUrls.isEmpty() &&
+                                    val enriched = if (ev != null && !ev.hasUsableCover() &&
                                         !album?.coverImage.isNullOrBlank()
                                     ) {
                                         ev.copy(mediaUrls = listOf(EventMedia(url = album!!.coverImage, type = "image")))
@@ -215,13 +216,13 @@ class EventsViewModel @Inject constructor(
      * e.g. "Annual sport day"). One album query, only when something needs it.
      */
     private suspend fun withAlbumCovers(events: List<Event>): List<Event> {
-        if (events.none { it.mediaUrls.isEmpty() }) return events
+        if (events.all { it.hasUsableCover() }) return events
         val albums = runCatching { galleryFirestoreRepo.getAlbums().getOrNull() }
             .getOrNull().orEmpty()
             .filter { it.source == "event" && it.coverImage.isNotBlank() }
         if (albums.isEmpty()) return events
         return events.map { e ->
-            if (e.mediaUrls.isNotEmpty()) e
+            if (e.hasUsableCover()) e
             else {
                 // Album stores the RAW event id ("EVT0001"); Event.eventId is the
                 // full "{schoolId}_{EVT...}" doc id.

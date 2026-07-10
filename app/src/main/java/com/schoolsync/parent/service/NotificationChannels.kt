@@ -33,6 +33,9 @@ object NotificationChannels {
     const val LEAVE = "ch_leave"
     const val EVENTS = "ch_events"
     const val ALERTS = "ch_alerts"
+    const val EXAMS = "ch_exams"
+    const val GALLERY = "ch_gallery"
+    const val STORIES = "ch_stories"
 
     private data class Def(val id: String, val name: String, val description: String)
 
@@ -45,6 +48,9 @@ object NotificationChannels {
         Def(LEAVE, "Leave", "Leave application updates"),
         Def(EVENTS, "Events", "School events"),
         Def(ALERTS, "Alerts", "Important alerts raised by teachers"),
+        Def(EXAMS, "Exams & Results", "Exam schedules and published results"),
+        Def(GALLERY, "Gallery", "New photos and albums"),
+        Def(STORIES, "Stories", "New school stories"),
     )
 
     /**
@@ -81,6 +87,9 @@ object NotificationChannels {
         "leave_approved", "leave_rejected" -> LEAVE
         "event", "event_created" -> EVENTS
         "red_flag", "flag_created", "red_flag_created", "student_flag" -> ALERTS
+        "exam_result", "exam_schedule" -> EXAMS
+        "gallery_added" -> GALLERY
+        "story", "story_created" -> STORIES
         else -> GENERAL
     }
 }

@@ -18,6 +18,7 @@ import com.schoolsync.parent.data.repository.StudentRepository
 import com.schoolsync.parent.data.repository.firestore.AttendanceFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.CommunicationFirestoreRepository
 import com.schoolsync.parent.data.model.EventMedia
+import com.schoolsync.parent.data.model.hasUsableCover
 import com.schoolsync.parent.data.repository.firestore.EventFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.GalleryFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.ExamFirestoreRepository
@@ -436,13 +437,13 @@ class DashboardViewModel @Inject constructor(
      * which is exactly what the album stores. One album query, only when needed.
      */
     private suspend fun injectEventCovers(events: List<Event>): List<Event> {
-        if (events.none { it.mediaUrls.isEmpty() }) return events
+        if (events.all { it.hasUsableCover() }) return events
         val albums = runCatching { galleryFirestoreRepo.getAlbums().getOrNull() }
             .getOrNull().orEmpty()
             .filter { it.source == "event" && it.coverImage.isNotBlank() }
         if (albums.isEmpty()) return events
         return events.map { e ->
-            if (e.mediaUrls.isNotEmpty()) e
+            if (e.hasUsableCover()) e
             else {
                 val cover = albums.firstOrNull { a ->
                     e.eventId == a.eventId || e.eventId.endsWith("_${a.eventId}")

@@ -1,7 +1,15 @@
 package com.schoolsync.parent.ui.events
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Celebration
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.TheaterComedy
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.schoolsync.parent.ui.theme.AppColors
 
 /**
@@ -45,6 +53,16 @@ internal fun getCategoryColors(category: String, c: AppColors): CategoryColorSet
         "ptm" -> CategoryColorSet(Color(0xFF1565C0), Color(0xFF1565C0).copy(alpha = 0.5f), Color(0xFF1565C0).copy(alpha = 0.2f))
         else -> CategoryColorSet(c.accent, c.banner1Start, c.banner1End)
     }
+}
+
+/** Category → glyph for photo-less event placeholders. */
+internal fun eventCategoryIcon(category: String): ImageVector = when (category.lowercase()) {
+    "exam", "examination", "test"      -> Icons.Filled.School
+    "sports", "sport"                  -> Icons.Filled.SportsSoccer
+    "holiday"                          -> Icons.Filled.Celebration
+    "ptm", "meeting"                   -> Icons.Filled.Groups
+    "cultural", "culture", "function"  -> Icons.Filled.TheaterComedy
+    else                               -> Icons.Filled.Event
 }
 
 @Composable

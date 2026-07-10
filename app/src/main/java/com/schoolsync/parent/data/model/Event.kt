@@ -36,6 +36,16 @@ data class Event(
 }
 
 /**
+ * True when the event carries a directly-showable cover of its own — an image
+ * url or a video with a poster thumbnail. Used to decide whether to borrow the
+ * linked gallery album's cover: gating on this (not just mediaUrls.isEmpty())
+ * means events whose media is only unshowable entries still get a cover.
+ */
+internal fun Event.hasUsableCover(): Boolean =
+    mediaUrls.any { it.type == "image" && it.url.isNotBlank() } ||
+        mediaUrls.any { !it.thumbnail.isNullOrBlank() }
+
+/**
  * Media attached to an event.
  * Path: Schools/{schoolCode}/Events/Media/{eventId}/{mediaId}
  */

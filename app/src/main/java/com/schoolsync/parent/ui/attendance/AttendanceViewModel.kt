@@ -1,5 +1,6 @@
 package com.schoolsync.parent.ui.attendance
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.local.TokenManager
@@ -81,10 +82,16 @@ data class AttendanceUiState(
 @HiltViewModel
 class AttendanceViewModel @Inject constructor(
     private val attendanceFirestoreRepo: AttendanceFirestoreRepository,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AttendanceUiState())
+    // PAR-M2: survive process death — restore the last-selected month.
+    private val _uiState = MutableStateFlow(
+        AttendanceUiState(
+            selectedMonthIndex = savedStateHandle.get<Int>(KEY_SELECTED_MONTH) ?: 0
+        )
+    )
     val uiState: StateFlow<AttendanceUiState> = _uiState.asStateFlow()
 
     /** In-flight loads — cancelled before a new one starts so concurrent
@@ -133,6 +140,7 @@ class AttendanceViewModel @Inject constructor(
     }
 
     fun selectMonth(index: Int) {
+        savedStateHandle[KEY_SELECTED_MONTH] = index  // PAR-M2: persist selection
         _uiState.update { it.copy(selectedMonthIndex = index) }
         loadAttendance()
     }
@@ -200,7 +208,11 @@ class AttendanceViewModel @Inject constructor(
 
                         val today = LocalDate.now()
                         val todayStatus = if (month.yearMonth == YearMonth.now()) {
+                            // PAR-H1: 'V' (VACATION) is the admin's unmarked-day
+                            // padding, not a real status. Treat it as "no record"
+                            // so the banner reads "No status yet", not "Vacation".
                             data.statusForDay(today.dayOfMonth)
+                                ?.takeIf { it != AttendanceStatus.VACATION }
                         } else null
 
                         val recentDays = buildRecentDays(data, month.yearMonth, summaryDoc.lateTimes)
@@ -436,6 +448,9 @@ class AttendanceViewModel @Inject constructor(
         for (day in lastDay downTo 1) {
             if (result.size >= 7) break
             val status = data.statusForDay(day) ?: continue
+            // PAR-H1: skip 'V' (VACATION) — it is unmarked-day padding, not a
+            // real status, and must never appear as a "Not recorded" row.
+            if (status == AttendanceStatus.VACATION) continue
             val date = yearMonth.atDay(day)
             val arrivalTime = if (status == AttendanceStatus.TRIP) {
                 lateTimes[day.toString()]?.get("time")?.takeIf { it.isNotBlank() }
@@ -452,5 +467,9 @@ class AttendanceViewModel @Inject constructor(
         }
 
         return result
+    }
+
+    companion object {
+        private const val KEY_SELECTED_MONTH = "attendance_selected_month"
     }
 }

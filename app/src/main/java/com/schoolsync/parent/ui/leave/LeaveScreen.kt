@@ -17,13 +17,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -45,6 +50,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -59,6 +66,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -70,7 +83,26 @@ import com.schoolsync.parent.ui.theme.*
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+
+/** Single source of truth for leave-type code -> label (form offers these, history maps back). */
+private val LEAVE_TYPES = listOf(
+    "CL" to "Casual Leave",
+    "SL" to "Sick Leave",
+    "EL" to "Emergency Leave"
+)
+private val LEAVE_TYPE_LABELS = LEAVE_TYPES.toMap()
+
+/** A [SelectableDates] that only permits dates on/after [min] (UTC comparison, DatePicker's basis). */
+@OptIn(ExperimentalMaterial3Api::class)
+private fun minSelectableDates(min: LocalDate): SelectableDates {
+    val minMillis = min.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    return object : SelectableDates {
+        override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= minMillis
+        override fun isSelectableYear(year: Int): Boolean = year >= min.year
+    }
+}
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -185,6 +217,7 @@ fun LeaveScreen(
                             LeaveHistoryCard(
                                 leave = leave,
                                 dateFormatter = dateFormatter,
+                                cancelling = uiState.cancellingId == leave.id,
                                 onCancel = { viewModel.cancelLeave(leave.id) }
                             )
                         }
@@ -210,32 +243,33 @@ fun LeaveScreen(
             }
         }
 
-        // Success snackbar
-        if (uiState.submitSuccess) {
-            Snackbar(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-                containerColor = c.success
-            ) {
-                Text("Leave application submitted successfully!")
-            }
-        }
-
-        // Error snackbar
-        uiState.errorMessage?.let { error ->
-            Snackbar(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-                containerColor = c.error,
-                action = {
-                    TextButton(onClick = viewModel::clearError) {
-                        Text("Dismiss", color = Color.White)
+        // Single snackbar slot — error takes priority so success + error never stack.
+        val error = uiState.errorMessage
+        when {
+            error != null -> {
+                Snackbar(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp),
+                    containerColor = c.error,
+                    action = {
+                        TextButton(onClick = viewModel::clearError) {
+                            Text("Dismiss", color = Color.White)
+                        }
                     }
+                ) {
+                    Text(error)
                 }
-            ) {
-                Text(error)
+            }
+            uiState.submitSuccess -> {
+                Snackbar(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp),
+                    containerColor = c.success
+                ) {
+                    Text("Leave application submitted successfully!")
+                }
             }
         }
     }
@@ -262,14 +296,24 @@ private fun LeaveApplyForm(
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
 
-    val leaveTypes = listOf("CL" to "Casual Leave", "SL" to "Sick Leave", "EL" to "Emergency Leave")
+    val leaveTypes = LEAVE_TYPES
+
+    // Fix H12: form must scroll & fit small screens AND landscape. Cap height
+    // screen-relative, scroll the body internally, and pad for the IME so the
+    // Submit button is never clipped or covered by the keyboard.
+    val scrollState = rememberScrollState()
+    val configuration = LocalConfiguration.current
+    val maxFormHeight = (configuration.screenHeightDp * 0.82f).dp
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .imePadding()
             .padding(16.dp)
+            .heightIn(max = maxFormHeight)
             .clip(RoundedCornerShape(16.dp))
             .glassCard()
+            .verticalScroll(scrollState)
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -284,8 +328,12 @@ private fun LeaveApplyForm(
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
             )
-            IconButton(onClick = onCancel, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Filled.Close, contentDescription = "Close", tint = TextSecondary)
+            // Fix (a11y): keep a >=48dp touch target (was forced to 24dp).
+            IconButton(
+                onClick = onCancel,
+                modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            ) {
+                Icon(Icons.Filled.Close, contentDescription = "Close form", tint = TextSecondary)
             }
         }
 
@@ -293,18 +341,26 @@ private fun LeaveApplyForm(
         Text("Leave Type", color = TextSecondary, fontSize = 12.sp)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             leaveTypes.forEach { (code, label) ->
-                val selected = uiState.selectedLeaveType == code
+                val isSelected = uiState.selectedLeaveType == code
                 Box(
+                    contentAlignment = Alignment.Center,
                     modifier = Modifier
+                        // Fix (a11y): >=48dp target + radio-button semantics.
+                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (selected) Accent else Color.Transparent)
-                        .border(1.dp, if (selected) Accent else TextSecondary.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                        .background(if (isSelected) Accent else Color.Transparent)
+                        .border(1.dp, if (isSelected) Accent else TextSecondary.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
                         .clickable { onLeaveTypeChanged(code) }
+                        .semantics {
+                            role = Role.RadioButton
+                            selected = isSelected
+                            contentDescription = label
+                        }
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = label,
-                        color = if (selected) Color.White else TextSecondary,
+                        color = if (isSelected) Color.White else TextSecondary,
                         fontSize = 13.sp
                     )
                 }
@@ -320,16 +376,19 @@ private fun LeaveApplyForm(
             Column(modifier = Modifier.weight(1f)) {
                 Text("From", color = TextSecondary, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(4.dp))
+                val startLabel = uiState.startDate?.format(dateFormatter) ?: "Select date"
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .sizeIn(minHeight = 48.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .border(1.dp, TextSecondary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                         .clickable { showStartDatePicker = true }
+                        .semantics { contentDescription = "Start date: $startLabel" }
                         .padding(12.dp)
                 ) {
                     Text(
-                        text = uiState.startDate?.format(dateFormatter) ?: "Select date",
+                        text = startLabel,
                         color = if (uiState.startDate != null) TextPrimary else TextSecondary.copy(alpha = 0.5f)
                     )
                 }
@@ -339,16 +398,19 @@ private fun LeaveApplyForm(
             Column(modifier = Modifier.weight(1f)) {
                 Text("To", color = TextSecondary, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(4.dp))
+                val endLabel = uiState.endDate?.format(dateFormatter) ?: "Select date"
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .sizeIn(minHeight = 48.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .border(1.dp, TextSecondary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                         .clickable { showEndDatePicker = true }
+                        .semantics { contentDescription = "End date: $endLabel" }
                         .padding(12.dp)
                 ) {
                     Text(
-                        text = uiState.endDate?.format(dateFormatter) ?: "Select date",
+                        text = endLabel,
                         color = if (uiState.endDate != null) TextPrimary else TextSecondary.copy(alpha = 0.5f)
                     )
                 }
@@ -409,7 +471,11 @@ private fun LeaveApplyForm(
 
     // Date Pickers
     if (showStartDatePicker) {
-        val datePickerState = rememberDatePickerState()
+        // Fix (validation): disallow past start dates in the picker itself.
+        val today = remember { LocalDate.now() }
+        val datePickerState = rememberDatePickerState(
+            selectableDates = minSelectableDates(today)
+        )
         DatePickerDialog(
             onDismissRequest = { showStartDatePicker = false },
             confirmButton = {
@@ -430,7 +496,11 @@ private fun LeaveApplyForm(
     }
 
     if (showEndDatePicker) {
-        val datePickerState = rememberDatePickerState()
+        // Fix (validation): End picker constrained to >= Start (else today).
+        val minEnd = uiState.startDate ?: LocalDate.now()
+        val datePickerState = rememberDatePickerState(
+            selectableDates = minSelectableDates(minEnd)
+        )
         DatePickerDialog(
             onDismissRequest = { showEndDatePicker = false },
             confirmButton = {
@@ -455,25 +525,30 @@ private fun LeaveApplyForm(
 private fun LeaveHistoryCard(
     leave: LeaveApplicationDoc,
     dateFormatter: DateTimeFormatter,
+    cancelling: Boolean,
     onCancel: () -> Unit
 ) {
     val c = LocalAppColors.current
     val TextPrimary = c.textPrimary
     val TextSecondary = c.textSecondary
     val Accent = c.accent
-    val statusColor = when (leave.status) {
+    // Fix (case-insensitive): tolerate legacy CapitalCase statuses on read.
+    val status = leave.status.lowercase()
+    val statusColor = when (status) {
         "approved" -> c.success
         "rejected" -> c.error
         "cancelled" -> c.textSecondary
         else -> c.warning  // pending
     }
 
-    val statusIcon = when (leave.status) {
+    val statusIcon = when (status) {
         "approved" -> Icons.Filled.CheckCircle
         "rejected" -> Icons.Filled.Cancel
         "cancelled" -> Icons.Filled.Close
         else -> Icons.Filled.HourglassEmpty
     }
+
+    var showCancelConfirm by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -495,7 +570,8 @@ private fun LeaveHistoryCard(
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = leave.leaveType.ifEmpty { "Leave" },
+                    // Fix (LOW): show the human label (e.g. "Casual Leave"), not the raw "CL" code.
+                    text = LEAVE_TYPE_LABELS[leave.leaveType] ?: leave.leaveType.ifEmpty { "Leave" },
                     color = Accent,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold
@@ -506,13 +582,13 @@ private fun LeaveHistoryCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = statusIcon,
-                    contentDescription = leave.status,
+                    contentDescription = status,
                     modifier = Modifier.size(16.dp),
                     tint = statusColor
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = leave.status.replaceFirstChar { it.uppercase() },
+                    text = status.replaceFirstChar { it.uppercase() },
                     color = statusColor,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -559,16 +635,43 @@ private fun LeaveHistoryCard(
         }
 
         // Cancel button (only for pending)
-        if (leave.status == "pending") {
+        if (status == "pending") {
             Spacer(modifier = Modifier.height(8.dp))
             TextButton(
-                onClick = onCancel,
+                // Fix (LOW): confirm first + disable while a cancel is in flight.
+                onClick = { showCancelConfirm = true },
+                enabled = !cancelling,
                 colors = ButtonDefaults.textButtonColors(contentColor = c.error)
             ) {
-                Icon(Icons.Filled.Cancel, contentDescription = null, modifier = Modifier.size(16.dp))
+                if (cancelling) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = c.error,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(Icons.Filled.Cancel, contentDescription = null, modifier = Modifier.size(16.dp))
+                }
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Cancel Application", fontSize = 13.sp)
+                Text(if (cancelling) "Cancelling..." else "Cancel Application", fontSize = 13.sp)
             }
         }
+    }
+
+    if (showCancelConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCancelConfirm = false },
+            title = { Text("Cancel leave application?") },
+            text = { Text("This will withdraw the leave request. This cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCancelConfirm = false
+                    onCancel()
+                }) { Text("Yes, cancel", color = c.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelConfirm = false }) { Text("Keep") }
+            }
+        )
     }
 }

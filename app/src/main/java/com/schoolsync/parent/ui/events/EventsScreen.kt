@@ -312,17 +312,25 @@ private fun EventListCard(
                 )
             }
         } else {
-            // Gradient accent bar at top
+            // No photo yet — polished category-colored header + glyph so the
+            // event reads as intentional rather than blank/half-rendered.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(4.dp)
+                    .height(96.dp)
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(categoryGradStart, categoryGradEnd)
-                        )
-                    )
-            )
+                        Brush.linearGradient(colors = listOf(categoryGradStart, categoryGradEnd))
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = eventCategoryIcon(event.category),
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(34.dp)
+                )
+            }
         }
 
         Column(
