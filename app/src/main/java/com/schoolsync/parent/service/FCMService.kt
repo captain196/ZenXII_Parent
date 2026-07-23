@@ -8,6 +8,7 @@ import android.content.Intent
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.schoolsync.parent.MainActivity
@@ -195,18 +196,44 @@ class FCMService : FirebaseMessagingService() {
                         data = message.data
                     )
                 }
+                // Flag cleared — reassuring "good news" notification (not urgent).
+                "red_flag_resolved" -> {
+                    showNotification(
+                        title = title.ifBlank { "✅ Flag Resolved" },
+                        body = body.ifBlank { "A flag about your child has been resolved." },
+                        data = message.data
+                    )
+                }
+                // New story posted by a teacher/admin. The universal dispatcher
+                // sends type = "story_created" (idKey storyId). Without this case
+                // a data-only story push with a blank body was silently dropped;
+                // now it always shows on the STORIES channel (channelForType maps
+                // "story"/"story_created" → STORIES).
+                "story", "story_created" -> {
+                    showNotification(
+                        title = title.ifBlank { "New Story" },
+                        body = body.ifBlank { "A new story was posted. Tap to view." },
+                        data = message.data
+                    )
+                }
                 else -> {
                     // Fallback: some payloads carry the raw pushRequests `mark`
-                    // instead of a `type`. Catch the flag mark here so an
+                    // instead of a `type`. Catch the flag marks here so an
                     // unpinned dispatcher still notifies rather than going silent.
-                    if (message.data["mark"] == "FLAG_CREATED") {
-                        showNotification(
+                    when (message.data["mark"]) {
+                        "FLAG_CREATED" -> showNotification(
                             title = title.ifBlank { "New Alert" },
                             body = body.ifBlank { "A teacher raised an alert about your child. Tap to view." },
                             data = message.data
                         )
-                    } else if (body.isNotBlank()) {
-                        showNotification(title = title, body = body, data = message.data)
+                        "FLAG_RESOLVED" -> showNotification(
+                            title = title.ifBlank { "✅ Flag Resolved" },
+                            body = body.ifBlank { "A flag about your child has been resolved." },
+                            data = message.data
+                        )
+                        else -> if (body.isNotBlank()) {
+                            showNotification(title = title, body = body, data = message.data)
+                        }
                     }
                 }
             }
@@ -235,7 +262,8 @@ class FCMService : FirebaseMessagingService() {
         val channelId = NotificationChannels.channelForType(data["type"] ?: data["mark"])
 
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.mipmap.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_zenxii)
+            .setColor(ContextCompat.getColor(this, R.color.notification_color))
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)

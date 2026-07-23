@@ -78,7 +78,7 @@ class StoryViewModel @Inject constructor(
         }
         // Live seen-state → drives the ring's grey/colored transition.
         viewModelScope.launch { storyRepo.observeSeenStoryIds().collect { seenIds.value = it } }
-        viewModelScope.launch { hydrateMyReactions() }
+        observeMyReactions()
         observeStories()
     }
 
@@ -98,36 +98,50 @@ class StoryViewModel @Inject constructor(
         }
     }
 
-    // Load this parent's existing reactions once (storyId → emoji) so
-    // the ReactionBar shows their current pick highlighted. Mirrors
-    // the viewers hydration: collection-group over 'reactions' docs
-    // filtered by userId.
-    private suspend fun hydrateMyReactions() {
-        try {
+    /** Live registration for this parent's reactions collection-group listener. */
+    private var reactionsListener: com.google.firebase.firestore.ListenerRegistration? = null
+
+    // LIVE stream of this parent's reactions (storyId → emoji) so the tray
+    // shows their current pick highlighted. Previously a one-shot .get() at
+    // init, which meant a reaction toggled on ANOTHER device (or the server
+    // reconciling the optimistic write) never reflected until app restart.
+    // A real-time collection-group listener keeps myReactions in sync.
+    private fun observeMyReactions() {
+        viewModelScope.launch {
             val user = tokenManager.user.firstOrNull()
             val userId = user?.userId.orEmpty()
-            if (userId.isBlank()) return
-            // SEC-3: the reactions collection-group READ rule is now tenant-
-            // bound (reaction.schoolId == caller's school_id claim), so the
-            // query MUST carry the same schoolId filter or Firestore rejects
-            // it wholesale. If we can't resolve the school, emit nothing.
-            val school = user?.schoolId?.ifBlank { user.schoolCode }.orEmpty()
-            if (school.isBlank()) return
-            val snap = FirebaseFirestore.getInstance()
+            if (userId.isBlank()) return@launch
+            // SEC-3: the reactions collection-group READ rule is tenant-bound
+            // (reaction.schoolId == caller's school_id claim), so the query
+            // MUST carry the same schoolId filter or Firestore rejects it
+            // wholesale. If we can't resolve the school, listen to nothing.
+            val school = (user?.schoolId ?: "").ifBlank { user?.schoolCode ?: "" }
+            if (school.isBlank()) return@launch
+            reactionsListener?.remove()
+            reactionsListener = FirebaseFirestore.getInstance()
                 .collectionGroup("reactions")
                 .whereEqualTo("schoolId", school)
                 .whereEqualTo("userId", userId)
-                .get().await()
-            val map = mutableMapOf<String, String>()
-            for (doc in snap.documents) {
-                val storyId = doc.reference.parent.parent?.id ?: continue
-                val emoji = doc.getString("emoji").orEmpty()
-                if (emoji.isNotBlank()) map[storyId] = emoji
-            }
-            if (map.isNotEmpty()) _uiState.update { it.copy(myReactions = map) }
-        } catch (e: Exception) {
-            Log.w(TAG, "hydrateMyReactions failed (non-fatal)", e)
+                .addSnapshotListener { snap, err ->
+                    if (err != null) {
+                        Log.w(TAG, "observeMyReactions failed (non-fatal)", err)
+                        return@addSnapshotListener
+                    }
+                    if (snap == null) return@addSnapshotListener
+                    val map = mutableMapOf<String, String>()
+                    for (doc in snap.documents) {
+                        val storyId = doc.reference.parent.parent?.id ?: continue
+                        val emoji = doc.getString("emoji").orEmpty()
+                        if (emoji.isNotBlank()) map[storyId] = emoji
+                    }
+                    _uiState.update { it.copy(myReactions = map) }
+                }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        reactionsListener?.remove()
     }
 
     /**

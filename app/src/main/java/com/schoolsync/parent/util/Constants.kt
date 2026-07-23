@@ -301,7 +301,8 @@ object Constants {
         // Analytics
         const val DASHBOARDS = "dashboards"
         const val AUDIT_LOG = "auditLogs"
-        const val RBAC_ROLES = "rbacRoles"
+        // RBAC_ROLES removed (supersession cleanup): the Parent app has no RBAC —
+        // parents aren't staff; the rbacRoles collection is never read here.
 
         // Phase B (RTDB elimination): Student Red Flags
         const val STUDENT_FLAGS = "studentFlags"

@@ -165,17 +165,10 @@ dependencies {
     // Media3 = modern ExoPlayer; stable, Compose-friendly via AndroidView.
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
-    // Video playback (Stories viewer — Round 1a).
-    // Media3 = modern ExoPlayer; stable, Compose-friendly via AndroidView.
-    implementation("androidx.media3:media3-exoplayer:1.3.1")
-    implementation("androidx.media3:media3-ui:1.3.1")
     // Stories viewer upgrade — disk cache for smooth video re-watch /
     // swipe-back, and the cache DB provider.
     implementation("androidx.media3:media3-datasource:1.3.1")
     implementation("androidx.media3:media3-database:1.3.1")
-
-    // Stories viewer upgrade — pinch / double-tap zoom for image stories.
-    implementation("me.saket.telephoto:zoomable-image-coil:0.13.0")
 
     // Lottie animations
     implementation("com.airbnb.android:lottie-compose:6.4.0")

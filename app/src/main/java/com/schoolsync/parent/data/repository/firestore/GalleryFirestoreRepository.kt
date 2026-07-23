@@ -7,6 +7,9 @@ import com.schoolsync.parent.data.model.GalleryAlbum
 import com.schoolsync.parent.data.model.GalleryMedia
 import com.schoolsync.parent.data.model.firestore.GalleryAlbumDoc
 import com.schoolsync.parent.data.model.firestore.GalleryMediaDoc
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -89,6 +92,49 @@ class GalleryFirestoreRepository @Inject constructor(
             android.util.Log.e("GalleryRepo", "getAlbums failed", e)
             Result.failure(e)
         }
+    }
+
+    /**
+     * Real-time variant of [getAlbums]: emits a fresh [Result] every time the
+     * `galleryAlbums` collection changes, so newly published albums appear on
+     * the Gallery screen without a manual refresh.
+     *
+     * Preserves the exact query of [getAlbums] (schoolId + isArchived==false,
+     * createdAt DESC, limit 100) and the same Result contract — a listener
+     * error (undeployed composite index / PERMISSION_DENIED) surfaces as
+     * `Result.failure`, distinct from an empty-but-successful snapshot. The
+     * registration is removed on cancellation via [awaitClose].
+     */
+    fun observeAlbums(): Flow<Result<List<GalleryAlbum>>> = callbackFlow {
+        val schoolCode = tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
+        if (schoolCode == null) {
+            trySend(Result.failure(Exception("School id not available")))
+            close()
+            return@callbackFlow
+        }
+
+        val registration = firestoreService.firestore.collection("galleryAlbums")
+            .whereEqualTo("schoolId", schoolCode)
+            .whereEqualTo("isArchived", false)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(100)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    android.util.Log.e("GalleryRepo", "observeAlbums failed", error)
+                    trySend(Result.failure(error))
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val albums = try {
+                        snapshot.toObjects(GalleryAlbumDoc::class.java).map { it.toAlbum() }
+                    } catch (e: Exception) {
+                        trySend(Result.failure(e))
+                        return@addSnapshotListener
+                    }
+                    trySend(Result.success(albums))
+                }
+            }
+        awaitClose { registration.remove() }
     }
 
     /**

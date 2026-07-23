@@ -376,9 +376,13 @@ fun MainScreen(
     // foregrounded) by a notification tap; we navigate once the main
     // scaffold is up. Calling consume() clears the flag so a tab switch
     // later doesn't re-route.
+    // Carries a deep-linked notice id (from a tapped notice push) to the Notices
+    // screen so it can auto-expand + scroll to that notice.
+    var pendingNoticeId by remember { mutableStateOf<String?>(null) }
     val pendingDeepLink by DeepLinkBridge.pending.collectAsState()
     LaunchedEffect(pendingDeepLink) {
-        val target = pendingDeepLink ?: return@LaunchedEffect
+        val dl = pendingDeepLink ?: return@LaunchedEffect
+        val target = dl.route
         // Allow-listed main-tab routes, plus the events + event_detail routes
         // for push-notification tap deep-links. Unknown targets dropped silently.
         // Includes "red_flags" so a flag-alert push actually opens the Red
@@ -393,6 +397,8 @@ fun MainScreen(
         val isResults       = target == "results" || target.startsWith("results?")
         val isExams         = target == "exams" || target.startsWith("exams?")
         if (target in allowedTabs || isEventDetail || isHomework || isResults || isExams) {
+            // Stash the notice id (if any) so the Notices screen auto-opens it.
+            if (target == "notices") pendingNoticeId = dl.arg
             navController.navigate(target) {
                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                 launchSingleTop = true
@@ -671,7 +677,11 @@ fun MainScreen(
                 popEnterTransition = { fadeIn(tween(fadeDuration)) },
                 popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(slideDuration)) }
             ) {
-                NoticesScreen(onBack = { navController.popBackStack() })
+                NoticesScreen(
+                    onBack = { navController.popBackStack() },
+                    deepLinkNoticeId = pendingNoticeId,
+                    onDeepLinkConsumed = { pendingNoticeId = null }
+                )
             }
 
             composable(

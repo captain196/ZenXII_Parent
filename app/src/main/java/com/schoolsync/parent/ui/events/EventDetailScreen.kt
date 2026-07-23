@@ -3,20 +3,10 @@
 package com.schoolsync.parent.ui.events
 
 import android.annotation.SuppressLint
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -48,7 +37,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,11 +45,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -69,10 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -82,10 +64,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import kotlinx.coroutines.launch
 import com.schoolsync.parent.data.model.EventMedia
+import com.schoolsync.parent.ui.common.FullscreenMediaItem
+import com.schoolsync.parent.ui.common.FullscreenMediaViewer
 import com.schoolsync.parent.ui.theme.LocalAppColors
-import com.schoolsync.parent.util.AttachmentUrlValidator
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
 
@@ -97,7 +79,6 @@ fun EventDetailScreen(
     viewModel: EventsViewModel = hiltViewModel()
 ) {
     val c = LocalAppColors.current
-    val context = LocalContext.current
     val detailState by viewModel.detailState.collectAsStateWithLifecycle()
     // rememberSaveable so the open viewer + which page survives config change
     // / process death. -1 = closed.
@@ -463,18 +444,10 @@ fun EventDetailScreen(
                                 event.mediaUrls.forEachIndexed { index, media ->
                                     MediaItem(
                                         media = media,
-                                        onClick = {
-                                            if (media.type == "video") {
-                                                // Open video externally — validated
-                                                // (https + firebasestorage host) before dispatch.
-                                                AttachmentUrlValidator.openAttachmentSafely(
-                                                    context, media.url, "event_video"
-                                                )
-                                            } else {
-                                                // Open fullscreen image viewer
-                                                viewerIndex = index
-                                            }
-                                        }
+                                        // Both images and videos open in the shared
+                                        // fullscreen viewer — videos now play inline
+                                        // (no external launch).
+                                        onClick = { viewerIndex = index }
                                     )
                                 }
                             }
@@ -488,16 +461,28 @@ fun EventDetailScreen(
         }
     }
 
-    // Fullscreen gallery viewer
+    // Fullscreen media viewer (shared with the Gallery screen). Videos play
+    // inline; images support pinch-zoom / swipe paging.
     val event = detailState.event
     if (viewerIndex >= 0 && event != null && event.mediaUrls.isNotEmpty()) {
-        GalleryViewer(
-            mediaList = event.mediaUrls,
-            initialIndex = viewerIndex,
-            onDismiss = { viewerIndex = -1 },
-            onVideoPlay = { url ->
-                AttachmentUrlValidator.openAttachmentSafely(context, url, "event_video")
+        val viewerItems = remember(event.mediaUrls) {
+            event.mediaUrls.map { m ->
+                FullscreenMediaItem(
+                    url = m.url,
+                    isVideo = m.type == "video",
+                    // Video-decode guard: never feed a raw video URL as a poster.
+                    posterUrl = when {
+                        m.type != "video" -> m.url
+                        !m.thumbnail.isNullOrBlank() -> m.thumbnail
+                        else -> null
+                    }
+                )
             }
+        }
+        FullscreenMediaViewer(
+            items = viewerItems,
+            initialIndex = viewerIndex,
+            onDismiss = { viewerIndex = -1 }
         )
     }
     } // close outer Box
@@ -629,206 +614,6 @@ private fun MediaItem(media: EventMedia, onClick: () -> Unit = {}) {
     }
 }
 
-@Composable
-private fun GalleryViewer(
-    mediaList: List<EventMedia>,
-    initialIndex: Int,
-    onDismiss: () -> Unit,
-    onVideoPlay: (String) -> Unit
-) {
-    val pagerState = rememberPagerState(
-        initialPage = initialIndex.coerceIn(0, mediaList.lastIndex),
-        pageCount = { mediaList.size }
-    )
-    var showControls by remember { mutableStateOf(true) }
-    val controlsAlpha by animateFloatAsState(
-        targetValue = if (showControls) 1f else 0f,
-        animationSpec = tween(250), label = "ctrl"
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-    ) {
-        // ── Swipeable pages ──
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize(),
-            beyondBoundsPageCount = 1
-        ) { page ->
-            val media = mediaList[page]
-            // Poster only — a poster-less video shows just the play button
-            // (no heavy / flaky raw-.mp4 frame decode).
-            val posterUrl = when {
-                media.type != "video" -> media.url
-                !media.thumbnail.isNullOrBlank() -> media.thumbnail
-                else -> null
-            }
-
-            var scale by remember { mutableFloatStateOf(1f) }
-            var offX by remember { mutableFloatStateOf(0f) }
-            var offY by remember { mutableFloatStateOf(0f) }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(page) {
-                        detectTapGestures(
-                            onTap = { showControls = !showControls },
-                            onDoubleTap = { tapOffset ->
-                                if (scale > 1.2f) {
-                                    scale = 1f; offX = 0f; offY = 0f
-                                } else {
-                                    scale = 3f
-                                    offX = (size.width / 2f - tapOffset.x) * 2f
-                                    offY = (size.height / 2f - tapOffset.y) * 2f
-                                }
-                            }
-                        )
-                    }
-                    .pointerInput(page) {
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            scale = (scale * zoom).coerceIn(1f, 5f)
-                            if (scale > 1f) {
-                                offX += pan.x * scale
-                                offY += pan.y * scale
-                            } else {
-                                offX = 0f; offY = 0f
-                            }
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                if (!posterUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = posterUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer(
-                                scaleX = scale, scaleY = scale,
-                                translationX = offX, translationY = offY
-                            )
-                    )
-                }
-
-                // Video play button overlay
-                if (media.type == "video") {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.5f))
-                            .clickable { onVideoPlay(media.url) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.PlayCircle,
-                            contentDescription = "Play",
-                            tint = Color.White,
-                            modifier = Modifier.size(44.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        // ── Top bar ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .graphicsLayer(alpha = controlsAlpha)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)
-                    )
-                )
-                .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.Filled.Close, "Close", tint = Color.White)
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "${pagerState.currentPage + 1} / ${mediaList.size}",
-                style = TextStyle(
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White
-                )
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Spacer(modifier = Modifier.size(48.dp)) // balance close btn
-        }
-
-        // ── Bottom thumbnail strip ──
-        val scope = rememberCoroutineScope()
-        if (mediaList.size > 1) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .graphicsLayer(alpha = controlsAlpha)
-                    .padding(bottom = 32.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Spacer(modifier = Modifier.width(16.dp))
-                mediaList.forEachIndexed { i, media ->
-                    val isActive = i == pagerState.currentPage
-                    val posterUrl = when {
-                        media.type != "video" -> media.url
-                        !media.thumbnail.isNullOrBlank() -> media.thumbnail
-                        else -> null
-                    }
-                    val thumbAlpha by animateFloatAsState(
-                        targetValue = if (isActive) 1f else 0.4f,
-                        animationSpec = tween(200), label = "thumb$i"
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(if (isActive) 52.dp else 44.dp)
-                            .graphicsLayer(alpha = thumbAlpha)
-                            .clip(RoundedCornerShape(if (isActive) 10.dp else 8.dp))
-                            .background(Color.White.copy(alpha = 0.1f))
-                            .then(
-                                if (isActive) Modifier.border(
-                                    2.dp, Color.White, RoundedCornerShape(10.dp)
-                                ) else Modifier
-                            )
-                            .clickable {
-                                scope.launch {
-                                    pagerState.animateScrollToPage(i)
-                                }
-                            }
-                    ) {
-                        if (!posterUrl.isNullOrBlank()) {
-                            AsyncImage(
-                                model = posterUrl,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                        if (media.type == "video") {
-                            Icon(
-                                Icons.Filled.PlayCircle, null,
-                                tint = Color.White.copy(alpha = 0.8f),
-                                modifier = Modifier.size(16.dp).align(Alignment.Center)
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-            }
-        }
-    }
-}
 
 // Category / status color helpers live in EventColors.kt (shared with
 // EventsScreen).

@@ -97,6 +97,10 @@
     <string name="notices_empty_title">No notices</string>
     <string name="notices_empty_subtitle">There are no notices at the moment.\nPull down to refresh.</string>
     <string name="notices_author_format">— %1$s</string>
+    <string name="notices_attachment_open">📎 Open attachment</string>
+    <string name="notices_attachment_no_app">No app can open this attachment</string>
+    <string name="notices_attachment_invalid">Attachment link is invalid</string>
+    <string name="notices_refresh_failed">Couldn\'t refresh notices. Check your connection.</string>
     <string name="notices_category_urgent">URGENT</string>
     <string name="notices_category_important">IMPORTANT</string>
     <string name="notices_category_exam">EXAM</string>

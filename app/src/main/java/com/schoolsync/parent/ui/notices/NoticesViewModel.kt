@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -39,7 +40,6 @@ class NoticesViewModel @Inject constructor(
     private var readIds: Set<String> = emptySet()
 
     init {
-        loadNotices()
         observeNotices()
     }
 
@@ -48,41 +48,53 @@ class NoticesViewModel @Inject constructor(
         badgeBus.setCount("notices", notices.count { !it.isRead })
     }
 
-    private fun loadNotices() {
+    /**
+     * Single source of truth for the notice LIST: the real-time
+     * [observeCirculars] listener. Read receipts are bootstrapped once before
+     * the first emission so unread dots/badges paint correctly, then folded in
+     * on every emit. (Previously we ALSO fired a one-shot [getCirculars] on
+     * open — a redundant double read of two collections. Removed.)
+     *
+     * A post-initial listener failure (e.g. PERMISSION_DENIED after a token
+     * refresh) is routed into [NoticesUiState.errorMessage] instead of only
+     * being logged, so the UI can show a "couldn't refresh" hint rather than
+     * silently keeping stale success.
+     */
+    private fun observeNotices() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            // Best-effort read-state bootstrap (never a hard dependency).
             readIds = communicationFirestoreRepo.getReadCircularIds()
 
-            communicationFirestoreRepo.getCirculars().fold(
-                onSuccess = { circulars ->
-                    val notices = circulars.map { it.toNotice(readIds) }
-                    publishBadge(notices)
-                    _uiState.update { it.copy(isLoading = false, notices = notices) }
-                },
-                onFailure = { e ->
-                    Log.e("NoticesVM", "Failed to load notices", e)
+            communicationFirestoreRepo.observeCirculars()
+                .catch { e ->
+                    Log.e("NoticesVM", "Notices observer failed", e)
+                    // Keep whatever list is already shown; surface the failure.
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: "Failed to load notices"
+                            errorMessage = e.message ?: "Couldn't refresh notices"
                         )
                     }
                 }
-            )
+                .collect { circulars ->
+                    val notices = circulars.map { it.toNotice(readIds) }
+                    publishBadge(notices)
+                    _uiState.update {
+                        it.copy(notices = notices, isLoading = false, errorMessage = null)
+                    }
+                }
         }
     }
 
-    private fun observeNotices() {
-        viewModelScope.launch {
-            try {
-                communicationFirestoreRepo.observeCirculars().collect { circulars ->
-                    val notices = circulars.map { it.toNotice(readIds) }
-                    publishBadge(notices)
-                    _uiState.update { it.copy(notices = notices, isLoading = false) }
-                }
-            } catch (e: Exception) {
-                Log.e("NoticesVM", "Notices observer failed", e)
-            }
+    /**
+     * Force-open a notice (idempotent) — used by the deep-link auto-open path.
+     * Unlike [toggleExpanded], calling it on an already-open notice keeps it
+     * open rather than collapsing it. Marks the notice read like a manual open.
+     */
+    fun expandNotice(noticeId: String) {
+        if (_uiState.value.expandedNoticeId != noticeId) {
+            toggleExpanded(noticeId)
         }
     }
 

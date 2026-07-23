@@ -86,7 +86,7 @@ object NotificationChannels {
         "fee_payment_confirmed", "fee_reminder", "fee_defaulter_alert" -> FEES
         "leave_approved", "leave_rejected" -> LEAVE
         "event", "event_created" -> EVENTS
-        "red_flag", "flag_created", "red_flag_created", "student_flag" -> ALERTS
+        "red_flag", "flag_created", "red_flag_created", "student_flag", "red_flag_resolved" -> ALERTS
         "exam_result", "exam_schedule" -> EXAMS
         "gallery_added" -> GALLERY
         "story", "story_created" -> STORIES

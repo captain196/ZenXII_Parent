@@ -153,11 +153,23 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             // Notice/circular pushes now deep-link to the Notices inbox (was
             // silently dropped, so tapping a notice notification did nothing).
             "notice_created", "circular_created", "notice", "circular"     -> "notices"
-            "red_flag", "flag_created", "red_flag_created", "student_flag" -> "red_flags"
+            "red_flag", "flag_created", "red_flag_created", "student_flag",
+            "red_flag_resolved"                                            -> "red_flags"
+            // Story pushes land on the Dashboard, where the story ring lives
+            // (unseen stories are highlighted). The push only carries storyId —
+            // not a parseable authorId (schoolId itself contains underscores) —
+            // so we route to the ring rather than a specific author's viewer.
+            "story", "story_created"                                      -> "dashboard"
             // Fallback for dispatchers that forward the raw pushRequests `mark`.
-            else -> if (intent.getStringExtra("mark") == "FLAG_CREATED") "red_flags" else null
+            else -> if (intent.getStringExtra("mark") in setOf("FLAG_CREATED", "FLAG_RESOLVED")) "red_flags" else null
         } ?: return
-        DeepLinkBridge.publish(target)
+        // For notice deep-links, thread the tapped notice's id so the Notices
+        // screen can auto-expand + scroll to it (was previously dropped, so a tap
+        // only opened the list). Other targets ignore the arg.
+        val noticeArg = if (target == "notices") {
+            intent.getStringExtra("noticeId") ?: intent.getStringExtra("circularId")
+        } else null
+        DeepLinkBridge.publish(target, noticeArg)
     }
 
     private fun requestNotificationPermissionIfNeeded() {

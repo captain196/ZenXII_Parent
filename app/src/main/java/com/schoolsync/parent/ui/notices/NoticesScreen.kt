@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,6 +49,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,13 +70,38 @@ import com.schoolsync.parent.ui.theme.Motion
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
 
+/**
+ * Push deep-links carry the RAW notice id ("NOT0001") while a loaded notice's id
+ * is the full Firestore doc key ("{schoolId}_NOT0001"). Match tolerantly so the
+ * tapped notice can be located to expand + scroll to it.
+ */
+private fun matchesDeepLinkNoticeId(noticeId: String, pushId: String): Boolean =
+    noticeId == pushId || noticeId.endsWith("_$pushId") || pushId.endsWith("_$noticeId")
+
 @Composable
 fun NoticesScreen(
     onBack: () -> Unit,
-    viewModel: NoticesViewModel = hiltViewModel()
+    viewModel: NoticesViewModel = hiltViewModel(),
+    deepLinkNoticeId: String? = null,
+    onDeepLinkConsumed: () -> Unit = {}
 ) {
     val c = LocalAppColors.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+
+    // Auto-expand AND scroll to a notice arriving from a tapped push. Keyed on
+    // the list too: the tapped notice may not have streamed in yet, so retry on
+    // each emission and only consume the deep link once located + scrolled to.
+    androidx.compose.runtime.LaunchedEffect(deepLinkNoticeId, uiState.notices) {
+        val id = deepLinkNoticeId
+        if (id.isNullOrBlank()) return@LaunchedEffect
+        val idx = uiState.notices.indexOfFirst { matchesDeepLinkNoticeId(it.noticeId, id) }
+        if (idx >= 0) {
+            viewModel.expandNotice(uiState.notices[idx].noticeId)
+            listState.animateScrollToItem(idx)
+            onDeepLinkConsumed()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -146,6 +177,7 @@ fun NoticesScreen(
                 }
                 else -> {
                     LazyColumn(
+                        state = listState,
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxSize()
@@ -339,10 +371,15 @@ private fun NoticeCard(
                 // Attachment chip — opens in browser
                 if (notice.attachmentUrl.isNotBlank()) {
                     val ctx = androidx.compose.ui.platform.LocalContext.current
+                    val openAttachmentLabel = stringResource(R.string.notices_attachment_open)
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .background(catColor.copy(alpha = 0.12f))
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = openAttachmentLabel
+                            }
                             .clickable {
                                 // Only hand http(s) URLs to ACTION_VIEW — never
                                 // intent:/file:/custom schemes from server content.
@@ -356,17 +393,17 @@ private fun NoticeCard(
                                             )
                                         )
                                     }.onFailure {
-                                        android.widget.Toast.makeText(ctx, "No app can open this attachment", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(ctx, ctx.getString(R.string.notices_attachment_no_app), android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 } else {
-                                    android.widget.Toast.makeText(ctx, "Attachment link is invalid", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(ctx, ctx.getString(R.string.notices_attachment_invalid), android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "📎 Open attachment",
+                            openAttachmentLabel,
                             color = catColor,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
@@ -385,9 +422,21 @@ private fun NoticeCard(
                     androidx.compose.ui.viewinterop.AndroidView(
                         factory = { context ->
                             android.webkit.WebView(context).apply {
+                                // WRAP_CONTENT so the WebView measures to its content
+                                // height instead of collapsing to 0 inside the parent
+                                // (the LazyColumn item passes an unbounded height).
+                                layoutParams = android.view.ViewGroup.LayoutParams(
+                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                                )
                                 settings.javaScriptEnabled = false
                                 settings.loadWithOverviewMode = true
                                 settings.useWideViewPort = false
+                                // The card/list owns scrolling — disable the WebView's
+                                // own so long notices don't double-scroll.
+                                isVerticalScrollBarEnabled = false
+                                isHorizontalScrollBarEnabled = false
+                                settings.setSupportZoom(false)
                                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
                             }
                         },
@@ -403,7 +452,11 @@ private fun NoticeCard(
                             """.trimIndent()
                             webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        // Floor prevents a zero-height collapse before content measures;
+                        // generous ceiling guards a pathologically tall render.
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 120.dp, max = 4000.dp)
                     )
                 } else if (notice.body.isNotBlank()) {
                     Text(
@@ -495,10 +548,15 @@ private fun ErrorNoticesState(
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(20.dp))
+            val retryLabel = stringResource(R.string.action_retry)
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(24.dp))
                     .background(c.accent)
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = retryLabel
+                    }
                     .clickable(onClick = onRetry)
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 contentAlignment = Alignment.Center
@@ -564,10 +622,15 @@ private fun EmptyNoticesState(
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(20.dp))
+            val refreshLabel = stringResource(R.string.action_retry)
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(24.dp))
                     .background(c.accent)
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = refreshLabel
+                    }
                     .clickable(onClick = onRefresh)
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 contentAlignment = Alignment.Center

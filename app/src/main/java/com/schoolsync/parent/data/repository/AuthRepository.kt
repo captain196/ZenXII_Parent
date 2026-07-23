@@ -75,9 +75,24 @@ class AuthRepository @Inject constructor(
             Log.d(TAG, "Claims: schoolId=$schoolId, schoolCode=$schoolCode, parentDbKey=$parentDbKey")
 
             // ── Step 3: Firestore-first profile read ────────────────
-            val user = loadProfileFromFirestore(userId, schoolId, schoolCode, parentDbKey, role)
+            val loadedProfile = loadProfileFromFirestore(userId, schoolId, schoolCode, parentDbKey, role)
                 ?: loadProfileFromRtdb(userId, schoolId, schoolCode, parentDbKey, role)
                 ?: return AuthResult.Error("Student profile not found")
+
+            // WATERTIGHT (2026-07-20): honour the `must_change_password` CLAIM too,
+            // not just the students-doc field. Closes two force-change bypasses:
+            //  (a) the RTDB fallback above never populates the field (defaults false),
+            //  (b) a transient Firestore-read miss on the doc.
+            // The claim is set alongside the doc field on both account creation and
+            // admin reset, so OR-ing them fails safe toward gating.
+            val claimMustChange = when (val v = claims["must_change_password"]) {
+                is Boolean -> v
+                is String  -> v.equals("true", ignoreCase = true)
+                else       -> false
+            }
+            val user = loadedProfile.copy(
+                mustChangePassword = loadedProfile.mustChangePassword || claimMustChange
+            )
 
             Log.d(TAG, "Profile loaded: name=${user.name}, source=${if (user.profilePic.isNotBlank()) "Firestore" else "RTDB"}, mustChangePassword=${user.mustChangePassword}, status=${user.status}")
 

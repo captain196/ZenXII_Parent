@@ -14,6 +14,7 @@ import com.schoolsync.parent.data.repository.firestore.EventFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.GalleryFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.PtmFirestoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,40 +53,54 @@ class EventsViewModel @Inject constructor(
     private val _detailState = MutableStateFlow(EventDetailUiState())
     val detailState: StateFlow<EventDetailUiState> = _detailState.asStateFlow()
 
+    // Live events subscription. Held so refresh/pull-to-refresh can re-subscribe
+    // (and so a config change / retry cancels the previous listener).
+    private var eventsJob: Job? = null
+
     init {
-        loadEvents()
+        observeEvents()
     }
 
-    private fun loadEvents() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+    /**
+     * Subscribe to the live events feed. Each Firestore snapshot re-merges the
+     * (parallel) PTM rows and album covers, so newly published events appear
+     * without a manual refresh. [showLoader] is false when a pull-to-refresh
+     * spinner is already visible (avoid flashing the full-screen loader over
+     * existing content).
+     */
+    private fun observeEvents(showLoader: Boolean = true) {
+        eventsJob?.cancel()
+        eventsJob = viewModelScope.launch {
+            if (showLoader) _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            // Fetch upcoming PTMs in parallel — they get rendered as event
-            // rows alongside school events. Failure on the PTM side never
+            // Fetch upcoming PTMs once per subscription — they get rendered as
+            // event rows alongside school events. Failure on the PTM side never
             // blocks events from showing; the Events screen is the more
             // important fallback if Firestore is partially down.
             val ptmRows = runCatching { fetchPtmsAsEvents() }.getOrDefault(emptyList())
 
-            eventFirestoreRepo.getEvents().fold(
-                onSuccess = { eventDocs ->
-                    val events = withAlbumCovers(eventDocs.map { it.toEvent() }) + ptmRows
-                    val sorted = events.sortedByDescending { it.startDate }
-                    _uiState.update { it.copy(isLoading = false, events = sorted) }
-                },
-                onFailure = { e ->
-                    Log.e("EventsVM", "Failed to load events", e)
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            // If events failed but PTMs loaded, still show the PTMs.
-                            events = if (ptmRows.isNotEmpty()) ptmRows else emptyList(),
-                            errorMessage = if (ptmRows.isEmpty()) (e.message ?: "Failed to load events") else null
-                        )
+            eventFirestoreRepo.observeEvents().collect { result ->
+                result.fold(
+                    onSuccess = { eventDocs ->
+                        val events = (withAlbumCovers(eventDocs.map { it.toEvent() }) + ptmRows)
+                            .sortedByDescending { it.startDate }
+                        _uiState.update {
+                            it.copy(isLoading = false, events = events, errorMessage = null)
+                        }
+                    },
+                    onFailure = { e ->
+                        Log.e("EventsVM", "Failed to observe events", e)
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                // If events failed but PTMs loaded, still show the PTMs.
+                                events = if (ptmRows.isNotEmpty()) ptmRows else emptyList(),
+                                errorMessage = if (ptmRows.isEmpty()) (e.message ?: "Failed to load events") else null
+                            )
+                        }
                     }
-                    return@fold
-                }
-            )
-            return@launch
+                )
+            }
         }
     }
 
@@ -157,55 +172,20 @@ class EventsViewModel @Inject constructor(
         }
     }
 
-    fun refresh() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true) }
-            val ptmRows = runCatching { fetchPtmsAsEvents() }.getOrDefault(emptyList())
-            eventFirestoreRepo.getEvents().fold(
-                onSuccess = { eventDocs ->
-                    val events = (withAlbumCovers(eventDocs.map { it.toEvent() }) + ptmRows)
-                        .sortedByDescending { it.startDate }
-                    _uiState.update { it.copy(isRefreshing = false, events = events) }
-                },
-                onFailure = { e ->
-                    _uiState.update {
-                        it.copy(
-                            isRefreshing = false,
-                            events = if (ptmRows.isNotEmpty()) ptmRows else it.events,
-                            errorMessage = if (ptmRows.isEmpty()) e.message else null
-                        )
-                    }
-                }
-            )
-        }
-    }
+    /** Error-state retry: re-subscribe with the full-screen loader. */
+    fun refresh() = observeEvents(showLoader = true)
 
-    /** Pull-to-refresh: reload events with min spinner time. */
+    /**
+     * Pull-to-refresh. The live listener already keeps the list fresh, so this
+     * just re-subscribes (recovering from any prior listener error and re-pulling
+     * PTMs) while showing the refresh spinner for a minimum duration.
+     */
     fun pullRefresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }
-            val startedAt = System.currentTimeMillis()
-            val minSpinnerMs = 600L
-            val ptmRows = runCatching { fetchPtmsAsEvents() }.getOrDefault(emptyList())
-            try {
-                eventFirestoreRepo.getEvents().fold(
-                    onSuccess = { eventDocs ->
-                        val events = (withAlbumCovers(eventDocs.map { it.toEvent() }) + ptmRows)
-                            .sortedByDescending { it.startDate }
-                        _uiState.update { it.copy(events = events) }
-                    },
-                    onFailure = { e ->
-                        Log.w("EventsVM", "pullRefresh failed", e)
-                        _uiState.update { it.copy(errorMessage = e.message) }
-                    }
-                )
-            } catch (e: Exception) {
-                Log.w("EventsVM", "pullRefresh failed", e)
-            }
-            val elapsed = System.currentTimeMillis() - startedAt
-            if (elapsed < minSpinnerMs) {
-                kotlinx.coroutines.delay(minSpinnerMs - elapsed)
-            }
+            // Re-subscribe without the full-screen loader (spinner is already shown).
+            observeEvents(showLoader = false)
+            kotlinx.coroutines.delay(600L)
             _uiState.update { it.copy(isRefreshing = false) }
         }
     }

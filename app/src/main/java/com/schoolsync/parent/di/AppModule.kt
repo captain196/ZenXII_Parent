@@ -16,7 +16,6 @@ import com.schoolsync.parent.data.repository.AuthRepository
 import com.schoolsync.parent.data.repository.DataRepository
 import com.schoolsync.parent.data.repository.HomeworkRepository
 import com.schoolsync.parent.data.repository.MessageRepository
-import com.schoolsync.parent.data.repository.NoticeRepository
 import com.schoolsync.parent.data.repository.RedFlagRepository
 import com.schoolsync.parent.data.repository.StudentRepository
 import com.schoolsync.parent.data.repository.firestore.AttendanceFirestoreRepository
@@ -215,15 +214,6 @@ object AppModule {
     // GalleryRepository (RTDB) removed in Phase C-2 (2026-04-26).
     // GalleryFirestoreRepository is now the canonical reader; Hilt resolves
     // it via its @Inject constructor — no explicit @Provides needed.
-
-    @Provides
-    @Singleton
-    fun provideNoticeRepository(
-        firebaseService: FirebaseService,
-        tokenManager: TokenManager
-    ): NoticeRepository {
-        return NoticeRepository(firebaseService, tokenManager)
-    }
 
     @Provides
     @Singleton

@@ -225,11 +225,22 @@ private fun StoryPage(
     var poppedEmoji by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(story.storyId, isCurrentPage) {
-        if (isCurrentPage) onStoryViewed(story.storyId)
+        // Require a brief dwell before counting a view, so merely swiping PAST
+        // an author's first story (or flicking through the pager) doesn't
+        // inflate the view count. If the page changes before the delay elapses
+        // the effect is cancelled and no view is recorded.
+        if (isCurrentPage) {
+            kotlinx.coroutines.delay(500)
+            onStoryViewed(story.storyId)
+        }
     }
 
     // ── Progress state ─────────────────────────────────────────────
     var imageDisplayed by remember(index, group.teacherId) { mutableStateOf(false) }
+    // A broken/expired mediaUrl used to leave the spinner up forever (the
+    // 5s timer only starts after onSuccess), stranding the viewer. Track
+    // load failure so we can show an error and auto-advance instead.
+    var imageFailed by remember(index, group.teacherId) { mutableStateOf(false) }
     var imageElapsed by remember(index, group.teacherId) { mutableLongStateOf(0L) }
     var videoProgress by remember(index, group.teacherId) { mutableFloatStateOf(0f) }
 
@@ -332,13 +343,36 @@ private fun StoryPage(
                             },
                             contentScale = ContentScale.Fit,
                             onSuccess = { imageDisplayed = true },
+                            onError = { imageFailed = true },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
                 }
-                if (!isVideo && !imageDisplayed) {
+                if (!isVideo && !imageDisplayed && !imageFailed) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(36.dp))
+                    }
+                }
+                // Broken/expired media — surface an error instead of an eternal
+                // spinner, and auto-advance (mirrors the video onEnded fallback).
+                if (!isVideo && imageFailed) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().semantics { contentDescription = "This story could not be loaded" },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Couldn't load this story",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.85f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 32.dp)
+                        )
+                    }
+                }
+                LaunchedEffect(imageFailed, isCurrentPage) {
+                    if (imageFailed && isCurrentPage && !isVideo) {
+                        kotlinx.coroutines.delay(2500)
+                        if (index < stories.size - 1) index++ else onGroupFinished()
                     }
                 }
 

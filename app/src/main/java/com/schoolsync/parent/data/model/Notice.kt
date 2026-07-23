@@ -16,30 +16,6 @@ data class Notice(
     val category: String = "",
     val attachmentUrl: String = "",
     val priority: String = "Normal",  // Normal, Important, Urgent
-    val targetAudience: String = "",  // All, Parents, Students, Teachers
     /** True once this parent has opened the notice (from circularReads). */
     val isRead: Boolean = false,
-    val rawData: Map<String, Any?> = emptyMap()
-) {
-    companion object {
-        fun fromMap(noticeId: String, data: Map<String, Any?>): Notice {
-            return Notice(
-                noticeId = noticeId,
-                title = (data["title"] ?: data["Title"] ?: "").toString(),
-                body = (data["body"] ?: data["Body"] ?: data["message"] ?: data["Message"] ?: "").toString(),
-                date = (data["date"] ?: data["Date"] ?: "").toString(),
-                timestamp = when (val ts = data["timestamp"] ?: data["Timestamp"]) {
-                    is Number -> ts.toLong()
-                    is String -> ts.toLongOrNull() ?: 0L
-                    else -> 0L
-                },
-                author = (data["author"] ?: data["Author"] ?: data["posted_by"] ?: "").toString(),
-                category = (data["category"] ?: data["Category"] ?: "").toString(),
-                attachmentUrl = (data["attachment"] ?: data["Attachment"] ?: data["attachment_url"] ?: "").toString(),
-                priority = (data["priority"] ?: data["Priority"] ?: "Normal").toString(),
-                targetAudience = (data["target"] ?: data["Target"] ?: data["audience"] ?: "All").toString(),
-                rawData = data
-            )
-        }
-    }
-}
+)
