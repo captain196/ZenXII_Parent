@@ -33,6 +33,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // PROD-READINESS (2026-07): the production backend base URL. Defaults
+            // to the live ZenX host (served at domain root behind Cloudflare) and
+            // can be overridden at build time for staging / other tenants via the
+            // `PROD_BASE_URL` Gradle property, e.g.:
+            //   ./gradlew :app:bundleRelease -PPROD_BASE_URL=https://staging.zenxii.com/
+            // A release build NEVER ships the localhost dev default (that stays
+            // debug-only above).
+            val prodBaseUrl = (project.findProperty("PROD_BASE_URL") as String?)
+                ?: "https://www.zenxii.com/"
+            buildConfigField("String", "BASE_URL", "\"$prodBaseUrl\"")
         }
         debug {
             // Runtime-validation override — points debug builds at ngrok tunnel.

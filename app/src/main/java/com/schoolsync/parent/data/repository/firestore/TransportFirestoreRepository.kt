@@ -146,8 +146,14 @@ class TransportFirestoreRepository @Inject constructor(
             val trips = firestoreService.queryDocumentsAs<TripLogDoc>(
                 Constants.Firestore.TRIP_LOGS
             ) { ref ->
+                // whereArrayContains scopes the query to trips this student is
+                // in the frozen roster of — required for release-cert C-1 rule
+                // alignment (firestore.rules:1401-1420). Without this filter a
+                // pickup-only student's afternoon-drop trip on the same route
+                // would fail rule allow and Firestore denies the WHOLE query.
                 ref.whereEqualTo("schoolId", schoolCode)
                     .whereEqualTo("route_id", routeId)
+                    .whereArrayContains("roster_student_ids", studentId)
                     .whereEqualTo("date", dateIso)
                     .orderBy("date", Query.Direction.DESCENDING)
                     .limit(20)

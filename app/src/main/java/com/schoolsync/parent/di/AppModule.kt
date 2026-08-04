@@ -75,10 +75,14 @@ object AppModule {
         baseUrlInterceptor: com.schoolsync.parent.data.remote.BaseUrlInterceptor
     ): OkHttpClient {
         val builder = OkHttpClient.Builder()
-            // BaseUrlInterceptor must run BEFORE AuthInterceptor so the
-            // bearer header is attached to the rewritten host (and so
-            // logging shows the actual host hit, not the BuildConfig one).
-            .addInterceptor(baseUrlInterceptor)
+        // PROD-READINESS (2026-07): the dev base-URL override interceptor is
+        // wired into DEBUG builds ONLY — a release APK must never permit
+        // API/base-URL switching. When present it must precede AuthInterceptor
+        // so the bearer header attaches to the (dev-)rewritten host.
+        if (BuildConfig.DEBUG) {
+            builder.addInterceptor(baseUrlInterceptor)
+        }
+        builder
             .addInterceptor(authInterceptor)
             // Payment verify can take 30–60s because the server does a
             // round-trip to Razorpay's API for signature/amount checks

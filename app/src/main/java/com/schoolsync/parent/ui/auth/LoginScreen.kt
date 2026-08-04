@@ -80,9 +80,12 @@ fun LoginScreen(
         if (uiState.loginSuccess) onLoginSuccess(uiState.mustChangePassword)
     }
 
-    // Hidden dev override dialog — long-press the SchoolSync title to
-    // open. Survives PC IP changes during testing without rebuilding.
-    if (showDevSettings) {
+    // Hidden dev override dialog — long-press the SchoolSync title to open.
+    // Survives PC IP changes during testing without rebuilding.
+    // PROD-READINESS (2026-07): compiled into DEBUG builds ONLY — a release
+    // APK must never expose the base-URL override / dev settings, even via the
+    // hidden long-press gesture.
+    if (com.schoolsync.parent.BuildConfig.DEBUG && showDevSettings) {
         com.schoolsync.parent.ui.common.DevSettingsDialog(
             devPrefs = viewModel.devPrefs,
             onDismiss = { showDevSettingsState.value = false }
