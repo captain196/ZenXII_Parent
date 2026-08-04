@@ -199,10 +199,24 @@ class StoryViewModel @Inject constructor(
             )
     }
 
+    /**
+     * Parse an ISO-8601 timestamp to epoch millis, or 0 when unparseable
+     * (rendered as "no time" rather than a wrong one). Needed because the
+     * admin panel writes story createdAt as a STRING via date('c').
+     */
+    private fun parseIsoMillis(s: String): Long = runCatching {
+        java.time.OffsetDateTime.parse(s).toInstant().toEpochMilli()
+    }.recoverCatching {
+        java.time.Instant.parse(s).toEpochMilli()
+    }.getOrDefault(0L)
+
     private fun StoryDoc.toStory(viewed: Boolean): Story {
         val createdMillis = when (val ts = createdAt) {
             is com.google.firebase.Timestamp -> ts.seconds * 1000L + ts.nanoseconds / 1_000_000L
             is Number -> ts.toLong()
+            // Admin-panel stories carry an ISO-8601 string, not a Timestamp.
+            // Coercing to 0 blanked the timestamp on every admin-posted story.
+            is String -> parseIsoMillis(ts)
             else -> 0L
         }
         return Story(
@@ -212,6 +226,7 @@ class StoryViewModel @Inject constructor(
             teacherPic  = effectiveAuthorPic,
             mediaUrl   = mediaUrl,
             type       = type,
+            thumbnailUrl = thumbnailUrl,
             caption    = caption,
             createdAt  = createdMillis,
             expiresAt  = expiresAtMillis,

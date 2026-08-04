@@ -153,7 +153,10 @@ class EventsViewModel @Inject constructor(
                                     val enriched = if (ev != null && !ev.hasUsableCover() &&
                                         !album?.coverImage.isNullOrBlank()
                                     ) {
-                                        ev.copy(mediaUrls = listOf(EventMedia(url = album!!.coverImage, type = "image")))
+                                        // Record the borrowed cover ALONGSIDE the event's
+                                        // own media. Overwriting mediaUrls here used to
+                                        // wipe out video-only events' videos entirely.
+                                        ev.copy(borrowedCoverUrl = album!!.coverImage)
                                     } else ev
                                     st.copy(eventAlbum = album, event = enriched)
                                 }
@@ -209,7 +212,8 @@ class EventsViewModel @Inject constructor(
                 val cover = albums.firstOrNull { a ->
                     e.eventId == a.eventId || e.eventId.endsWith("_${a.eventId}")
                 }?.coverImage
-                if (cover != null) e.copy(mediaUrls = listOf(EventMedia(url = cover, type = "image"))) else e
+                // Additive, not destructive — see Event.borrowedCoverUrl.
+                if (cover != null) e.copy(borrowedCoverUrl = cover) else e
             }
         }
     }

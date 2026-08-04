@@ -225,9 +225,12 @@ fun EventDetailScreen(
                 ) {
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Cover hero — the event's first photo (or a video poster).
+                    // Cover hero — the event's first photo (or a video poster),
+                    // falling back to the linked album's cover. Kept separate from
+                    // mediaUrls so video-only events keep their videos.
                     val cover = event.mediaUrls.firstOrNull { it.type == "image" }?.url
                         ?: event.mediaUrls.firstOrNull { !it.thumbnail.isNullOrBlank() }?.thumbnail
+                        ?: event.borrowedCoverUrl.takeIf { it.isNotBlank() }
                     if (cover != null) {
                         Box(
                             modifier = Modifier

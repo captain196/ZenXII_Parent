@@ -37,6 +37,18 @@ data class StoryDoc(
     // ── Content ────────────────────────────────────────────────────
     val mediaUrl: String = "",
     val type: String = "image",
+    /**
+     * Poster frame for video stories. The Teacher app generates, uploads and
+     * writes this (StoryFirestoreRepository), but this model omitted it — so
+     * the Parent app silently dropped every poster and had nothing to show
+     * while ExoPlayer buffered, leaving a black frame that reads as "the video
+     * won't play". Empty for image stories.
+     *
+     * NOTE the naming split in the wire contract: stories use `thumbnailUrl`
+     * (camel) while galleryMedia uses `thumbnail`. Do not "fix" one to match
+     * the other without migrating the data.
+     */
+    val thumbnailUrl: String = "",
     val caption: String = "",
     /** "high" | "normal". Admin priority pins to top of parent list. */
     val priority: String = "normal",

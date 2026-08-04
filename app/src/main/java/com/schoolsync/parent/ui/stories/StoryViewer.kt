@@ -105,6 +105,12 @@ private const val DISMISS_DISTANCE_PX = 620f
 private const val DISMISS_ZOOM_OUT = 0.75f
 /** Lower bound the pinch can shrink to (enables the zoom-out-to-dismiss). */
 private const val MIN_ZOOM_OUT = 0.5f
+/**
+ * How long a story video may sit in STATE_BUFFERING before we treat it as
+ * failed. ExoPlayer never emits an error for "still buffering", so without a
+ * watchdog a stalled video holds the viewer on a black frame indefinitely.
+ */
+private const val VIDEO_LOAD_TIMEOUT_MS = 12000L
 
 /**
  * Full-screen story viewer for the PARENT app — mirrors the teacher
@@ -328,6 +334,7 @@ private fun StoryPage(
                     if (isVideo) {
                         VideoStoryPlayer(
                             url = story.mediaUrl,
+                            posterUrl = story.thumbnailUrl,
                             isCurrentPage = isCurrentPage,
                             isPaused = isPaused || mediaZoomed || isDismissing || trayVisible,
                             isMuted = isMuted,
@@ -756,6 +763,7 @@ private fun TopChrome(
 @Composable
 private fun VideoStoryPlayer(
     url: String,
+    posterUrl: String,
     isCurrentPage: Boolean,
     isPaused: Boolean,
     isMuted: Boolean,
@@ -777,6 +785,14 @@ private fun VideoStoryPlayer(
         }
     }
 
+    // Buffering / failure are surfaced to the user. Previously a video that was
+    // slow or broken showed a plain black screen with a 0% progress bar and no
+    // timeout — indistinguishable from a hang, and the usual reason a parent
+    // reports "the video doesn't play". PlayerView can't help here: media3
+    // defaults to SHOW_BUFFERING_NEVER and useController is false.
+    var isBuffering by remember(url) { mutableStateOf(true) }
+    var failed by remember(url) { mutableStateOf(false) }
+
     LaunchedEffect(isCurrentPage, isPaused, player) {
         player.playWhenReady = isCurrentPage && !isPaused
     }
@@ -786,17 +802,58 @@ private fun VideoStoryPlayer(
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
+                isBuffering = state == Player.STATE_BUFFERING
                 if (state == Player.STATE_ENDED) onEnded()
             }
-            // Never leave the viewer stuck on a black frame.
+            // Never leave the viewer stuck on a black frame. This used to call
+            // onEnded() bare — no log, no message — so a group of broken videos
+            // flashed past and closed itself, which reads as "videos don't play".
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                onEnded()
+                android.util.Log.e(
+                    "StoryViewer",
+                    "Video playback failed (code=${error.errorCodeName}) url=$url",
+                    error
+                )
+                failed = true
+                isBuffering = false
             }
         }
         player.addListener(listener)
         onDispose {
             player.removeListener(listener)
             player.release()
+        }
+    }
+
+    // Pause when the app leaves the foreground. Without this the story keeps
+    // playing (and audibly so) behind the lock screen or another app, and the
+    // progress bar drifts out of sync with the real playback position.
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, player) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) player.pause()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Watchdog: a video stuck in STATE_BUFFERING never emits an error, so
+    // without this the viewer waits forever on a black frame.
+    LaunchedEffect(url, isBuffering, isCurrentPage, isPaused) {
+        if (!isBuffering || !isCurrentPage || isPaused) return@LaunchedEffect
+        kotlinx.coroutines.delay(VIDEO_LOAD_TIMEOUT_MS)
+        if (isBuffering) {
+            android.util.Log.w("StoryViewer", "Video load timed out after ${VIDEO_LOAD_TIMEOUT_MS}ms url=$url")
+            failed = true
+        }
+    }
+
+    // Advance past a failed video the way the image path does, after letting the
+    // message be read, rather than skipping instantly with no explanation.
+    LaunchedEffect(failed) {
+        if (failed) {
+            kotlinx.coroutines.delay(2500)
+            onEnded()
         }
     }
     // Poll playback position ONLY while actually playing (current page and not
@@ -811,19 +868,58 @@ private fun VideoStoryPlayer(
         }
     }
 
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                this.player = player
-                useController = false
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-            }
-        },
-        modifier = Modifier.fillMaxSize()
-    )
+    Box(modifier = Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    this.player = player
+                    useController = false
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            // CRITICAL: without this, advancing video -> video plays nothing.
+            // `remember(url)` builds a NEW ExoPlayer and DisposableEffect releases
+            // the OLD one, but the composition slot is reused so `factory` is not
+            // re-invoked — PlayerView would keep pointing at the RELEASED player
+            // and the new one would never get a surface. Symptom: black frame,
+            // audio only, progress bar still advancing (it polls the new player).
+            update = { view ->
+                if (view.player !== player) view.player = player
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Poster OVERLAY (drawn after the PlayerView, which is opaque) — shown
+        // only until the first frame decodes, so a buffering video presents the
+        // real still instead of a black rectangle. The Teacher app has always
+        // uploaded this poster; the Parent model simply dropped the field.
+        if (posterUrl.isNotBlank() && (isBuffering || failed)) {
+            coil.compose.AsyncImage(
+                model = posterUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        if (failed) {
+            Text(
+                text = "Couldn't load this story",
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(24.dp)
+            )
+        } else if (isBuffering) {
+            CircularProgressIndicator(
+                color = Color.White,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+    }
 }
 
 private fun formatStoryTime(timestamp: Long): String {

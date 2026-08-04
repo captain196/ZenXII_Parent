@@ -276,9 +276,12 @@ private fun EventListCard(
     val c = LocalAppColors.current
     val (categoryColor, categoryGradStart, categoryGradEnd) = getCategoryColors(event.category, c)
 
-    // Cover = first photo (or a video's poster). Shown as the card header.
+    // Cover = first photo (or a video's poster), else the cover borrowed from the
+    // linked gallery album. The borrowed cover is a separate field so that
+    // video-only events keep their videos in mediaUrls (see Event.borrowedCoverUrl).
     val cover = event.mediaUrls.firstOrNull { it.type == "image" }?.url
         ?: event.mediaUrls.firstOrNull { !it.thumbnail.isNullOrBlank() }?.thumbnail
+        ?: event.borrowedCoverUrl.takeIf { it.isNotBlank() }
 
     Column(
         modifier = Modifier

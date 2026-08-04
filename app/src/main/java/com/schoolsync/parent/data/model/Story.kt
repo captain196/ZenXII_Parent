@@ -20,6 +20,8 @@ data class Story(
     val teacherPic: String,
     val mediaUrl: String,
     val type: String, // image, video
+    /** Poster frame for video stories; "" for images. See StoryDoc.thumbnailUrl. */
+    val thumbnailUrl: String = "",
     val caption: String,
     val createdAt: Long,
     val expiresAt: Long,

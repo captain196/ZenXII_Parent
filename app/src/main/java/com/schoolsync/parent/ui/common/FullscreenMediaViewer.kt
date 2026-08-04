@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.VideocamOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -54,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
@@ -348,23 +351,84 @@ private fun InlineVideoPage(url: String, isActive: Boolean) {
             prepare()
         }
     }
+
+    var isBuffering by remember(url) { mutableStateOf(true) }
+    var failed by remember(url) { mutableStateOf(false) }
+
     // Auto-play only the active page; pause the rest (adjacent pages may stay
     // composed by the pager).
-    LaunchedEffect(isActive) {
+    // `player` MUST be a key. It is rebuilt whenever `url` changes, and the
+    // caller's viewerItems list is `remember(list)` — so a re-fetch of the album
+    // hands us a new list identity, a new player is built, and without this key
+    // the effect does not re-run: the fresh player keeps ExoPlayer's default
+    // playWhenReady=false and simply never starts.
+    LaunchedEffect(player, isActive) {
         player.playWhenReady = isActive
         if (!isActive) player.pause()
     }
-    DisposableEffect(url) {
-        onDispose { player.release() }
+
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                isBuffering = state == Player.STATE_BUFFERING
+            }
+            override fun onPlayerError(error: PlaybackException) {
+                android.util.Log.e(
+                    "FullscreenMediaViewer",
+                    "Video playback failed (code=${error.errorCodeName}) url=$url",
+                    error
+                )
+                failed = true
+                isBuffering = false
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.release()
+        }
     }
 
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                this.player = player
-                useController = true
-            }
-        },
-        modifier = Modifier.fillMaxSize()
-    )
+    // Pause when the app leaves the foreground — otherwise audio continues
+    // behind the lock screen or another app.
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, player) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) player.pause()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    this.player = player
+                    useController = true
+                }
+            },
+            // Rebind on player change — the composition slot is reused across
+            // url changes, so without this PlayerView keeps a released player
+            // and the new one never gets a surface (black frame, audio only).
+            update = { view ->
+                if (view.player !== player) view.player = player
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        if (failed) {
+            Text(
+                text = "This video couldn't be played.",
+                style = TextStyle(fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f)),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center).padding(24.dp)
+            )
+        } else if (isBuffering) {
+            CircularProgressIndicator(
+                color = Color.White,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+    }
 }
