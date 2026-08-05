@@ -311,7 +311,7 @@ object ReceiptPdfGenerator {
                 put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
                 put(
                     android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
-                    android.os.Environment.DIRECTORY_DOWNLOADS + "/SchoolSync"
+                    android.os.Environment.DIRECTORY_DOWNLOADS + "/ZenXii"
                 )
                 put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
             }
@@ -325,14 +325,14 @@ object ReceiptPdfGenerator {
             values.clear()
             values.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
             resolver.update(uri, values, null, null)
-            return "Downloads/SchoolSync/$target"
+            return "Downloads/ZenXii/$target"
         } else {
             // Pre-Android-10: write directly to public Downloads dir.
             @Suppress("DEPRECATION")
             val downloads = android.os.Environment.getExternalStoragePublicDirectory(
                 android.os.Environment.DIRECTORY_DOWNLOADS
             )
-            val sub = File(downloads, "SchoolSync").apply { if (!exists()) mkdirs() }
+            val sub = File(downloads, "ZenXii").apply { if (!exists()) mkdirs() }
             val outFile = File(sub, target)
             sourcePdf.inputStream().use { input ->
                 FileOutputStream(outFile).use { input.copyTo(it) }

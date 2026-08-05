@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Zenz Parent</string>
+    <string name="app_name">ZenXii</string>
 
     <!-- ─── Common ─────────────────────────────────────────────────── -->
     <string name="cd_back">Back</string>
@@ -63,7 +63,7 @@
     <string name="drawer_profile">Profile</string>
 
     <!-- Academics Hub -->
-    <string name="academics_title">Academics</string>
+    <string name="academics_title">Categories</string>
     <string name="academics_attendance_subtitle">View daily and monthly attendance records</string>
     <string name="academics_results_subtitle">View exam results and report cards</string>
     <string name="academics_homework_subtitle">View study material and assignments</string>
@@ -93,9 +93,14 @@
 
     <!-- ─── Notices ────────────────────────────────────────────────── -->
     <string name="notices_title">Notices</string>
+    <string name="notices_unread">Unread</string>
     <string name="notices_empty_title">No notices</string>
     <string name="notices_empty_subtitle">There are no notices at the moment.\nPull down to refresh.</string>
     <string name="notices_author_format">— %1$s</string>
+    <string name="notices_attachment_open">📎 Open attachment</string>
+    <string name="notices_attachment_no_app">No app can open this attachment</string>
+    <string name="notices_attachment_invalid">Attachment link is invalid</string>
+    <string name="notices_refresh_failed">Couldn\'t refresh notices. Check your connection.</string>
     <string name="notices_category_urgent">URGENT</string>
     <string name="notices_category_important">IMPORTANT</string>
     <string name="notices_category_exam">EXAM</string>

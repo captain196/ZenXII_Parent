@@ -15,7 +15,16 @@ data class Event(
     val organizer: String = "",
     val status: String = "",
     val createdAt: String = "",
-    val mediaUrls: List<EventMedia> = emptyList()
+    val mediaUrls: List<EventMedia> = emptyList(),
+    /**
+     * Cover borrowed from the linked gallery album when the event has no
+     * showable cover of its own. Kept SEPARATE from [mediaUrls] on purpose:
+     * this used to be written by replacing mediaUrls with a single synthetic
+     * image entry, which silently deleted the event's actual videos (a
+     * video-only event never satisfies [hasUsableCover], so it always took
+     * that branch and its videos vanished from the strip and the viewer).
+     */
+    val borrowedCoverUrl: String = ""
 ) {
     companion object {
         fun fromMap(eventId: String, data: Map<String, Any?>): Event {
@@ -34,6 +43,16 @@ data class Event(
         }
     }
 }
+
+/**
+ * True when the event carries a directly-showable cover of its own — an image
+ * url or a video with a poster thumbnail. Used to decide whether to borrow the
+ * linked gallery album's cover: gating on this (not just mediaUrls.isEmpty())
+ * means events whose media is only unshowable entries still get a cover.
+ */
+internal fun Event.hasUsableCover(): Boolean =
+    mediaUrls.any { it.type == "image" && it.url.isNotBlank() } ||
+        mediaUrls.any { !it.thumbnail.isNullOrBlank() }
 
 /**
  * Media attached to an event.

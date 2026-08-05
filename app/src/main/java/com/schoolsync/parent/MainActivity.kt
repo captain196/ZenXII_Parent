@@ -117,8 +117,32 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             "fee_reminder", "fee_defaulter_alert", "fee_payment_confirmed" -> "fees"
             "student_absent", "student_late", "attendance_update"         -> "attendance"
             "leave_approved", "leave_rejected"                            -> "leave"
-            "homework_assigned", "homework_reminder"                      -> "homework"
-            "result_published", "exam_scheduled"                          -> "results"
+            // homework_created / homework_reviewed are the types FCMService
+            // actually emits; keep the legacy two so older payloads still route.
+            // homework_created / homework_reviewed carry an optional homeworkId
+            // (admin-panel Attendance.php push path). When present, deep-link
+            // straight into that homework's detail page; otherwise land on the
+            // homework list.
+            "homework_assigned", "homework_reminder",
+            "homework_created", "homework_reviewed"                       -> {
+                val hwId = intent.getStringExtra("homeworkId")?.takeIf { it.isNotBlank() }
+                if (hwId != null) "homework?hwId=$hwId" else "homework"
+            }
+            // LOW-7: thread the examId so the correct exam opens instead of
+            // always landing on exam index 0.
+            // TODO: the sender does not yet carry studentId; the parent app is
+            //  single-student per session, so child-switching isn't actionable
+            //  here — revisit if multi-child sessions land.
+            "result_published"                                            -> {
+                val examId = intent.getStringExtra("examId")?.takeIf { it.isNotBlank() }
+                if (examId != null) "results?examId=$examId" else "results"
+            }
+            // MED-6: exam_scheduled now routes to the Exam Schedule screen
+            // (previously misrouted to Results).
+            "exam_scheduled"                                              -> {
+                val examId = intent.getStringExtra("examId")?.takeIf { it.isNotBlank() }
+                if (examId != null) "exams?examId=$examId" else "exams"
+            }
             "event", "event_created"                                      -> {
                 // Deep-link straight to the EventDetail screen when the payload
                 // carries an eventId; otherwise drop back to the events list.
@@ -126,9 +150,26 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                 if (eventId != null) "event_detail/$eventId" else "events"
             }
             "birthday_wish"                                                -> "notices"
-            else -> null
+            // Notice/circular pushes now deep-link to the Notices inbox (was
+            // silently dropped, so tapping a notice notification did nothing).
+            "notice_created", "circular_created", "notice", "circular"     -> "notices"
+            "red_flag", "flag_created", "red_flag_created", "student_flag",
+            "red_flag_resolved"                                            -> "red_flags"
+            // Story pushes land on the Dashboard, where the story ring lives
+            // (unseen stories are highlighted). The push only carries storyId —
+            // not a parseable authorId (schoolId itself contains underscores) —
+            // so we route to the ring rather than a specific author's viewer.
+            "story", "story_created"                                      -> "dashboard"
+            // Fallback for dispatchers that forward the raw pushRequests `mark`.
+            else -> if (intent.getStringExtra("mark") in setOf("FLAG_CREATED", "FLAG_RESOLVED")) "red_flags" else null
         } ?: return
-        DeepLinkBridge.publish(target)
+        // For notice deep-links, thread the tapped notice's id so the Notices
+        // screen can auto-expand + scroll to it (was previously dropped, so a tap
+        // only opened the list). Other targets ignore the arg.
+        val noticeArg = if (target == "notices") {
+            intent.getStringExtra("noticeId") ?: intent.getStringExtra("circularId")
+        } else null
+        DeepLinkBridge.publish(target, noticeArg)
     }
 
     private fun requestNotificationPermissionIfNeeded() {

@@ -6,12 +6,7 @@ import com.schoolsync.parent.data.model.firestore.ExamDoc
 import com.schoolsync.parent.data.model.firestore.ExamScheduleDoc
 import com.schoolsync.parent.data.model.firestore.ResultDoc
 import com.schoolsync.parent.util.Constants
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -43,14 +38,16 @@ class ExamFirestoreRepository @Inject constructor(
             val exams = firestoreService.queryDocumentsAs<ExamDoc>(
                 Constants.Firestore.EXAMS
             ) { ref ->
-                // EXAM-LIFECYCLE Phase 2 (Visibility Hardening): parents see
-                // only Published + Completed exams; Draft is staff-only and is
-                // also denied by the /exams Firestore security rule. Keeping the
-                // client filter aligned with the rule avoids permission-denied
-                // errors that an unfiltered query (touching a Draft doc) raises.
+                // HIGH-1: the hardened `exams` rule forbids non-staff from
+                // reading Draft exams, and Firestore rules are NOT filters — a
+                // single unreadable Draft rejects the WHOLE query. Restrict to
+                // parent-visible statuses so the list survives once Drafts exist.
+                // "Completed" is included so past exams (which carry results)
+                // still surface. Covered by the composite index
+                // schoolId + session + status + startDate (admin firebase-rules).
                 ref.whereEqualTo("schoolId", schoolCode)
                     .whereEqualTo("session", session)
-                    .whereIn("status", listOf("Published", "Completed"))
+                    .whereIn("status", ExamDoc.PARENT_VISIBLE_STATUSES)
                     .orderBy("startDate")
             }
             Result.success(exams)
@@ -132,36 +129,6 @@ class ExamFirestoreRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
-
-    /**
-     * Observe a specific result document in real time.
-     * Reacts to user profile changes (school code) via [flatMapLatest].
-     * Emits null when the document does not exist or identifiers are unavailable.
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun observeResult(examId: String, studentId: String): Flow<ResultDoc?> {
-        return tokenManager.user
-            .map { user ->
-                user.schoolCode.takeIf { it.isNotBlank() }
-            }
-            .flatMapLatest { schoolCode ->
-                if (schoolCode == null) {
-                    flowOf(null)
-                } else {
-                    firestoreService.observeQuery(
-                        Constants.Firestore.RESULTS
-                    ) { ref ->
-                        ref.whereEqualTo("schoolId", schoolCode)
-                            .whereEqualTo("examId", examId)
-                            .whereEqualTo("studentId", studentId)
-                            .limit(1)
-                    }.map { snapshot ->
-                        snapshot.documents.firstOrNull()
-                            ?.toObject(ResultDoc::class.java)
-                    }
-                }
-            }
     }
 
     private suspend fun getSchoolCode(): String? {

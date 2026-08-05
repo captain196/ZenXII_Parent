@@ -12,7 +12,18 @@ import javax.inject.Singleton
  * RTDB-based homework repository (legacy fallback).
  * Primary homework data now lives in Firestore via [HomeworkFirestoreRepository].
  * This stub returns empty data so the build passes while RTDB paths are phased out.
+ *
+ * FIX 4: QUARANTINED dead code. [observeAllHomework] always returns an empty
+ * flow and has no live caller. It is NOT deleted only because AppModule still
+ * @Provides this type; removing it would touch DI wiring. Do not build new
+ * features on this — use [HomeworkFirestoreRepository] (the live Firestore
+ * path) instead. Safe to delete this class together with its AppModule
+ * provider once the DI graph is confirmed to have no consumers.
  */
+@Deprecated(
+    message = "Dead RTDB stub — always empty. Use HomeworkFirestoreRepository.",
+    level = DeprecationLevel.WARNING
+)
 @Singleton
 class HomeworkRepository @Inject constructor(
     private val firebaseService: FirebaseService,

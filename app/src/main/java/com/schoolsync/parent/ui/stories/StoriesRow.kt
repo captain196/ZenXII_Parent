@@ -25,6 +25,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,11 +76,18 @@ private fun StoryAvatar(
 ) {
     val c = LocalAppColors.current
 
+    // Merge the ring + avatar + name into ONE semantics node so a screen
+    // reader announces e.g. "Ms. Rao's story, unseen" and activates on tap,
+    // instead of reading the decorative ring/initials separately.
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .width(68.dp)
             .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "${group.teacherName}'s story, " +
+                    if (group.hasUnviewed) "unseen" else "seen"
+            }
     ) {
         Box(
             modifier = Modifier.size(62.dp),
@@ -100,7 +109,10 @@ private fun StoryAvatar(
                     colors = listOf(c.accent, c.accentSecondary)            // teal teacher gradient
                 )
             }
-            val ringModifier = if (group.hasUnviewed || isAdmin) {
+            // Instagram-style: colored ring ONLY while unseen; once viewed the
+            // ring greys out — for admin/whole-school posts too (previously
+            // `|| isAdmin` kept them colored even after the parent had seen them).
+            val ringModifier = if (group.hasUnviewed) {
                 Modifier
                     .size(62.dp)
                     .clip(CircleShape)
@@ -126,7 +138,9 @@ private fun StoryAvatar(
             if (group.teacherPic.isNotBlank()) {
                 AsyncImage(
                     model = group.teacherPic,
-                    contentDescription = group.teacherName,
+                    // Decorative — the merged parent node above carries the
+                    // spoken description ("<name>'s story, seen/unseen").
+                    contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(54.dp)

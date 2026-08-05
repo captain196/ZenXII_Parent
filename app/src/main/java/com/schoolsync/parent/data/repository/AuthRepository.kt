@@ -5,6 +5,7 @@ import com.schoolsync.parent.data.firebase.FirebaseAuthManager
 import com.schoolsync.parent.data.firebase.FirebaseService
 import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
+import com.schoolsync.parent.data.remote.AuthApi
 import com.schoolsync.parent.data.model.User
 import com.schoolsync.parent.data.model.firestore.StudentDoc
 import com.schoolsync.parent.util.Constants
@@ -24,7 +25,8 @@ class AuthRepository @Inject constructor(
     private val tokenManager: TokenManager,
     private val firebaseAuthManager: FirebaseAuthManager,
     private val firebaseService: FirebaseService,
-    private val firestoreService: FirestoreService
+    private val firestoreService: FirestoreService,
+    private val authApi: AuthApi,
 ) {
     companion object {
         private const val TAG = "AuthRepository"
@@ -73,9 +75,24 @@ class AuthRepository @Inject constructor(
             Log.d(TAG, "Claims: schoolId=$schoolId, schoolCode=$schoolCode, parentDbKey=$parentDbKey")
 
             // ── Step 3: Firestore-first profile read ────────────────
-            val user = loadProfileFromFirestore(userId, schoolId, schoolCode, parentDbKey, role)
+            val loadedProfile = loadProfileFromFirestore(userId, schoolId, schoolCode, parentDbKey, role)
                 ?: loadProfileFromRtdb(userId, schoolId, schoolCode, parentDbKey, role)
                 ?: return AuthResult.Error("Student profile not found")
+
+            // WATERTIGHT (2026-07-20): honour the `must_change_password` CLAIM too,
+            // not just the students-doc field. Closes two force-change bypasses:
+            //  (a) the RTDB fallback above never populates the field (defaults false),
+            //  (b) a transient Firestore-read miss on the doc.
+            // The claim is set alongside the doc field on both account creation and
+            // admin reset, so OR-ing them fails safe toward gating.
+            val claimMustChange = when (val v = claims["must_change_password"]) {
+                is Boolean -> v
+                is String  -> v.equals("true", ignoreCase = true)
+                else       -> false
+            }
+            val user = loadedProfile.copy(
+                mustChangePassword = loadedProfile.mustChangePassword || claimMustChange
+            )
 
             Log.d(TAG, "Profile loaded: name=${user.name}, source=${if (user.profilePic.isNotBlank()) "Firestore" else "RTDB"}, mustChangePassword=${user.mustChangePassword}, status=${user.status}")
 
@@ -272,6 +289,61 @@ class AuthRepository @Inject constructor(
             firebaseAuthManager.signOut()
             tokenManager.clearAll()
             AuthResult.Success(Unit)
+        }
+    }
+
+    /**
+     * Finalise an admin-driven password reset by calling the server's
+     * /auth/clear_must_change endpoint. The server updates the Firebase
+     * Auth password and clears the must_change_password claim atomically;
+     * the client then refreshes its ID token + local user cache so the
+     * UI sees the cleared state without a re-login.
+     *
+     * Use this from the force-change screen. For voluntary password
+     * changes (settings → change password), use [changePassword] which
+     * goes through Firebase client SDK with a recent-login re-auth.
+     */
+    suspend fun clearMustChange(newPassword: String): AuthResult<String> {
+        return try {
+            val token = firebaseAuthManager.getIdToken(forceRefresh = false)
+                ?: return AuthResult.Error("Not signed in — please log in again.")
+
+            val res = authApi.clearMustChange(
+                bearer = "Bearer $token",
+                newPassword = newPassword,
+            )
+
+            if (!res.isSuccessful) {
+                val body = res.errorBody()?.string().orEmpty()
+                Log.w(TAG, "clearMustChange HTTP ${res.code()}: $body")
+                val msg = try {
+                    org.json.JSONObject(body).optString("message").ifBlank { "Reset failed (HTTP ${res.code()})." }
+                } catch (_: Exception) {
+                    "Reset failed (HTTP ${res.code()})."
+                }
+                return AuthResult.Error(msg, code = res.code())
+            }
+
+            val payload = res.body()
+            if (payload?.status != "success") {
+                return AuthResult.Error(payload?.message ?: "Reset failed.")
+            }
+
+            // Force-refresh the ID token so subsequent calls see the cleared claim.
+            try { firebaseAuthManager.getIdTokenResult(forceRefresh = true) } catch (_: Exception) {}
+
+            // Update local cache so the NavGraph gate releases without a full re-login.
+            val cachedUser = tokenManager.user.firstOrNull()
+            if (cachedUser != null && cachedUser.mustChangePassword) {
+                try {
+                    tokenManager.saveUserDirect(cachedUser.copy(mustChangePassword = false))
+                } catch (_: Exception) { /* best-effort */ }
+            }
+
+            AuthResult.Success(payload.message ?: "Password updated.")
+        } catch (e: Exception) {
+            Log.e(TAG, "clearMustChange exception", e)
+            AuthResult.Error(e.message ?: "Network error.")
         }
     }
 

@@ -37,6 +37,8 @@ data class GalleryMediaDoc(
     val schoolId: String = "",
     val albumId: String = "",
     val url: String = "",
+    val thumbnail: String = "",            // video poster frame (optional)
+    val duration: String = "",             // video length label e.g. "0:42" (optional)
     val type: String = "image",            // "image" | "video"
     val caption: String = "",
     val isArchived: Boolean = false,

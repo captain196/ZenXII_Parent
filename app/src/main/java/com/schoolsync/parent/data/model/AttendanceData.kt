@@ -13,11 +13,28 @@ enum class AttendanceStatus(val code: Char, val label: String) {
     LEAVE('L', "Leave"),
     HOLIDAY('H', "Holiday"),
     TRIP('T', "Tardy"),
-    VACATION('V', "Vacation");
+    // 'V' is the admin's PADDING code for unmarked days (and the fallback
+    // bucket for any code the app doesn't recognise). It is NOT a real
+    // "vacation" status — it means "no record". Excluded from working days
+    // and suppressed everywhere user-facing (banner, calendar, recent list).
+    VACATION('V', "Not recorded");
 
     companion object {
+        /**
+         * Map a stored code char to a status. An UNRECOGNISED code falls back
+         * to [VACATION] — the neutral "unrecorded" bucket that is excluded from
+         * working days and never breaks a streak — NOT [ABSENT]. Defaulting an
+         * unknown server code to Absent used to paint a false red mark and dent
+         * the percentage for a code the app simply didn't understand yet.
+         */
         fun fromCode(code: Char): AttendanceStatus {
-            return entries.find { it.code == code } ?: ABSENT
+            return entries.find { it.code == code } ?: VACATION
+        }
+
+        /** Strict variant: returns null for an unrecognised code so callers
+         *  that need to distinguish "unknown" from a real status can. */
+        fun fromCodeOrNull(code: Char): AttendanceStatus? {
+            return entries.find { it.code == code }
         }
     }
 }

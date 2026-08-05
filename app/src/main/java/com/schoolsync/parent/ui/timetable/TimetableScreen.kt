@@ -80,6 +80,40 @@ import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  Time formatting — normalize any "8:40AM", "08:40", "13:15", "8:00 AM" into
+//  uniform "08:40 AM" so every row aligns in monospace.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+private fun formatTimePadded(raw: String): String {
+    val s = raw.trim()
+    if (s.isEmpty()) return ""
+    return try {
+        val upper = s.uppercase()
+        val hasPm = upper.endsWith("PM")
+        val hasAm = upper.endsWith("AM")
+        val body = if (hasPm || hasAm) upper.dropLast(2).trim() else upper
+        val parts = body.split(":")
+        if (parts.size < 2) return s
+        var h = parts[0].trim().toInt()
+        val m = parts[1].trim().toInt()
+        val mer = when {
+            hasPm -> "PM"
+            hasAm -> "AM"
+            h >= 12 -> "PM"
+            else -> "AM"
+        }
+        // Normalize to 12-hour
+        if (mer == "PM" && h > 12) h -= 12
+        if (mer == "AM" && h == 0) h = 12
+        val hh = h.toString().padStart(2, '0')
+        val mm = m.toString().padStart(2, '0')
+        "$hh:$mm $mer"
+    } catch (_: Exception) {
+        s
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  Subject → Color mapping
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -247,7 +281,7 @@ private fun TimetableListPage(
                     )
                 }
             } else if (uiState.slots.isEmpty()) {
-                EmptyState()
+                EmptyState(errorMessage = uiState.errorMessage)
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -517,7 +551,14 @@ private fun NowIndicator(slot: TimetableSlot) {
         }
         Spacer(modifier = Modifier.weight(1f))
         Text(
-            text = slot.time,
+            text = buildString {
+                val s = formatTimePadded(slot.startTime)
+                val e = formatTimePadded(slot.endTime)
+                append(s)
+                if (e.isNotBlank()) {
+                    append(" – "); append(e)
+                }
+            },
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             color = c.textTertiary
@@ -613,21 +654,35 @@ private fun SlotRow(
             .padding(start = 0.dp, end = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Time column (44dp)
+        // Time column — start over end, both monospace + padded for column alignment.
         Column(
             modifier = Modifier
-                .width(50.dp)
-                .padding(vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .width(82.dp)
+                .padding(start = 10.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
-                text = slot.startTime,
-                fontSize = 12.sp,
+                text = formatTimePadded(slot.startTime),
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
                 color = if (isCurrent) c.success else c.textPrimary,
-                textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
+                textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
+                maxLines = 1,
+                softWrap = false
             )
+            if (slot.endTime.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = formatTimePadded(slot.endTime),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = c.textTertiary,
+                    textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
         }
 
         // Color bar
@@ -705,20 +760,14 @@ private fun SlotRow(
             }
         }
 
-        // Right side: end time or checkmark
+        // Right side: only the completion checkmark; end time now lives in the
+        // left time column so we don't repeat the same info on both edges.
         if (isDone) {
             Icon(
                 imageVector = Icons.Filled.Check,
                 contentDescription = "Done",
                 tint = c.success,
                 modifier = Modifier.size(16.dp)
-            )
-        } else {
-            Text(
-                text = slot.endTime,
-                fontSize = 10.sp,
-                fontFamily = FontFamily.Monospace,
-                color = c.textTertiary
             )
         }
     }
@@ -751,20 +800,33 @@ private fun BreakRow(slot: TimetableSlot) {
             .padding(start = 0.dp, end = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Time column — same width as SlotRow so list stays aligned.
+        // Time column — same width as SlotRow so the whole list stays aligned.
         Column(
             modifier = Modifier
-                .width(50.dp)
-                .padding(vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .width(82.dp)
+                .padding(start = 10.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
-                text = slot.startTime.ifBlank { "—" },
+                text = slot.startTime.takeIf { it.isNotBlank() }?.let(::formatTimePadded) ?: "—",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
-                color = breakTint
+                color = breakTint,
+                maxLines = 1,
+                softWrap = false
             )
+            if (slot.endTime.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = formatTimePadded(slot.endTime),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = breakTint.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
         }
 
         // Accent bar — matches SlotRow structure.
@@ -789,20 +851,14 @@ private fun BreakRow(slot: TimetableSlot) {
                 .padding(vertical = 10.dp),
             verticalArrangement = Arrangement.Center
         ) {
+            // Just the break label — the time is already shown in the left
+            // column, so we don't print "10:40AM – 11:10AM" again here.
             Text(
                 text = label,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = c.textPrimary
             )
-            if (slot.time.isNotBlank()) {
-                Text(
-                    text = slot.time,
-                    fontSize = 11.sp,
-                    color = c.textSecondary,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
         }
     }
 }
@@ -912,7 +968,14 @@ private fun WeekGridView(
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = timeStr,
+                        text = buildString {
+                            val parts = timeStr.split("-").map { it.trim() }
+                            append(formatTimePadded(parts.getOrNull(0) ?: ""))
+                            if (parts.size > 1) {
+                                append(" – ")
+                                append(formatTimePadded(parts[1]))
+                            }
+                        },
                         fontSize = 9.sp,
                         fontFamily = FontFamily.Monospace,
                         color = c.textSecondary
@@ -928,7 +991,7 @@ private fun WeekGridView(
                     // Time label
                     val startLabel = timeStr.split("-").firstOrNull()?.trim() ?: ""
                     Text(
-                        text = startLabel,
+                        text = formatTimePadded(startLabel),
                         fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace,
                         color = c.textTertiary,
@@ -1256,11 +1319,12 @@ private fun DetailInfoRow(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun EmptyState() {
+private fun EmptyState(errorMessage: String? = null) {
     com.schoolsync.parent.ui.components.EmptyStatePro(
         icon = Icons.Filled.Schedule,
-        title = "No Timetable",
-        description = "Timetable for this day is not available yet.",
+        title = if (errorMessage.isNullOrBlank()) "No Timetable" else "Can't load timetable",
+        description = errorMessage?.takeIf { it.isNotBlank() }
+            ?: "Timetable for this day is not available yet.",
     )
 }
 

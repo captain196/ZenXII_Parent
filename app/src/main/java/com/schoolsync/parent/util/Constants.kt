@@ -52,43 +52,11 @@ object Constants {
         ): String =
             "Schools/$schoolCode/$session/${classKey(className)}/${sectionKey(section)}/Students/$studentId/Attendance"
 
-        // ── Results ──────────────────────────────────────────────────────
-
-        /** Schools/{schoolCode}/{session}/Results/Computed/{examId}/Class {class}/Section {section}/{studentId} */
-        fun resultPath(
-            schoolCode: String,
-            session: String,
-            examId: String,
-            className: String,
-            section: String,
-            studentId: String
-        ): String =
-            "Schools/$schoolCode/$session/Results/Computed/$examId/${classKey(className)}/${sectionKey(section)}/$studentId"
-
-        /** Schools/{schoolCode}/{session}/Results/Computed/ (list exam IDs) */
-        fun computedResultsBasePath(schoolCode: String, session: String): String =
-            "Schools/$schoolCode/$session/Results/Computed"
-
-        // ── Exams Schedule ───────────────────────────────────────────────
-
-        /** Schools/{schoolCode}/{session}/Class {class}/Section {section}/Exams/{examName} */
-        fun examSchedulePath(
-            schoolCode: String,
-            session: String,
-            className: String,
-            section: String,
-            examName: String
-        ): String =
-            "Schools/$schoolCode/$session/${classKey(className)}/${sectionKey(section)}/Exams/$examName"
-
-        /** Schools/{schoolCode}/{session}/Class {class}/Section {section}/Exams/ */
-        fun examsBasePath(
-            schoolCode: String,
-            session: String,
-            className: String,
-            section: String
-        ): String =
-            "Schools/$schoolCode/$session/${classKey(className)}/${sectionKey(section)}/Exams"
+        // ── Results / Exam schedule ──────────────────────────────────────
+        // Legacy RTDB result/exam-schedule path builders (resultPath /
+        // computedResultsBasePath / examSchedulePath / examsBasePath) removed —
+        // results & exams are Firestore-primary (ExamFirestoreRepository) and
+        // these helpers had zero call sites.
 
         // ── Fees ─────────────────────────────────────────────────────────
 
@@ -161,18 +129,9 @@ object Constants {
             "Schools/$schoolCode/Operations/Transport/Assignments/$studentId"
 
         // ── Events ───────────────────────────────────────────────────────
-
-        /** Schools/{schoolCode}/Events/List/ */
-        fun eventsPath(schoolCode: String): String =
-            "Schools/$schoolCode/Events/List"
-
-        /** Schools/{schoolCode}/Events/Media/{eventId}/ */
-        fun eventMediaPath(schoolCode: String, eventId: String): String =
-            "Schools/$schoolCode/Events/Media/$eventId"
-
-        /** Schools/{schoolCode}/Events/Participants/{eventId}/ */
-        fun eventParticipantsPath(schoolCode: String, eventId: String): String =
-            "Schools/$schoolCode/Events/Participants/$eventId"
+        // Legacy RTDB event paths (eventsPath / eventMediaPath /
+        // eventParticipantsPath) removed — events are Firestore-primary via
+        // EventFirestoreRepository and the RTDB helpers had zero call sites.
 
         // ── Gallery ──────────────────────────────────────────────────────
 
@@ -350,7 +309,8 @@ object Constants {
         // Analytics
         const val DASHBOARDS = "dashboards"
         const val AUDIT_LOG = "auditLogs"
-        const val RBAC_ROLES = "rbacRoles"
+        // RBAC_ROLES removed (supersession cleanup): the Parent app has no RBAC —
+        // parents aren't staff; the rbacRoles collection is never read here.
 
         // Phase B (RTDB elimination): Student Red Flags
         const val STUDENT_FLAGS = "studentFlags"

@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -35,60 +36,85 @@ class NoticesViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(NoticesUiState())
     val uiState: StateFlow<NoticesUiState> = _uiState.asStateFlow()
 
+    /** IDs the parent has opened (from circularReads), updated optimistically. */
+    private var readIds: Set<String> = emptySet()
+
     init {
-        loadNotices()
         observeNotices()
     }
 
-    /** Notices newer than 24h are surfaced as the "new" badge count. */
+    /** Badge = genuinely UNREAD notices (from read receipts), not a 24h clock. */
     private fun publishBadge(notices: List<Notice>) {
-        val cutoff = System.currentTimeMillis() - 24L * 60 * 60 * 1000
-        val recent = notices.count { it.timestamp > cutoff }
-        badgeBus.setCount("notices", recent)
+        badgeBus.setCount("notices", notices.count { !it.isRead })
     }
 
-    private fun loadNotices() {
+    /**
+     * Single source of truth for the notice LIST: the real-time
+     * [observeCirculars] listener. Read receipts are bootstrapped once before
+     * the first emission so unread dots/badges paint correctly, then folded in
+     * on every emit. (Previously we ALSO fired a one-shot [getCirculars] on
+     * open — a redundant double read of two collections. Removed.)
+     *
+     * A post-initial listener failure (e.g. PERMISSION_DENIED after a token
+     * refresh) is routed into [NoticesUiState.errorMessage] instead of only
+     * being logged, so the UI can show a "couldn't refresh" hint rather than
+     * silently keeping stale success.
+     */
+    private fun observeNotices() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            // Best-effort read-state bootstrap (never a hard dependency).
+            readIds = communicationFirestoreRepo.getReadCircularIds()
 
-            communicationFirestoreRepo.getCirculars().fold(
-                onSuccess = { circulars ->
-                    val notices = circulars.map { it.toNotice() }
-                    publishBadge(notices)
-                    _uiState.update { it.copy(isLoading = false, notices = notices) }
-                },
-                onFailure = { e ->
-                    Log.e("NoticesVM", "Failed to load notices", e)
+            communicationFirestoreRepo.observeCirculars()
+                .catch { e ->
+                    Log.e("NoticesVM", "Notices observer failed", e)
+                    // Keep whatever list is already shown; surface the failure.
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: "Failed to load notices"
+                            errorMessage = e.message ?: "Couldn't refresh notices"
                         )
                     }
                 }
-            )
+                .collect { circulars ->
+                    val notices = circulars.map { it.toNotice(readIds) }
+                    publishBadge(notices)
+                    _uiState.update {
+                        it.copy(notices = notices, isLoading = false, errorMessage = null)
+                    }
+                }
         }
     }
 
-    private fun observeNotices() {
-        viewModelScope.launch {
-            try {
-                communicationFirestoreRepo.observeCirculars().collect { circulars ->
-                    val notices = circulars.map { it.toNotice() }
-                    publishBadge(notices)
-                    _uiState.update { it.copy(notices = notices, isLoading = false) }
-                }
-            } catch (e: Exception) {
-                Log.e("NoticesVM", "Notices observer failed", e)
-            }
+    /**
+     * Force-open a notice (idempotent) — used by the deep-link auto-open path.
+     * Unlike [toggleExpanded], calling it on an already-open notice keeps it
+     * open rather than collapsing it. Marks the notice read like a manual open.
+     */
+    fun expandNotice(noticeId: String) {
+        if (_uiState.value.expandedNoticeId != noticeId) {
+            toggleExpanded(noticeId)
         }
     }
 
     fun toggleExpanded(noticeId: String) {
+        val opening = _uiState.value.expandedNoticeId != noticeId
         _uiState.update {
             it.copy(
                 expandedNoticeId = if (it.expandedNoticeId == noticeId) null else noticeId
             )
+        }
+        // Opening a notice marks it read: optimistic local update + best-effort
+        // receipt write (idempotent). Badge recomputes from unread.
+        if (opening && noticeId !in readIds) {
+            readIds = readIds + noticeId
+            _uiState.update { st ->
+                val updated = st.notices.map { if (it.noticeId == noticeId) it.copy(isRead = true) else it }
+                publishBadge(updated)
+                st.copy(notices = updated)
+            }
+            viewModelScope.launch { communicationFirestoreRepo.markCircularRead(noticeId) }
         }
     }
 
@@ -98,7 +124,7 @@ class NoticesViewModel @Inject constructor(
 
             communicationFirestoreRepo.getCirculars().fold(
                 onSuccess = { circulars ->
-                    val notices = circulars.map { it.toNotice() }
+                    val notices = circulars.map { it.toNotice(readIds) }
                     _uiState.update { it.copy(isRefreshing = false, notices = notices) }
                 },
                 onFailure = { e ->
@@ -119,7 +145,7 @@ class NoticesViewModel @Inject constructor(
             try {
                 communicationFirestoreRepo.getCirculars().fold(
                     onSuccess = { circulars ->
-                        val notices = circulars.map { it.toNotice() }
+                        val notices = circulars.map { it.toNotice(readIds) }
                         _uiState.update { it.copy(notices = notices) }
                     },
                     onFailure = { e ->
@@ -138,7 +164,7 @@ class NoticesViewModel @Inject constructor(
         }
     }
 
-    private fun CircularDoc.toNotice(): Notice {
+    private fun CircularDoc.toNotice(read: Set<String>): Notice {
         val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         return Notice(
             noticeId = id,
@@ -155,7 +181,8 @@ class NoticesViewModel @Inject constructor(
             priority = priority,
             attachmentUrl = attachmentUrl,
             date = sentAt.toDateOrNull()?.let { dateFormatter.format(it) } ?: "",
-            timestamp = sentAt.toEpochMillisOrNull() ?: 0L
+            timestamp = sentAt.toEpochMillisOrNull() ?: 0L,
+            isRead = id in read
         )
     }
 }

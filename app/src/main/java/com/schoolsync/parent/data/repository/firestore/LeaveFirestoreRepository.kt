@@ -107,7 +107,10 @@ class LeaveFirestoreRepository @Inject constructor(
         val schoolCode = getSchoolCode()
             ?: return Result.failure(Exception("School code not available"))
 
-        // Firestore first
+        // Firestore first — a successful query (even EMPTY) is authoritative.
+        // Fix H11: only fall back to the full-school RTDB scan on an actual
+        // Firestore EXCEPTION, never on an empty result. An empty history must
+        // NOT trigger a denied wide read that surfaces a spurious error snackbar.
         try {
             val leaves = firestoreService.queryDocumentsAs<LeaveApplicationDoc>(
                 Constants.Firestore.LEAVE_APPLICATIONS
@@ -116,12 +119,17 @@ class LeaveFirestoreRepository @Inject constructor(
                     .whereEqualTo("applicantId", studentId)
                     .whereEqualTo("applicantType", "student")
             }
-            if (leaves.isNotEmpty()) return Result.success(leaves)
+            // Fix (MEDIUM): sort newest-first (parity with Teacher app).
+            val sorted = leaves.sortedWith(
+                compareByDescending<LeaveApplicationDoc> { appliedAtMillis(it.appliedAt) }
+                    .thenByDescending { it.startDate }
+            )
+            return Result.success(sorted)
         } catch (e: Exception) {
             Log.w(TAG, "Firestore leave query failed, falling back to RTDB", e)
         }
 
-        // RTDB fallback
+        // RTDB fallback — reached ONLY on a Firestore exception above.
         return try {
             val path = "Schools/$schoolCode/LeaveApplications"
             val allLeaves = firebaseService.readMap(path)
@@ -150,7 +158,10 @@ class LeaveFirestoreRepository @Inject constructor(
                     )
                 )
             }
-            result.sortByDescending { it.appliedAt?.toString() ?: "" }
+            result.sortWith(
+                compareByDescending<LeaveApplicationDoc> { appliedAtMillis(it.appliedAt) }
+                    .thenByDescending { it.startDate }
+            )
             Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
@@ -168,7 +179,8 @@ class LeaveFirestoreRepository @Inject constructor(
                 leaveId
             ) ?: return Result.failure(Exception("Leave application not found"))
 
-            if (doc.status != "pending") {
+            // Fix (case-insensitive): accept legacy CapitalCase ("Pending").
+            if (!doc.status.equals("pending", ignoreCase = true)) {
                 return Result.failure(IllegalStateException("Cannot cancel leave with status '${doc.status}'"))
             }
 
@@ -195,5 +207,13 @@ class LeaveFirestoreRepository @Inject constructor(
 
     private suspend fun getSchoolCode(): String? {
         return tokenManager.user.firstOrNull()?.schoolId?.takeIf { it.isNotBlank() }
+    }
+
+    /** Normalize a Firestore Timestamp / RTDB numeric appliedAt to epoch millis for sorting. */
+    private fun appliedAtMillis(raw: Any?): Long = when (raw) {
+        is com.google.firebase.Timestamp -> raw.toDate().time
+        is java.util.Date -> raw.time
+        is Number -> raw.toLong()
+        else -> 0L
     }
 }

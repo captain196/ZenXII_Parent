@@ -3,11 +3,13 @@ package com.schoolsync.parent.ui.auth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -90,13 +92,18 @@ fun ForceChangePasswordScreen(
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .gradientBackground()
             .statusBarsPadding()
             .imePadding(),
     ) {
+        // Capture the viewport height so the inner column can grow to fill
+        // it (centering the form when content fits) and grow past it
+        // (engaging the scroll viewport) when the keyboard is open.
+        val viewportHeight = maxHeight
+
         // Logout escape hatch — top-right. Otherwise the user is trapped
         // here if they accidentally landed on a wrong account.
         IconButton(
@@ -111,163 +118,145 @@ fun ForceChangePasswordScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape)
-                    .background(c.accent.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Lock,
-                    contentDescription = null,
-                    tint = c.accent,
-                    modifier = Modifier.size(36.dp),
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "Set a new password",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = c.textPrimary,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "For your security, please set a new password before continuing. " +
-                       "The password sent to you via SMS was a one-time access key.",
-                fontSize = 13.sp,
-                color = c.textSecondary,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(24.dp))
-
-            // Current password — required by Firebase Auth's
-            // re-authentication contract for password updates. Without
-            // it, the update fails after a few minutes of idle time on
-            // this screen with `requires-recent-login`.
-            OutlinedTextField(
-                value = uiState.currentPassword,
-                onValueChange = viewModel::onCurrentPasswordChange,
-                label = { Text("Current password (sent via SMS)") },
-                singleLine = true,
-                visualTransformation = if (uiState.currentVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                trailingIcon = {
-                    IconButton(onClick = viewModel::toggleCurrentVisibility) {
-                        Icon(
-                            imageVector = if (uiState.currentVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                            contentDescription = if (uiState.currentVisible) "Hide" else "Show",
-                            tint = c.textSecondary,
-                        )
-                    }
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = c.accent,
-                    unfocusedBorderColor = c.glassBorder,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = uiState.newPassword,
-                onValueChange = viewModel::onNewPasswordChange,
-                label = { Text("New password") },
-                singleLine = true,
-                visualTransformation = if (uiState.newVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                trailingIcon = {
-                    IconButton(onClick = viewModel::toggleNewVisibility) {
-                        Icon(
-                            imageVector = if (uiState.newVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                            contentDescription = if (uiState.newVisible) "Hide" else "Show",
-                            tint = c.textSecondary,
-                        )
-                    }
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = c.accent,
-                    unfocusedBorderColor = c.glassBorder,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = uiState.confirmPassword,
-                onValueChange = viewModel::onConfirmPasswordChange,
-                label = { Text("Confirm password") },
-                singleLine = true,
-                visualTransformation = if (uiState.confirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = {
-                    focusManager.clearFocus()
-                    viewModel.submit()
-                }),
-                trailingIcon = {
-                    IconButton(onClick = viewModel::toggleConfirmVisibility) {
-                        Icon(
-                            imageVector = if (uiState.confirmVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                            contentDescription = if (uiState.confirmVisible) "Hide" else "Show",
-                            tint = c.textSecondary,
-                        )
-                    }
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = c.accent,
-                    unfocusedBorderColor = c.glassBorder,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            uiState.errorMessage?.let { msg ->
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = msg,
-                    color = c.error,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            Spacer(Modifier.height(20.dp))
-            Button(
-                onClick = viewModel::submit,
-                enabled = !uiState.isSubmitting,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = c.accent),
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
+                    .heightIn(min = viewportHeight)
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (uiState.isSubmitting) {
-                    CircularProgressIndicator(
-                        color = Color_white,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(20.dp),
-                    )
-                } else {
-                    Text(
-                        text = "Save & Continue",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
+                // Keep the lock icon from sliding under the top-right
+                // logout button when the form scrolls up.
+                Spacer(Modifier.height(48.dp))
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(c.accent.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Lock,
+                        contentDescription = null,
+                        tint = c.accent,
+                        modifier = Modifier.size(36.dp),
                     )
                 }
-            }
-            Spacer(Modifier.height(8.dp))
-            TextButton(onClick = onLogout) {
-                Text("Sign out instead", fontSize = 13.sp, color = c.textSecondary)
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = "Set a new password",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = c.textPrimary,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Your password was reset by your school admin. " +
+                           "Please choose a new password to continue.",
+                    fontSize = 13.sp,
+                    color = c.textSecondary,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(24.dp))
+
+                // No "current password" field — server (Admin SDK) does the
+                // password update; no Firebase recent-login re-auth needed.
+                OutlinedTextField(
+                    value = uiState.newPassword,
+                    onValueChange = viewModel::onNewPasswordChange,
+                    label = { Text("New password") },
+                    singleLine = true,
+                    visualTransformation = if (uiState.newVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    trailingIcon = {
+                        IconButton(onClick = viewModel::toggleNewVisibility) {
+                            Icon(
+                                imageVector = if (uiState.newVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = if (uiState.newVisible) "Hide" else "Show",
+                                tint = c.textSecondary,
+                            )
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = c.accent,
+                        unfocusedBorderColor = c.glassBorder,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = uiState.confirmPassword,
+                    onValueChange = viewModel::onConfirmPasswordChange,
+                    label = { Text("Confirm password") },
+                    singleLine = true,
+                    visualTransformation = if (uiState.confirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        focusManager.clearFocus()
+                        viewModel.submit()
+                    }),
+                    trailingIcon = {
+                        IconButton(onClick = viewModel::toggleConfirmVisibility) {
+                            Icon(
+                                imageVector = if (uiState.confirmVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = if (uiState.confirmVisible) "Hide" else "Show",
+                                tint = c.textSecondary,
+                            )
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = c.accent,
+                        unfocusedBorderColor = c.glassBorder,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                uiState.errorMessage?.let { msg ->
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = msg,
+                        color = c.error,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Start,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                Spacer(Modifier.height(20.dp))
+                Button(
+                    onClick = viewModel::submit,
+                    enabled = !uiState.isSubmitting,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = c.accent),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                ) {
+                    if (uiState.isSubmitting) {
+                        CircularProgressIndicator(
+                            color = Color_white,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    } else {
+                        Text(
+                            text = "Save & Continue",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onLogout) {
+                    Text("Sign out instead", fontSize = 13.sp, color = c.textSecondary)
+                }
             }
         }
     }

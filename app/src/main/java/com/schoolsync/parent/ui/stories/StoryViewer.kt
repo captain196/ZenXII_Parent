@@ -4,20 +4,29 @@ import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,6 +42,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,57 +53,121 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
-import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
-import coil.imageLoader
-import coil.request.ImageRequest
+import com.schoolsync.parent.data.model.Story
 import com.schoolsync.parent.data.model.TeacherStoryGroup
+import com.schoolsync.parent.data.model.firestore.StorySharedConfig
+import com.schoolsync.parent.util.StoryVideoCache
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private const val STORY_DURATION_MS = 5000L
-private const val LONG_PRESS_TIMEOUT_MS = 180L
+private const val IMAGE_DURATION_MS = 5000L
 private const val DISMISS_THRESHOLD_PX = 250f
+/** Upward swipe distance that opens the WhatsApp-style reaction tray. */
+private const val SWIPE_UP_THRESHOLD_PX = 80f
+/** Drag distance over which the story fully fades out while swiping down. */
+private const val DISMISS_DISTANCE_PX = 620f
+/** Pinch-out below this scale (on release) dismisses the story. */
+private const val DISMISS_ZOOM_OUT = 0.75f
+/** Lower bound the pinch can shrink to (enables the zoom-out-to-dismiss). */
+private const val MIN_ZOOM_OUT = 0.5f
+/**
+ * How long a story video may sit in STATE_BUFFERING before we treat it as
+ * failed. ExoPlayer never emits an error for "still buffering", so without a
+ * watchdog a stalled video holds the viewer on a black frame indefinitely.
+ */
+private const val VIDEO_LOAD_TIMEOUT_MS = 12000L
 
+/**
+ * Full-screen story viewer for the PARENT app — mirrors the teacher
+ * viewer's gesture model exactly, plus v1 emoji reactions + persistent
+ * view tracking:
+ *   • unified gesture path for image AND video (tap zones, hold-to-pause,
+ *     pinch-zoom in to 4× / out to dismiss, swipe-down to dismiss with a
+ *     fade that reveals the dashboard behind, horizontal swipe → next
+ *     person via the pager)
+ *   • video progress tied to actual playback; onPlayerError never leaves
+ *     the viewer stuck on a black frame
+ *   • the progress/time bar lingers ~1s on hold then fades, and is frozen
+ *     + hidden while dismissing
+ *
+ * Rendered as an OVERLAY above the dashboard (see NavGraph) so the
+ * swipe-down / pinch-out fade reveals the page it was opened from.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun StoryViewer(
     storyGroups: List<TeacherStoryGroup>,
+    /** True while the backing VM's Firestore listener is still loading.
+     *  On a cold open the viewer's own StoryViewModel starts empty and
+     *  re-runs its listener, so groups arrive a beat later — we must NOT
+     *  treat that transient empty as "nothing to show" and pop back. */
+    isLoading: Boolean,
     initialTeacherId: String,
+    myReactions: Map<String, String>,
     onClose: () -> Unit,
-    onStoryViewed: (String) -> Unit
+    onStoryViewed: (String) -> Unit,
+    onReact: (storyId: String, emoji: String) -> Unit
 ) {
+    BackHandler(onBack = onClose)
+
     if (storyGroups.isEmpty()) {
-        onClose()
+        // Honor isLoading: while the backing VM's Firestore listener is still
+        // loading (including the onStart empty placeholder before the first
+        // real snapshot), show a spinner and NEVER auto-close. We only close
+        // when NOT loading AND the set is genuinely empty. With the hoisted
+        // shared StoryViewModel the overlay opens onto warm data, so this
+        // branch is normally never even reached — but honoring isLoading makes
+        // it correct regardless. (The old blind `delay(1500); onClose()`,
+        // which ignored isLoading, is what flash-closed the viewer on first tap.)
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .semantics { contentDescription = "Loading stories" },
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(36.dp))
+            }
+        } else {
+            // Genuinely nothing to show — close once (no artificial delay).
+            LaunchedEffect(Unit) { onClose() }
+        }
         return
     }
 
@@ -101,34 +175,22 @@ fun StoryViewer(
     val pagerState = rememberPagerState(initialPage = initialPage) { storyGroups.size }
     val scope = rememberCoroutineScope()
 
-    // Hardware back button → close viewer (Round 1d).
-    BackHandler(onBack = onClose)
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { pageIndex ->
-            val group = storyGroups[pageIndex]
-            TeacherStoryPage(
-                group = group,
+    // No opaque background here — each page paints its own black backdrop
+    // whose alpha fades during a swipe-down / pinch-out dismiss, revealing
+    // whatever is behind the viewer (the dashboard it was opened from).
+    Box(modifier = Modifier.fillMaxSize()) {
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { pageIndex ->
+            StoryPage(
+                group = storyGroups[pageIndex],
                 isCurrentPage = pagerState.currentPage == pageIndex,
+                myReactions = myReactions,
                 onClose = onClose,
                 onStoryViewed = onStoryViewed,
-                onAllStoriesInGroupFinished = {
-                    // Round 1d — skip to next teacher instead of
-                    // closing. If there's no next teacher, close.
+                onReact = onReact,
+                onGroupFinished = {
                     scope.launch {
                         val next = pageIndex + 1
-                        if (next < storyGroups.size) {
-                            pagerState.animateScrollToPage(next)
-                        } else {
-                            onClose()
-                        }
+                        if (next < storyGroups.size) pagerState.animateScrollToPage(next) else onClose()
                     }
                 }
             )
@@ -136,294 +198,494 @@ fun StoryViewer(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-private fun TeacherStoryPage(
+private fun StoryPage(
     group: TeacherStoryGroup,
     isCurrentPage: Boolean,
+    myReactions: Map<String, String>,
     onClose: () -> Unit,
     onStoryViewed: (String) -> Unit,
-    onAllStoriesInGroupFinished: () -> Unit
+    onReact: (storyId: String, emoji: String) -> Unit,
+    onGroupFinished: () -> Unit
 ) {
     val stories = group.stories
     if (stories.isEmpty()) return
 
-    // Round 2a — open on first unseen story (WhatsApp/Instagram behavior).
-    // If all are seen, start from 0.
-    var currentStoryIndex by remember(group.teacherId) {
+    var index by remember(group.teacherId) {
         val firstUnseen = stories.indexOfFirst { !it.isViewed }
         mutableIntStateOf(if (firstUnseen >= 0) firstUnseen else 0)
     }
-    val currentStory = stories.getOrNull(currentStoryIndex) ?: return
+    val story = stories.getOrNull(index) ?: return
+    val isVideo = story.type.equals("video", ignoreCase = true)
 
-    // Round 2b — prefetch next story's image via Coil so tap-next is instant.
-    val prefetchContext = LocalContext.current
-    LaunchedEffect(currentStoryIndex, group.teacherId) {
-        val next = stories.getOrNull(currentStoryIndex + 1) ?: return@LaunchedEffect
-        if (next.mediaUrl.isBlank()) return@LaunchedEffect
-        if (next.type.equals("video", ignoreCase = true)) return@LaunchedEffect
-        val req = ImageRequest.Builder(prefetchContext)
-            .data(next.mediaUrl)
-            .build()
-        prefetchContext.imageLoader.enqueue(req)
-    }
-
-    // Round 2c — video mute toggle. Default muted (Stories start silent
-    // on IG/WhatsApp). Only shown on video stories.
-    var isMuted by remember { mutableStateOf(true) }
-
-    // ── Gestures state ────────────────────────────────────────────
-    // Paused while the user is long-pressing the screen (Round 1b).
-    // Chrome fades out in this state for a cleaner view.
     var isPaused by remember { mutableStateOf(false) }
-    // Vertical drag distance — negative means pulled down (Round 1c).
-    // Box.offset follows this 1:1 while dragging; animates back to 0
-    // on release if below threshold, else calls onClose.
+    var isMuted by remember { mutableStateOf(true) }
     val dragOffset = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
 
-    // ── Media load state (Round 1d — spinner + error overlays) ───
-    var mediaLoadState by remember(currentStory.storyId) {
-        mutableStateOf<AsyncImagePainter.State>(AsyncImagePainter.State.Empty)
+    // WhatsApp-style reaction tray: swipe up opens it, which pauses the
+    // story; tapping an emoji reacts + plays a floating pop, then closes.
+    var trayVisible by remember(story.storyId) { mutableStateOf(false) }
+    var reactDrag by remember { mutableFloatStateOf(0f) }   // cumulative vertical drag; negative = up
+    var poppedEmoji by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(story.storyId, isCurrentPage) {
+        // Require a brief dwell before counting a view, so merely swiping PAST
+        // an author's first story (or flicking through the pager) doesn't
+        // inflate the view count. If the page changes before the delay elapses
+        // the effect is cancelled and no view is recorded.
+        if (isCurrentPage) {
+            kotlinx.coroutines.delay(500)
+            onStoryViewed(story.storyId)
+        }
     }
 
-    // Mark story as viewed as soon as it becomes current.
-    LaunchedEffect(currentStory.storyId, isCurrentPage) {
-        if (isCurrentPage) onStoryViewed(currentStory.storyId)
+    // ── Progress state ─────────────────────────────────────────────
+    var imageDisplayed by remember(index, group.teacherId) { mutableStateOf(false) }
+    // A broken/expired mediaUrl used to leave the spinner up forever (the
+    // 5s timer only starts after onSuccess), stranding the viewer. Track
+    // load failure so we can show an error and auto-advance instead.
+    var imageFailed by remember(index, group.teacherId) { mutableStateOf(false) }
+    var imageElapsed by remember(index, group.teacherId) { mutableLongStateOf(0L) }
+    var videoProgress by remember(index, group.teacherId) { mutableFloatStateOf(0f) }
+
+    // Pinch-to-zoom for ALL media (image AND video). Two-finger pinch
+    // scales/pans the media and springs back when the fingers lift.
+    val mediaZoom = remember(index, group.teacherId) { Animatable(1f) }
+    val mediaOffsetX = remember(index, group.teacherId) { Animatable(0f) }
+    val mediaOffsetY = remember(index, group.teacherId) { Animatable(0f) }
+    val mediaZoomed = mediaZoom.value > 1.01f
+
+    // Dismiss progress (0 → 1) from a downward swipe OR a pinch-out below
+    // 1×. Drives the fade/shrink of the story + backdrop fade, and (via
+    // isDismissing) freezes the timer + hides the bar mid-swipe.
+    val dragProgress = (dragOffset.value / DISMISS_DISTANCE_PX).coerceIn(0f, 1f)
+    val zoomOutProgress = ((1f - mediaZoom.value) / (1f - MIN_ZOOM_OUT)).coerceIn(0f, 1f)
+    val dismissProgress = maxOf(dragProgress, zoomOutProgress)
+    val isDismissing = dismissProgress > 0.01f
+    val cardScale = 1f - dragProgress * 0.25f
+
+    // Chrome visibility. On hold we keep the bar ~1s then fade; zooming or
+    // dismissing hides it at once (handled at AnimatedVisibility below).
+    var chromeVisible by remember { mutableStateOf(true) }
+    LaunchedEffect(isPaused, mediaZoomed) {
+        when {
+            mediaZoomed -> chromeVisible = false
+            !isPaused -> chromeVisible = true
+            else -> {
+                chromeVisible = true
+                kotlinx.coroutines.delay(1000)
+                chromeVisible = false
+            }
+        }
     }
 
-    // ── Pausable progress driver (Round 1b) ───────────────────────
-    // Count elapsed ms by accumulating frame deltas. Stops ticking
-    // whenever isPaused or !isCurrentPage. When it reaches the cap,
-    // advances to the next story (or finishes the group).
-    var elapsedMs by remember(currentStoryIndex, group.teacherId) { mutableLongStateOf(0L) }
-    // Per-page frame-delta tracker (Round 2d — previously file-level,
-    // which leaked across viewer instances and pager pages).
-    var lastFrameNanos by remember(currentStoryIndex, group.teacherId) { mutableLongStateOf(0L) }
-    LaunchedEffect(currentStoryIndex, isCurrentPage, isPaused) {
-        if (!isCurrentPage || isPaused) return@LaunchedEffect
-        // Reset the frame reference on (re)start so the first tick
-        // doesn't add a stale delta from a previous run.
-        lastFrameNanos = 0L
-        // Don't restart from 0 if we're resuming after a pause.
-        while (elapsedMs < STORY_DURATION_MS) {
+    // Image progress driver — frozen while dismissing so the timer doesn't
+    // advance (or appear to restart) during a swipe-down.
+    LaunchedEffect(index, isCurrentPage, isPaused, isVideo, mediaZoomed, imageDisplayed, isDismissing, trayVisible) {
+        if (isVideo || !isCurrentPage || isPaused || mediaZoomed || isDismissing || trayVisible) return@LaunchedEffect
+        if (!imageDisplayed) return@LaunchedEffect   // start-on-load
+        var last = 0L
+        while (imageElapsed < IMAGE_DURATION_MS) {
             val now = androidx.compose.runtime.withFrameNanos { it }
-            val delta = if (lastFrameNanos == 0L) 0L else (now - lastFrameNanos) / 1_000_000L
-            lastFrameNanos = now
-            elapsedMs += delta.coerceIn(0L, 64L)  // cap a stutter
+            val delta = if (last == 0L) 0L else (now - last) / 1_000_000L
+            last = now
+            imageElapsed += delta.coerceIn(0L, 64L)
         }
-        // Story finished — advance or skip-to-next-teacher.
-        if (currentStoryIndex < stories.size - 1) {
-            currentStoryIndex++
-        } else {
-            onAllStoriesInGroupFinished()
-        }
+        if (index < stories.size - 1) index++ else onGroupFinished()
     }
 
-    // Visual progress = elapsed / total (clamped).
-    val progress = (elapsedMs.toFloat() / STORY_DURATION_MS).coerceIn(0f, 1f)
+    val currentProgress = if (isVideo) videoProgress
+    else (imageElapsed.toFloat() / IMAGE_DURATION_MS).coerceIn(0f, 1f)
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            // Round 1c — swipe-down-to-dismiss drives translationY.
-            // Only pulling downward counts; an upward pull is ignored
-            // so the user can't drag the viewer off the top.
-            .graphicsLayer {
-                translationY = dragOffset.value.coerceAtLeast(0f)
-            }
-            // Outer gesture layer: vertical drag for dismiss.
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onVerticalDrag = { _, dragAmount ->
-                        scope.launch {
-                            dragOffset.snapTo((dragOffset.value + dragAmount).coerceAtLeast(0f))
-                        }
-                    },
-                    onDragEnd = {
-                        if (dragOffset.value > DISMISS_THRESHOLD_PX) {
-                            onClose()
-                        } else {
-                            scope.launch { dragOffset.animateTo(0f, tween(180)) }
-                        }
-                    },
-                    onDragCancel = {
-                        scope.launch { dragOffset.animateTo(0f, tween(180)) }
-                    }
-                )
-            }
-            // Inner gesture layer: tap zones + hold-to-pause.
-            // awaitEachGesture lets us cleanly separate short-tap
-            // (navigate) from long-press (pause-until-release).
-            .pointerInput(currentStoryIndex, stories.size) {
-                val longPressMs = LONG_PRESS_TIMEOUT_MS
-                val leftZone = size.width / 3f
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
-                    // Race: either user lifts within longPressMs (short
-                    // tap → navigate) or the timeout fires (long press
-                    // → pause until release).
-                    val up = withTimeoutOrNull(longPressMs) {
-                        waitForUpOrCancellation()
-                    }
-                    if (up != null) {
-                        // Short tap — navigate.
-                        if (down.position.x < leftZone) {
-                            // Tap left zone: previous story
-                            if (currentStoryIndex > 0) {
-                                currentStoryIndex--
-                                elapsedMs = 0L   // restart progress
-                            }
-                        } else {
-                            // Tap right zone: next story, or finish group
-                            if (currentStoryIndex < stories.size - 1) {
-                                currentStoryIndex++
-                                elapsedMs = 0L
-                            } else {
-                                onAllStoriesInGroupFinished()
-                            }
-                        }
-                    } else {
-                        // Long-press in progress — pause until release.
-                        isPaused = true
-                        try {
-                            waitForUpOrCancellation()
-                        } finally {
-                            isPaused = false
-                        }
-                    }
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Backdrop — fades out as the story is dismissed, revealing behind.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 1f - dismissProgress))
+        )
+        // Story card — moves with the finger, shrinks + fades on dismiss.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    translationY = dragOffset.value.coerceAtLeast(0f)
+                    scaleX = cardScale
+                    scaleY = cardScale
+                    alpha = 1f - dismissProgress
                 }
-            }
-    ) {
-        // ── Media (image or video) ────────────────────────────────
-        val isVideo = currentStory.type.equals("video", ignoreCase = true)
-        if (isVideo) {
-            VideoStoryPlayer(
-                url = currentStory.mediaUrl,
-                isCurrentPage = isCurrentPage,
-                isPaused = isPaused,
-                isMuted = isMuted
-            )
-        } else {
-            AsyncImage(
-                model = currentStory.mediaUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
-                onState = { state -> mediaLoadState = state }
-            )
-            when (mediaLoadState) {
-                is AsyncImagePainter.State.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            strokeWidth = 2.5.dp,
-                            modifier = Modifier.size(36.dp)
+        ) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val widthPx = constraints.maxWidth.toFloat()
+
+                // ── Media with a SHARED pinch-zoom transform ───────────
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = mediaZoom.value
+                            scaleY = mediaZoom.value
+                            translationX = mediaOffsetX.value
+                            translationY = mediaOffsetY.value
+                        }
+                ) {
+                    if (isVideo) {
+                        VideoStoryPlayer(
+                            url = story.mediaUrl,
+                            posterUrl = story.thumbnailUrl,
+                            isCurrentPage = isCurrentPage,
+                            isPaused = isPaused || mediaZoomed || isDismissing || trayVisible,
+                            isMuted = isMuted,
+                            onProgress = { videoProgress = it },
+                            onEnded = { if (index < stories.size - 1) index++ else onGroupFinished() }
+                        )
+                    } else {
+                        coil.compose.AsyncImage(
+                            model = story.mediaUrl,
+                            contentDescription = buildString {
+                                append("Story from ${group.teacherName}")
+                                if (story.caption.isNotBlank()) append(": ${story.caption}")
+                            },
+                            contentScale = ContentScale.Fit,
+                            onSuccess = { imageDisplayed = true },
+                            onError = { imageFailed = true },
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                 }
-                is AsyncImagePainter.State.Error -> {
+                if (!isVideo && !imageDisplayed && !imageFailed) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(36.dp))
+                    }
+                }
+                // Broken/expired media — surface an error instead of an eternal
+                // spinner, and auto-advance (mirrors the video onEnded fallback).
+                if (!isVideo && imageFailed) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 32.dp),
+                        modifier = Modifier.fillMaxSize().semantics { contentDescription = "This story could not be loaded" },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Couldn't load story media.\nTap to close.",
-                            color = Color.White,
+                            text = "Couldn't load this story",
                             style = MaterialTheme.typography.bodyMedium,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            color = Color.White.copy(alpha = 0.85f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 32.dp)
                         )
                     }
                 }
-                else -> Unit
+                LaunchedEffect(imageFailed, isCurrentPage) {
+                    if (imageFailed && isCurrentPage && !isVideo) {
+                        kotlinx.coroutines.delay(2500)
+                        if (index < stories.size - 1) index++ else onGroupFinished()
+                    }
+                }
+
+                // ── SHARED gesture overlay for ALL media ───────────────
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        // Pinch-zoom FIRST (only acts on 2+ pointers).
+                        .pointerInput(index, group.teacherId) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                var didZoom = false
+                                do {
+                                    val event = awaitPointerEvent()
+                                    if (event.changes.count { it.pressed } >= 2) {
+                                        didZoom = true
+                                        val newScale = (mediaZoom.value * event.calculateZoom()).coerceIn(MIN_ZOOM_OUT, 4f)
+                                        val pan = event.calculatePan()
+                                        val maxX = (widthPx * (newScale - 1f) / 2f).coerceAtLeast(0f)
+                                        val maxY = (constraints.maxHeight.toFloat() * (newScale - 1f) / 2f).coerceAtLeast(0f)
+                                        scope.launch { mediaZoom.snapTo(newScale) }
+                                        scope.launch { mediaOffsetX.snapTo((mediaOffsetX.value + pan.x).coerceIn(-maxX, maxX)) }
+                                        scope.launch { mediaOffsetY.snapTo((mediaOffsetY.value + pan.y).coerceIn(-maxY, maxY)) }
+                                        event.changes.forEach { it.consume() }
+                                    }
+                                } while (event.changes.any { it.pressed })
+                                if (didZoom) {
+                                    if (mediaZoom.value < DISMISS_ZOOM_OUT) {
+                                        onClose()
+                                    } else {
+                                        scope.launch { mediaZoom.animateTo(1f, tween(200)) }
+                                        scope.launch { mediaOffsetX.animateTo(0f, tween(200)) }
+                                        scope.launch { mediaOffsetY.animateTo(0f, tween(200)) }
+                                    }
+                                }
+                            }
+                        }
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures(
+                                onVerticalDrag = { _, dy ->
+                                    reactDrag += dy   // track up-swipe (negative) for the reaction tray
+                                    scope.launch { dragOffset.snapTo((dragOffset.value + dy).coerceAtLeast(0f)) }
+                                },
+                                onDragEnd = {
+                                    if (dragOffset.value > DISMISS_THRESHOLD_PX) onClose()
+                                    else {
+                                        // A net upward swipe opens the reaction tray (WhatsApp).
+                                        if (reactDrag < -SWIPE_UP_THRESHOLD_PX) trayVisible = true
+                                        scope.launch { dragOffset.animateTo(0f, tween(180)) }
+                                    }
+                                    reactDrag = 0f
+                                },
+                                onDragCancel = {
+                                    scope.launch { dragOffset.animateTo(0f, tween(180)) }
+                                    reactDrag = 0f
+                                }
+                            )
+                        }
+                        // Tap zones + hold-to-pause WITHOUT consuming events, so
+                        // a swipe-down that begins during/after a hold still
+                        // reaches the drag detector, and horizontal swipes reach
+                        // the pager. No navigation on a plain hold-release.
+                        .pointerInput(index, stories.size) {
+                            val longPressMs = viewConfiguration.longPressTimeoutMillis
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                isPaused = true
+                                val up = withTimeoutOrNull(longPressMs) { waitForUpOrCancellation() }
+                                if (up != null) {
+                                    isPaused = false
+                                    if (down.position.x < widthPx / 3f) {
+                                        if (index > 0) index--
+                                    } else {
+                                        if (index < stories.size - 1) index++ else onGroupFinished()
+                                    }
+                                } else {
+                                    waitForUpOrCancellation()
+                                    isPaused = false
+                                }
+                            }
+                        }
+                )
             }
-        }
 
-        // ── Chrome (top + bottom UI) — fades out while paused ───
-        AnimatedVisibility(
-            visible = !isPaused,
-            enter = fadeIn(tween(150)),
-            exit = fadeOut(tween(150)),
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-            TopChrome(
-                stories = stories,
-                currentStoryIndex = currentStoryIndex,
-                currentProgress = progress,
-                isCurrentPage = isCurrentPage,
-                group = group,
-                storyCreatedAt = currentStory.createdAt,
-                isVideo = isVideo,
-                isMuted = isMuted,
-                onToggleMute = { isMuted = !isMuted },
-                onClose = onClose
-            )
-        }
-
-        if (currentStory.caption.isNotBlank()) {
+            // ── Chrome — hidden immediately while zooming/dismissing ───
             AnimatedVisibility(
-                visible = !isPaused,
+                visible = chromeVisible && !isDismissing,
                 enter = fadeIn(tween(150)),
-                exit = fadeOut(tween(150)),
+                exit = fadeOut(tween(400)),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                TopChrome(
+                    storyCount = stories.size,
+                    currentIndex = index,
+                    currentProgress = currentProgress,
+                    isCurrentPage = isCurrentPage,
+                    group = group,
+                    createdAt = story.createdAt,
+                    isVideo = isVideo,
+                    isMuted = isMuted,
+                    onToggleMute = { isMuted = !isMuted },
+                    onClose = onClose
+                )
+            }
+
+            // ── Bottom: centered caption + "swipe up to react" hint ────
+            // WhatsApp-style: caption centered just above the bottom edge;
+            // a subtle chevron invites the swipe-up reaction tray. Hidden
+            // while the tray is open (the tray takes its place).
+            AnimatedVisibility(
+                visible = chromeVisible && !isDismissing && !trayVisible,
+                enter = fadeIn(tween(150)),
+                exit = fadeOut(tween(400)),
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
                 Box {
-                    // Bottom gradient backing
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp)
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
-                                )
-                            )
+                            .height(230.dp)
+                            .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))))
                     )
-                    Text(
-                        text = currentStory.caption,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White,
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 32.dp),
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                            .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        if (story.caption.isNotBlank()) {
+                            Text(
+                                text = story.caption,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White,
+                                textAlign = TextAlign.Center,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 14.dp)
+                            )
+                        }
+                        // Reaction affordance — a single upward chevron (tap or
+                        // swipe up opens the tray). No label text; once the
+                        // parent has reacted it shows their chosen emoji instead.
+                        // Sits at the very bottom edge (small bottom padding).
+                        val myEmoji = myReactions[story.storyId]
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .clickable { trayVisible = true }
+                                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                .padding(8.dp)
+                                .semantics {
+                                    contentDescription =
+                                        if (myEmoji != null) "You reacted $myEmoji. Tap to change your reaction"
+                                        else "React to this story"
+                                }
+                        ) {
+                            if (myEmoji != null) {
+                                Text(text = myEmoji, style = MaterialTheme.typography.titleMedium)
+                            } else {
+                                Icon(
+                                    Icons.Filled.KeyboardArrowUp,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
+
+            // ── Reaction tray (WhatsApp) — tap-scrim + slide-up emoji row ─
+            AnimatedVisibility(
+                visible = trayVisible,
+                enter = fadeIn(tween(120)),
+                exit = fadeOut(tween(160)),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null
+                        ) { trayVisible = false }
+                )
+            }
+            AnimatedVisibility(
+                visible = trayVisible,
+                enter = slideInVertically(tween(220)) { it } + fadeIn(tween(200)),
+                exit = slideOutVertically(tween(200)) { it } + fadeOut(tween(160)),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                ReactionTray(
+                    selected = myReactions[story.storyId],
+                    onReact = { emoji ->
+                        onReact(story.storyId, emoji)
+                        poppedEmoji = emoji
+                        trayVisible = false
+                    }
+                )
+            }
+
+            // ── Floating reaction pop (plays after a tap) ──────────────
+            poppedEmoji?.let { emoji ->
+                FloatingReactionPop(emoji = emoji, onDone = { poppedEmoji = null })
+            }
+        } // story card
+    } // page root
+}
+
+/**
+ * WhatsApp-style reaction tray — a rounded translucent pill of emojis
+ * that slides up from the bottom. Centered via the caller's BottomCenter
+ * alignment. The currently-selected emoji is highlighted + scaled up.
+ */
+@Composable
+private fun ReactionTray(selected: String?, onReact: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .padding(bottom = 64.dp)
+            .clip(RoundedCornerShape(30.dp))
+            .background(Color.Black.copy(alpha = 0.6f))
+            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(30.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        StorySharedConfig.ALLOWED_REACTIONS.forEach { emoji ->
+            val isSel = selected == emoji
+            val scale by animateFloatAsState(targetValue = if (isSel) 1.3f else 1f, label = "reactScale")
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(if (isSel) Color.White.copy(alpha = 0.22f) else Color.Transparent)
+                    .clickable { onReact(emoji) }
+                    .semantics {
+                        contentDescription = if (isSel) "Reacted with $emoji" else "React with $emoji"
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = emoji,
+                    fontSize = 26.sp,
+                    modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
+                )
+            }
         }
+    }
+}
+
+/**
+ * The chosen emoji flies up and fades out once, WhatsApp-style, then
+ * signals completion so the caller can clear it.
+ */
+@Composable
+private fun FloatingReactionPop(emoji: String, onDone: () -> Unit) {
+    val scale = remember { Animatable(0.4f) }
+    val transY = remember { Animatable(0f) }
+    val alpha = remember { Animatable(1f) }
+    LaunchedEffect(Unit) {
+        launch { scale.animateTo(1.7f, tween(600)) }
+        launch { transY.animateTo(-180f, tween(750)) }
+        alpha.animateTo(0f, tween(750))
+        onDone()
+    }
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+        Text(
+            text = emoji,
+            fontSize = 72.sp,
+            modifier = Modifier
+                .padding(bottom = 130.dp)
+                .graphicsLayer {
+                    scaleX = scale.value
+                    scaleY = scale.value
+                    translationY = transY.value
+                    this.alpha = alpha.value
+                }
+        )
     }
 }
 
 @Composable
 private fun TopChrome(
-    stories: List<com.schoolsync.parent.data.model.Story>,
-    currentStoryIndex: Int,
+    storyCount: Int,
+    currentIndex: Int,
     currentProgress: Float,
     isCurrentPage: Boolean,
     group: TeacherStoryGroup,
-    storyCreatedAt: Long,
+    createdAt: Long,
     isVideo: Boolean,
     isMuted: Boolean,
     onToggleMute: () -> Unit,
     onClose: () -> Unit
 ) {
     Box {
-        // Top gradient — fades UI over media for readability.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(160.dp)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)
-                    )
-                )
+                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)))
         )
         Column(
             modifier = Modifier
@@ -431,85 +693,50 @@ private fun TopChrome(
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            // Progress bars — one per story in group, current filling.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                stories.forEachIndexed { index, _ ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                repeat(storyCount) { i ->
                     val barProgress = when {
-                        index < currentStoryIndex -> 1f
-                        index == currentStoryIndex && isCurrentPage -> currentProgress
+                        i < currentIndex -> 1f
+                        i == currentIndex && isCurrentPage -> currentProgress
                         else -> 0f
                     }
                     LinearProgressIndicator(
                         progress = { barProgress },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(2.dp)
-                            .clip(RoundedCornerShape(2.dp)),
+                        modifier = Modifier.weight(1f).height(2.dp).clip(RoundedCornerShape(2.dp)),
                         color = Color.White,
                         trackColor = Color.White.copy(alpha = 0.3f)
                     )
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
-            // Teacher info + close button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                     if (group.teacherPic.isNotBlank()) {
                         coil.compose.AsyncImage(
                             model = group.teacherPic,
-                            contentDescription = null,
+                            contentDescription = "${group.teacherName}'s profile photo",
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
+                            modifier = Modifier.size(36.dp).clip(CircleShape)
                         )
                     } else {
-                        val initials = group.teacherName
-                            .split(" ")
-                            .take(2)
+                        val initials = group.teacherName.split(" ").take(2)
                             .mapNotNull { it.firstOrNull()?.uppercaseChar()?.toString() }
-                            .joinToString("")
-                            .ifBlank { "T" }
+                            .joinToString("").ifBlank { "T" }
                         Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.2f)),
+                            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = initials,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Text(initials, style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        Text(
-                            text = group.teacherName,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = formatStoryTime(storyCreatedAt),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.7f)
-                        )
+                        Text(group.teacherName, style = MaterialTheme.typography.titleSmall, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(formatStoryTime(createdAt), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -524,12 +751,7 @@ private fun TopChrome(
                         }
                     }
                     IconButton(onClick = onClose) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = "Close",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(24.dp))
                     }
                 }
             }
@@ -537,76 +759,178 @@ private fun TopChrome(
     }
 }
 
-// ═════════════════════════════════════════════════════════════════
-//  VIDEO PLAYBACK (Round 1a)
-//  Media3 ExoPlayer wrapped in an AndroidView. Tied to lifecycle:
-//  - Builds a new player per-URL
-//  - Pauses when isPaused (hold-to-pause) OR when pager scrolls away
-//  - Releases on dispose (critical — ExoPlayer leaks background threads
-//    if released too late)
-// ═════════════════════════════════════════════════════════════════
-@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 private fun VideoStoryPlayer(
     url: String,
+    posterUrl: String,
     isCurrentPage: Boolean,
     isPaused: Boolean,
-    isMuted: Boolean
+    isMuted: Boolean,
+    onProgress: (Float) -> Unit,
+    onEnded: () -> Unit
 ) {
     val context = LocalContext.current
     val player = remember(url) {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(url))
+        val source = ProgressiveMediaSource.Factory(StoryVideoCache.dataSourceFactory(context))
+            .createMediaSource(MediaItem.fromUri(url))
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(5000, 10000, 1000, 1000)
+            .build()
+        ExoPlayer.Builder(context).setLoadControl(loadControl).build().apply {
+            setMediaSource(source)
             repeatMode = Player.REPEAT_MODE_OFF
-            playWhenReady = true
             prepare()
+            playWhenReady = true
         }
     }
 
-    // Pause on off-screen or user-hold; resume otherwise.
+    // Buffering / failure are surfaced to the user. Previously a video that was
+    // slow or broken showed a plain black screen with a 0% progress bar and no
+    // timeout — indistinguishable from a hang, and the usual reason a parent
+    // reports "the video doesn't play". PlayerView can't help here: media3
+    // defaults to SHOW_BUFFERING_NEVER and useController is false.
+    var isBuffering by remember(url) { mutableStateOf(true) }
+    var failed by remember(url) { mutableStateOf(false) }
+
     LaunchedEffect(isCurrentPage, isPaused, player) {
         player.playWhenReady = isCurrentPage && !isPaused
     }
-    // Mute toggle (Round 2c).
     LaunchedEffect(isMuted, player) {
         player.volume = if (isMuted) 0f else 1f
     }
-
     DisposableEffect(player) {
-        onDispose { player.release() }
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                isBuffering = state == Player.STATE_BUFFERING
+                if (state == Player.STATE_ENDED) onEnded()
+            }
+            // Never leave the viewer stuck on a black frame. This used to call
+            // onEnded() bare — no log, no message — so a group of broken videos
+            // flashed past and closed itself, which reads as "videos don't play".
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                android.util.Log.e(
+                    "StoryViewer",
+                    "Video playback failed (code=${error.errorCodeName}) url=$url",
+                    error
+                )
+                failed = true
+                isBuffering = false
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.release()
+        }
     }
 
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                this.player = player
-                useController = false     // no controls; taps drive the gesture layer
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-            }
-        },
-        modifier = Modifier.fillMaxSize()
-    )
-}
+    // Pause when the app leaves the foreground. Without this the story keeps
+    // playing (and audibly so) behind the lock screen or another app, and the
+    // progress bar drifts out of sync with the real playback position.
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, player) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) player.pause()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
-// ═════════════════════════════════════════════════════════════════
-//  Helpers
-// ═════════════════════════════════════════════════════════════════
+    // Watchdog: a video stuck in STATE_BUFFERING never emits an error, so
+    // without this the viewer waits forever on a black frame.
+    LaunchedEffect(url, isBuffering, isCurrentPage, isPaused) {
+        if (!isBuffering || !isCurrentPage || isPaused) return@LaunchedEffect
+        kotlinx.coroutines.delay(VIDEO_LOAD_TIMEOUT_MS)
+        if (isBuffering) {
+            android.util.Log.w("StoryViewer", "Video load timed out after ${VIDEO_LOAD_TIMEOUT_MS}ms url=$url")
+            failed = true
+        }
+    }
+
+    // Advance past a failed video the way the image path does, after letting the
+    // message be read, rather than skipping instantly with no explanation.
+    LaunchedEffect(failed) {
+        if (failed) {
+            kotlinx.coroutines.delay(2500)
+            onEnded()
+        }
+    }
+    // Poll playback position ONLY while actually playing (current page and not
+    // paused). Gating stops the 50ms loop when the story is paused, off-screen,
+    // or the reaction tray/zoom pauses it — no needless wakeups per frame.
+    LaunchedEffect(player, isCurrentPage, isPaused) {
+        if (isPaused || !isCurrentPage) return@LaunchedEffect
+        while (true) {
+            val dur = player.duration
+            if (dur > 0) onProgress((player.currentPosition.toFloat() / dur).coerceIn(0f, 1f))
+            kotlinx.coroutines.delay(50)
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    this.player = player
+                    useController = false
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            // CRITICAL: without this, advancing video -> video plays nothing.
+            // `remember(url)` builds a NEW ExoPlayer and DisposableEffect releases
+            // the OLD one, but the composition slot is reused so `factory` is not
+            // re-invoked — PlayerView would keep pointing at the RELEASED player
+            // and the new one would never get a surface. Symptom: black frame,
+            // audio only, progress bar still advancing (it polls the new player).
+            update = { view ->
+                if (view.player !== player) view.player = player
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Poster OVERLAY (drawn after the PlayerView, which is opaque) — shown
+        // only until the first frame decodes, so a buffering video presents the
+        // real still instead of a black rectangle. The Teacher app has always
+        // uploaded this poster; the Parent model simply dropped the field.
+        if (posterUrl.isNotBlank() && (isBuffering || failed)) {
+            coil.compose.AsyncImage(
+                model = posterUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        if (failed) {
+            Text(
+                text = "Couldn't load this story",
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(24.dp)
+            )
+        } else if (isBuffering) {
+            CircularProgressIndicator(
+                color = Color.White,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+    }
+}
 
 private fun formatStoryTime(timestamp: Long): String {
     if (timestamp <= 0) return ""
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
-    val hours = diff / (1000 * 60 * 60)
+    val diff = System.currentTimeMillis() - timestamp
     val minutes = diff / (1000 * 60)
+    val hours = diff / (1000 * 60 * 60)
     return when {
         minutes < 1 -> "Just now"
         minutes < 60 -> "${minutes}m ago"
         hours < 24 -> "${hours}h ago"
-        else -> try {
-            SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(timestamp))
-        } catch (_: Exception) { "" }
+        else -> try { SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(timestamp)) } catch (_: Exception) { "" }
     }
 }

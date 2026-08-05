@@ -1,6 +1,7 @@
 package com.schoolsync.parent.data.repository
 
 import android.util.Log
+import com.schoolsync.parent.BuildConfig
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.Query
@@ -43,6 +44,10 @@ class RedFlagRepository @Inject constructor(
      * can see exactly what the server sees in logcat.
      */
     suspend fun dumpAuthClaimsForDebug() {
+        // Dumps the full auth-claims map (uid, school_id, student_id(s),
+        // parent_db_key) — sensitive PII. Debug builds only; never in release
+        // logcat where it can be extracted via bug reports / adb.
+        if (!BuildConfig.DEBUG) return
         try {
             val user = FirebaseAuth.getInstance().currentUser
             if (user == null) {
@@ -90,11 +95,14 @@ class RedFlagRepository @Inject constructor(
         val schoolId = user.preferredSchoolId().ifBlank { return emptyList() }
 
         return try {
-            val sinceMs = defaultSinceMs()
+            // No createdAtMs time-window: an unresolved flag must NEVER
+            // disappear from the parent view just because it's old, and
+            // legacy docs with createdAtMs==0 must still surface. Per-student
+            // flag volume is low, so fetching the full (non-deleted) history
+            // is cheap. Uses the schoolId+studentId+createdAtMs index.
             val snap = firestoreService.queryDocuments(Constants.Firestore.STUDENT_FLAGS) { ref ->
                 ref.whereEqualTo("schoolId", schoolId)
                     .whereEqualTo("studentId", user.userId)
-                    .whereGreaterThanOrEqualTo("createdAtMs", sinceMs)
                     .orderBy("createdAtMs", Query.Direction.DESCENDING)
             }
             snap.documents.map { snapshotToFlag(it) }.dropDeleted()
@@ -113,43 +121,37 @@ class RedFlagRepository @Inject constructor(
         return tokenManager.user.flatMapLatest { user ->
             if (!user.isLoggedIn || user.userId.isBlank()
                 || user.preferredSchoolId().isBlank()) {
-                Log.w(TAG, "observeFlags: skipping query (not logged in or missing school). " +
-                    "user.isLoggedIn=${user.isLoggedIn} user.userId='${user.userId}' " +
-                    "schoolId='${user.schoolId}' schoolCode='${user.schoolCode}'")
+                if (BuildConfig.DEBUG) {
+                    Log.w(TAG, "observeFlags: skipping query (not logged in or missing school). " +
+                        "user.isLoggedIn=${user.isLoggedIn} user.userId='${user.userId}' " +
+                        "schoolId='${user.schoolId}' schoolCode='${user.schoolCode}'")
+                }
                 flowOf(emptyList())
             } else {
                 val schoolId  = user.preferredSchoolId()
                 val studentId = user.userId
-                val sinceMs   = defaultSinceMs()
-                // Loud log so a teacher/parent studentId mismatch is
-                // immediately visible in logcat. Compare against the
-                // RedFlagRepo log on the Teacher app:
-                //   adb logcat -s RedFlagRepoP:* RedFlagRepo:*
-                Log.i(TAG, "observeFlags query -> schoolId=$schoolId, studentId=$studentId, since=$sinceMs")
+                // No time-window (see getAllFlags): old/legacy active flags must
+                // stay visible. Debug-only diagnostics — studentId is PII, keep
+                // it out of release logcat.
+                if (BuildConfig.DEBUG) {
+                    Log.i(TAG, "observeFlags query -> schoolId=$schoolId, studentId=$studentId")
+                }
                 firestoreService.observeQuery(Constants.Firestore.STUDENT_FLAGS) { ref ->
                     ref.whereEqualTo("schoolId", schoolId)
                         .whereEqualTo("studentId", studentId)
-                        .whereGreaterThanOrEqualTo("createdAtMs", sinceMs)
                         .orderBy("createdAtMs", Query.Direction.DESCENDING)
                 }.map { snap ->
-                    Log.i(TAG, "observeFlags emit -> raw=${snap.documents.size} docs")
+                    if (BuildConfig.DEBUG) {
+                        Log.i(TAG, "observeFlags emit -> raw=${snap.documents.size} docs")
+                    }
                     snap.documents.map { snapshotToFlag(it) }.dropDeleted()
                 }
             }
         }
     }
 
-    /**
-     * Rolling 60-day window. Matches the cross-system retention strategy
-     * — older flags are preserved in Firestore but not surfaced to the
-     * parent UI by default. Admin retains full-history access.
-     */
-    private fun defaultSinceMs(): Long =
-        System.currentTimeMillis() - (DEFAULT_WINDOW_DAYS * 24L * 60L * 60L * 1000L)
-
     companion object {
         private const val TAG = "RedFlagRepoP"
-        private const val DEFAULT_WINDOW_DAYS = 60L
     }
 
     /**

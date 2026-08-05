@@ -1,14 +1,17 @@
 package com.schoolsync.parent.ui.results
 
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.ExamResult
 import com.schoolsync.parent.data.model.SubjectResult
 import com.schoolsync.parent.data.model.User
+import com.schoolsync.parent.data.model.firestore.ExamDoc
 import com.schoolsync.parent.data.repository.firestore.ExamFirestoreRepository
 import com.schoolsync.parent.data.repository.firestore.FeeFirestoreRepository
+import com.schoolsync.parent.ui.navigation.Route
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,9 +24,9 @@ import javax.inject.Inject
 data class ResultsUiState(
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
-    val examIds: List<String> = emptyList(),
-    /** Display labels parallel to [examIds] (exam names for the selector). */
-    val examNames: List<String> = emptyList(),
+    // MED-4: keep the full exam docs (id + name) so the selector can render
+    // human-readable names instead of raw internal IDs.
+    val exams: List<ExamDoc> = emptyList(),
     val selectedExamIndex: Int = 0,
     val examResult: ExamResult? = null,
     val examSelectorExpanded: Boolean = false,
@@ -32,17 +35,25 @@ data class ResultsUiState(
      *  be withheld depending on the school's policy. */
     val pendingFees: Double = 0.0,
     val errorMessage: String? = null
-)
+) {
+    val selectedExam: ExamDoc? get() = exams.getOrNull(selectedExamIndex)
+}
 
 @HiltViewModel
 class ResultsViewModel @Inject constructor(
     private val examFirestoreRepo: ExamFirestoreRepository,
     private val feeFirestoreRepo: FeeFirestoreRepository,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ResultsUiState())
     val uiState: StateFlow<ResultsUiState> = _uiState.asStateFlow()
+
+    // LOW-7: optional deep-link target exam (result_published push). When set,
+    // the matching exam is preselected once the list loads instead of index 0.
+    private val targetExamId: String =
+        savedStateHandle.get<String>(Route.Results.ARG_EXAM_ID).orEmpty()
 
     init {
         loadExams()
@@ -93,14 +104,13 @@ class ResultsViewModel @Inject constructor(
 
             examFirestoreRepo.getAvailableExams().fold(
                 onSuccess = { examDocs ->
-                    // Use the bare examId field (NOT it.id, which is the
-                    // schoolId-prefixed doc-id) so getResult's examId-field
-                    // query matches; keep examName parallel for the selector.
-                    val examIds = examDocs.map { it.examId.ifBlank { it.id } }
-                    val examNames = examDocs.map { it.examName.ifBlank { it.examId.ifBlank { it.id } } }
-                    _uiState.update { it.copy(examIds = examIds, examNames = examNames) }
-                    if (examIds.isNotEmpty()) {
-                        loadResult(0)
+                    // LOW-7: if a deep link named a specific exam, open it;
+                    // otherwise default to the first exam in the list.
+                    val targetIndex = examDocs.indexOfFirst { it.id == targetExamId }
+                        .takeIf { it >= 0 } ?: 0
+                    _uiState.update { it.copy(exams = examDocs, selectedExamIndex = targetIndex) }
+                    if (examDocs.isNotEmpty()) {
+                        loadResult(targetIndex)
                     } else {
                         _uiState.update { it.copy(isLoading = false) }
                     }
@@ -132,7 +142,8 @@ class ResultsViewModel @Inject constructor(
     }
 
     private fun loadResult(examIndex: Int) {
-        val examId = _uiState.value.examIds.getOrNull(examIndex) ?: return
+        val exam = _uiState.value.exams.getOrNull(examIndex) ?: return
+        val examId = exam.id
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
@@ -147,9 +158,12 @@ class ResultsViewModel @Inject constructor(
                             val subjects = resultDoc.subjects.map { (subjectName, subjectData) ->
                                 SubjectResult(
                                     subjectName = subjectName,
+                                    // MED-3: preserve null (absent) rather than coerce to 0.
                                     marksObtained = subjectData.total,
                                     maxMarks = subjectData.maxMarks,
-                                    grade = subjectData.grade
+                                    grade = subjectData.grade,
+                                    passFail = subjectData.passFail,
+                                    absent = subjectData.absent
                                 )
                             }
                             val examResult = ExamResult(
@@ -162,9 +176,17 @@ class ResultsViewModel @Inject constructor(
                                 subjects = subjects,
                                 totalMarks = resultDoc.totalMarks,
                                 maxMarks = resultDoc.maxMarks,
+                                // MED-3: null percentage preserved for absentees.
                                 percentage = resultDoc.percentage,
                                 grade = resultDoc.grade,
                                 rank = resultDoc.rank,
+                                // HIGH-2: carry the authoritative pass/fail + the
+                                // exam's passing threshold (prefer the exam doc,
+                                // fall back to the value echoed on the result).
+                                passFail = resultDoc.passFail,
+                                absent = resultDoc.absent,
+                                passingPercent = exam.passingPercent
+                                    .takeIf { it > 0 } ?: resultDoc.passingPercent,
                                 remarks = resultDoc.passFail
                             )
                             _uiState.update {

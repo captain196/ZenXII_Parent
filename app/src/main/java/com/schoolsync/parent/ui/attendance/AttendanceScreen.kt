@@ -47,6 +47,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -66,6 +69,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @Composable
 fun AttendanceScreen(
@@ -135,6 +139,16 @@ fun AttendanceScreen(
                     modifier = Modifier.size(40.dp)
                 )
             }
+        } else if (uiState.errorMessage != null && uiState.attendanceData == null) {
+            // PAR-H2: a genuine load failure with no data. Show a centered error
+            // + Retry instead of an alarming red 0% ring over an empty calendar.
+            // (The clean empty-month path keeps a non-null attendanceData, so it
+            // never lands here.)
+            AttendanceErrorState(
+                message = uiState.errorMessage!!,
+                onRetry = { viewModel.loadAttendance() },
+                colors = colors
+            )
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -267,6 +281,48 @@ fun AttendanceScreen(
     }
 }
 
+// ─── First-load error state (PAR-H2) ────────────────────────────────────────
+
+@Composable
+private fun AttendanceErrorState(
+    message: String,
+    onRetry: () -> Unit,
+    colors: AppColors
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = message,
+                fontSize = 13.sp,
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center
+            )
+            Button(
+                onClick = onRetry,
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.accent,
+                    contentColor = if (colors.isDark) Color(0xFF0E1822) else Color.White
+                )
+            ) {
+                Text(
+                    text = "Retry",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
 // ─── 1. Header ──────────────────────────────────────────────────────────────
 
 @Composable
@@ -335,8 +391,9 @@ private fun TodayStatusBanner(
         AttendanceStatus.ABSENT -> colors.error
         AttendanceStatus.LEAVE -> colors.warning
         AttendanceStatus.HOLIDAY -> colors.attHoliday
-        AttendanceStatus.TRIP, AttendanceStatus.VACATION -> colors.attVacation
-        null -> colors.textTertiary
+        AttendanceStatus.TRIP -> colors.attVacation
+        // PAR-H1: 'V' is unmarked padding, not a real status → neutral, like null.
+        AttendanceStatus.VACATION, null -> colors.textTertiary
     }
 
     val statusText = when (todayStatus) {
@@ -345,8 +402,8 @@ private fun TodayStatusBanner(
         AttendanceStatus.LEAVE -> "On leave today"
         AttendanceStatus.HOLIDAY -> "Holiday today"
         AttendanceStatus.TRIP -> "Late arrival today"
-        AttendanceStatus.VACATION -> "Vacation"
-        null -> "No status yet"
+        // PAR-H1: treat 'V' as no record, never "Vacation".
+        AttendanceStatus.VACATION, null -> "No status yet"
     }
 
     val subtitle = when (todayStatus) {
@@ -397,8 +454,12 @@ private fun TodayStatusBanner(
         }
 
         if (totalSchoolDays > 0) {
+            // Was "Day $dayOfYear of $totalSchoolDays" — paired the calendar
+            // day-of-YEAR (e.g. 188) with this MONTH's working-day count (~22),
+            // rendering nonsense like "Day 188 of 22". Show the month's working
+            // days plainly instead (dayOfYear is no longer used here).
             Text(
-                text = "Day $dayOfYear of $totalSchoolDays",
+                text = "$totalSchoolDays school days this month",
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 color = colors.textTertiary
@@ -423,7 +484,13 @@ private fun AttendanceRing(
         label = "ring"
     )
 
-    Canvas(modifier = Modifier.size(size)) {
+    // PAR-M4: the ring is color-only; expose the percentage to screen readers.
+    val ringDescription = "Attendance ${percentage.roundToInt()}%"
+    Canvas(
+        modifier = Modifier
+            .size(size)
+            .semantics { contentDescription = ringDescription }
+    ) {
         drawArc(
             color = trackColor,
             startAngle = 0f,
@@ -478,7 +545,8 @@ private fun StatsCard(
                 )
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "${stats.percentage.toInt()}",
+                        // PAR-L2: round (admin stores round(pct,1)), don't truncate.
+                        text = "${stats.percentage.roundToInt()}",
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
@@ -815,6 +883,15 @@ private fun CalendarDayCell(
         else -> colors.textSecondary
     }
 
+    // PAR-M4: status is color-only; announce day + status for screen readers.
+    // A future/unrecorded/'V' cell (showStatus == false, or VACATION/null)
+    // reads "not recorded". VACATION's label is already "Not recorded".
+    val cellDescription = if (showStatus && status != null) {
+        "Day $day: ${status.label}"
+    } else {
+        "Day $day: not recorded"
+    }
+
     Box(
         modifier = modifier
             .aspectRatio(1f)
@@ -825,7 +902,8 @@ private fun CalendarDayCell(
                 if (isToday)
                     Modifier.border(1.5.dp, colors.accent, RoundedCornerShape(10.dp))
                 else Modifier
-            ),
+            )
+            .clearAndSetSemantics { contentDescription = cellDescription },
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -938,7 +1016,8 @@ private fun MonthlyOverviewCard(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "${month.percentage.toInt()}%",
+                        // PAR-L2: round to match admin-stored percentage.
+                        text = "${month.percentage.roundToInt()}%",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,

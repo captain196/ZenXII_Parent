@@ -37,6 +37,18 @@ data class StoryDoc(
     // ── Content ────────────────────────────────────────────────────
     val mediaUrl: String = "",
     val type: String = "image",
+    /**
+     * Poster frame for video stories. The Teacher app generates, uploads and
+     * writes this (StoryFirestoreRepository), but this model omitted it — so
+     * the Parent app silently dropped every poster and had nothing to show
+     * while ExoPlayer buffered, leaving a black frame that reads as "the video
+     * won't play". Empty for image stories.
+     *
+     * NOTE the naming split in the wire contract: stories use `thumbnailUrl`
+     * (camel) while galleryMedia uses `thumbnail`. Do not "fix" one to match
+     * the other without migrating the data.
+     */
+    val thumbnailUrl: String = "",
     val caption: String = "",
     /** "high" | "normal". Admin priority pins to top of parent list. */
     val priority: String = "normal",
@@ -50,6 +62,21 @@ data class StoryDoc(
     @Deprecated("Use expiresAtTs. Remove in v2.0.", ReplaceWith("expiresAtTs"))
     val expiresAt: Long = 0,
     val viewCount: Int = 0,
+
+    // ── Audience scoping (v1) ──────────────────────────────────────
+    /** Canonical class-section tokens this story targets (see
+     *  StorySharedConfig.audienceKey), e.g. ["8-a"]. A whole-school story
+     *  now carries the sentinel [StorySharedConfig.AUDIENCE_ALL] ("*") — NOT
+     *  an empty list — so the server-enforced arrayContainsAny query matches
+     *  it. Audience is filtered SERVER-SIDE (repo query + Firestore rule); no
+     *  client-side display logic keys off this field. Legacy empty-audience
+     *  docs no longer match and simply expire within 24h. */
+    val audienceClassKeys: List<String> = emptyList(),
+
+    // ── Reactions (v1) ─────────────────────────────────────────────
+    /** Denormalised emoji → count, kept in sync transactionally with
+     *  the reactions/{userId} subcollection (mirrors viewCount). */
+    val reactionCounts: Map<String, Int> = emptyMap(),
 
     // ── Moderation (admin-only writes) ─────────────────────────────
     val status: String = "active",

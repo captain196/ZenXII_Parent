@@ -9,7 +9,7 @@ data class HomeworkDoc(
     val session: String = "",
     val className: String = "",
     val section: String = "",
-    val sectionKey: String = "",     // "9th_A"
+    val sectionKey: String = "",     // "Class 9th/Section A"
     val title: String = "",
     val description: String = "",
     val subject: String = "",

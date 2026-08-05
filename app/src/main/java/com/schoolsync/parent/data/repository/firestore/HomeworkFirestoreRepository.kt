@@ -8,7 +8,11 @@ import com.schoolsync.parent.data.model.firestore.SubmissionDoc
 import com.schoolsync.parent.util.Constants
 import com.schoolsync.parent.util.debugLog
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -16,6 +20,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * FIX 1: distinguishable signal that the active-homework read was SKIPPED
+ * because the user has no admin session yet. We fail CLOSED (return no
+ * homework) rather than widen the query across sessions — an un-sessioned
+ * parent must never see another session's active homework. Callers can pattern
+ * -match on this type to show a "session not set" message instead of an empty
+ * list.
+ */
+class SessionNotSetException : Exception("Session not set")
 
 /**
  * Repository for homework operations from the parent side.
@@ -31,6 +45,18 @@ class HomeworkFirestoreRepository @Inject constructor(
     private val tokenManager: TokenManager
 ) {
 
+    private companion object {
+        // How long to hold a cache-only homework snapshot before showing it,
+        // giving the server snapshot time to supersede it (avoids a flash of
+        // stale/just-closed homework). Offline: cache still shows after this.
+        const val STALE_CACHE_GRACE_MS = 700L
+
+        // FIX 5(a): hard cap on the active-homework set so a class with a huge
+        // backlog can't spin up an unbounded listener / fetch. Newest-first
+        // (createdAt DESC) so the cap keeps the most recent items.
+        const val ACTIVE_HW_LIMIT = 200L
+    }
+
     /**
      * Fetch all active homework for a class and section.
      * Query: schoolId + sectionKey + status=="active", ordered by createdAt descending.
@@ -39,8 +65,17 @@ class HomeworkFirestoreRepository @Inject constructor(
         className: String,
         section: String
     ): Result<List<HomeworkDoc>> {
-        val schoolCode = getSchoolCode()
+        val user = tokenManager.user.firstOrNull()
+        val schoolCode = user?.schoolId?.takeIf { it.isNotBlank() }
             ?: return Result.failure(Exception("School code not available"))
+        // S1: filter by the admin currentSession so old-session homework
+        // doesn't leak after a session rollover.
+        // FIX 1: fail CLOSED when the user has no session yet — do NOT run the
+        // session-less (widened) query, which would surface every session's
+        // active homework. Return a distinguishable failure so the UI can say
+        // "session not set" instead of leaking other-session data.
+        val session = user.session
+        if (session.isBlank()) return Result.failure(SessionNotSetException())
 
         val sectionKey = "${Constants.Firebase.classKey(className)}/${Constants.Firebase.sectionKey(section)}"
 
@@ -51,12 +86,17 @@ class HomeworkFirestoreRepository @Inject constructor(
                 ref.whereEqualTo("schoolId", schoolCode)
                     .whereEqualTo("sectionKey", sectionKey)
                     .whereEqualTo("status", "active")
+                    .whereEqualTo("session", session)
                     .orderBy("createdAt", Query.Direction.DESCENDING)
+                    .limit(ACTIVE_HW_LIMIT)
             }
             Result.success(homework)
         } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
             // HW-6: Handle missing composite index — fall back to
-            // client-side sort (same pattern as teacher app).
+            // client-side sort (same pattern as teacher app). The S1 session
+            // filter widens the composite index, so during the pre-deploy
+            // window we also drop the session filter and re-apply it
+            // client-side (blank-guard preserved).
             if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION) {
                 android.util.Log.w("HomeworkRepo",
                     "Composite index missing — falling back to client-side sort")
@@ -67,15 +107,21 @@ class HomeworkFirestoreRepository @Inject constructor(
                         ref.whereEqualTo("schoolId", schoolCode)
                             .whereEqualTo("sectionKey", sectionKey)
                             .whereEqualTo("status", "active")
+                            .limit(ACTIVE_HW_LIMIT)
                     }
-                    rows.sortedByDescending { row ->
-                        when (val ts = row.createdAt) {
-                            is com.google.firebase.Timestamp -> ts.seconds
-                            is Long -> ts / 1000
-                            is Number -> ts.toLong() / 1000
-                            else -> 0L
+                    // session is guaranteed non-blank here (fail-closed guard
+                    // above), so the client-side session filter is unconditional.
+                    rows.asSequence()
+                        .filter { it.session == session }
+                        .sortedByDescending { row ->
+                            when (val ts = row.createdAt) {
+                                is com.google.firebase.Timestamp -> ts.seconds
+                                is Long -> ts / 1000
+                                is Number -> ts.toLong() / 1000
+                                else -> 0L
+                            }
                         }
-                    }
+                        .toList()
                 }.fold(
                     onSuccess = { Result.success(it) },
                     onFailure = { Result.failure(it) }
@@ -85,34 +131,6 @@ class HomeworkFirestoreRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Result.failure(e)
-        }
-    }
-
-    /**
-     * Fetch the submission status for a student on a specific homework.
-     * Query: homeworkId + studentId.
-     * Returns null if the student has not submitted yet.
-     */
-    suspend fun getSubmissionStatus(
-        homeworkId: String,
-        studentId: String
-    ): Result<SubmissionDoc?> {
-        // Direct doc read by the canonical doc ID: {hwId}_{studentId}.
-        // This is the ONLY read path — we DON'T use a query because
-        // Firestore queries without a schoolId filter get PERMISSION_DENIED.
-        // If the doc doesn't exist, the SDK returns null (not an error).
-        // If rules block the read, we catch and treat it as "not submitted".
-        val docId = "${homeworkId}_${studentId}"
-        return try {
-            val doc = firestoreService.getDocumentAs<SubmissionDoc>(
-                Constants.Firestore.SUBMISSIONS, docId
-            )
-            Result.success(doc)  // null = not submitted yet
-        } catch (e: Exception) {
-            // PERMISSION_DENIED or any error → treat as "not submitted"
-            // (safe: if submission exists but can't be read, the UI shows
-            // pending — the teacher can still see it from their side)
-            Result.success(null)
         }
     }
 
@@ -143,31 +161,6 @@ class HomeworkFirestoreRepository @Inject constructor(
             // preserved so the homework list keeps rendering.
             debugLog("ACC_HW_PARENT_REPO_GET_SUBMISSIONS_FOR_STUDENT_FAILED err=${e.javaClass.simpleName}:${e.message}")
             emptyMap()
-        }
-    }
-
-    /**
-     * Fetch the teacherMark recorded for (homeworkId, studentId), if any.
-     * Used to display "Evaluated (no submission)" + score + remark when
-     * the student has no submission of their own. Returns null if absent
-     * or on read failure (best-effort — never blocks the homework list).
-     */
-    suspend fun getTeacherMark(homeworkId: String, studentId: String): Pair<Int, String>? {
-        if (homeworkId.isBlank() || studentId.isBlank()) return null
-        val markId = "${homeworkId}_${studentId}"
-        return try {
-            val snap = firestoreService.getDocument(Constants.Firestore.TEACHER_MARKS, markId)
-            if (snap == null) null
-            else {
-                val sc = (snap.getLong("score") ?: -1L).toInt()
-                val rk = snap.getString("remark") ?: ""
-                sc to rk
-            }
-        } catch (e: Exception) {
-            // BUG-022 — structured debugLog replaces silent catch.
-            // null contract preserved so caller renders "no mark".
-            debugLog("ACC_HW_PARENT_REPO_GET_TEACHER_MARK_FAILED hwId=$homeworkId err=${e.javaClass.simpleName}:${e.message}")
-            null
         }
     }
 
@@ -232,53 +225,87 @@ class HomeworkFirestoreRepository @Inject constructor(
             ?: return Result.failure(Exception("School code not available"))
 
         val docId = "${homeworkId}_${studentId}"
-        val data = hashMapOf(
-            "schoolId" to schoolCode,
-            "homeworkId" to homeworkId,
-            "studentId" to studentId,
-            "studentName" to studentName,
-            "sectionKey" to sectionKey,
-            "status" to "submitted",
-            "text" to text,
-            "files" to files,
-            "submittedAt" to firestoreService.serverTimestamp(),
-            "remark" to "",
-            "reviewedBy" to "",
-            "score" to -1,
-            "maxMarks" to 0
-        )
 
         return try {
-            // Atomic: submission write + counter increment in one transaction.
-            // The increment fires ONLY when this is the first time the doc is
-            // created (re-submission / edit updates the same docId but does
-            // NOT double-count). If either operation fails, the whole
-            // transaction rolls back — no half-state.
             val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             val submissionRef = firestore
                 .collection(Constants.Firestore.SUBMISSIONS).document(docId)
             val homeworkRef = firestore
                 .collection(Constants.Firestore.HOMEWORK).document(homeworkId)
 
-            firestore.runTransaction { txn ->
-                val existingSnap = txn.get(submissionRef)
-                val isFirstSubmission = !existingSnap.exists()
+            // Determine first-vs-resubmission OUTSIDE a transaction. The
+            // /submissions read rule is strict (isSameSchoolStrict) and DENIES
+            // reading a non-existent doc. A first submission's doc doesn't exist
+            // yet, so a txn.get() here throws PERMISSION_DENIED and aborts the
+            // whole transaction — this was the "submit does nothing" bug. Per the
+            // documented submissions-read contract we treat PERMISSION_DENIED on
+            // this read as "not found" (same as getSubmissionStatus/getTeacherMark),
+            // which a txn.get() cannot do.
+            val isFirstSubmission = try {
+                !submissionRef.get().await().exists()
+            } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+                if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) true
+                else throw e
+            }
 
-                txn.set(
-                    submissionRef,
-                    data,
-                    com.google.firebase.firestore.SetOptions.merge()
+            // Build the payload to match whichever /submissions rule applies.
+            //
+            // FIRST submission -> Firestore evaluates the CREATE rule, which has
+            // NO field whitelist, so we write the full doc (incl. the grading
+            // fields as their empty defaults).
+            //
+            // RE-submission (doc exists, e.g. teacher bounced it back to
+            // 'pending'/'incomplete') -> the parent UPDATE rule whitelists ONLY
+            // ['text','files','submittedAt','status']. The teacher's prior review
+            // left reviewedBy/remark/score populated; if we re-send those (even
+            // as ""/-1 defaults) they DIFF the teacher's values, land in
+            // affectedKeys(), and the rule's hasOnly() check rejects the write
+            // with PERMISSION_DENIED (the "submission blocked by permissions"
+            // bug). Grading fields are staff-only by contract — leave them for
+            // the teacher's next review to overwrite; write only the WIP fields.
+            val data: HashMap<String, Any> = if (isFirstSubmission) {
+                hashMapOf(
+                    "schoolId" to schoolCode,
+                    "homeworkId" to homeworkId,
+                    "studentId" to studentId,
+                    "studentName" to studentName,
+                    "sectionKey" to sectionKey,
+                    "status" to "submitted",
+                    "text" to text,
+                    "files" to files,
+                    "submittedAt" to firestoreService.serverTimestamp(),
+                    "remark" to "",
+                    "reviewedBy" to "",
+                    "score" to -1,
+                    "maxMarks" to 0
                 )
+            } else {
+                hashMapOf(
+                    "status" to "submitted",
+                    "text" to text,
+                    "files" to files,
+                    "submittedAt" to firestoreService.serverTimestamp()
+                )
+            }
 
-                if (isFirstSubmission) {
-                    txn.update(
-                        homeworkRef,
+            // Create/refresh the submission. On create the rule requires
+            // submittedAt == request.time, satisfied by serverTimestamp().
+            submissionRef.set(
+                data,
+                com.google.firebase.firestore.SetOptions.merge()
+            ).await()
+
+            // Best-effort denormalized counter bump (display-only; teacher/admin
+            // compute accurate counts from /submissions directly). A counter
+            // failure must never fail the submission itself.
+            if (isFirstSubmission) {
+                runCatching {
+                    homeworkRef.update(
                         "submissionCount",
                         com.google.firebase.firestore.FieldValue.increment(1)
-                    )
+                    ).await()
                 }
-                null
-            }.await()
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -291,7 +318,7 @@ class HomeworkFirestoreRepository @Inject constructor(
      * Reacts to user profile changes (school code) via [flatMapLatest].
      * Emits an empty list when identifiers are unavailable.
      */
-    @OptIn(ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     fun observeHomework(className: String, section: String): Flow<List<HomeworkDoc>> {
         val sectionKey = "${Constants.Firebase.classKey(className)}/${Constants.Firebase.sectionKey(section)}"
 
@@ -300,22 +327,83 @@ class HomeworkFirestoreRepository @Inject constructor(
                 // Use schoolId (e.g. "SCH_D94FE8F7AD") — matches what teacher/admin
                 // write to the homework doc's schoolId field.
                 // NOT schoolCode (which is the login code like "10004").
-                user.schoolId.takeIf { it.isNotBlank() }
+                // S1: also carry the admin currentSession so old-session
+                // homework doesn't leak after a rollover (blank-guard below).
+                val schoolId = user.schoolId.takeIf { it.isNotBlank() }
+                schoolId?.let { it to user.session }
             }
-            .flatMapLatest { schoolId ->
-                if (schoolId == null) {
+            .flatMapLatest { keys ->
+                if (keys == null) {
+                    flowOf(emptyList())
+                } else if (keys.second.isBlank()) {
+                    // FIX 1: fail CLOSED — with no admin session we must NOT run
+                    // the session-less (widened) listener, which would stream
+                    // every session's active homework. Emit nothing until the
+                    // session claim arrives; flatMapLatest re-subscribes
+                    // automatically the moment user.session becomes non-blank.
                     flowOf(emptyList())
                 } else {
+                    val (schoolId, session) = keys
                     firestoreService.observeQuery(
                         Constants.Firestore.HOMEWORK
                     ) { ref ->
                         ref.whereEqualTo("schoolId", schoolId)
                             .whereEqualTo("sectionKey", sectionKey)
                             .whereEqualTo("status", "active")
+                            .whereEqualTo("session", session)
                             .orderBy("createdAt", Query.Direction.DESCENDING)
-                    }.map { snapshot ->
+                            .limit(ACTIVE_HW_LIMIT)
+                    }
+                    // Suppress the stale-cache flash: hold a cache-only snapshot
+                    // briefly so the server snapshot (which follows within ms when
+                    // online) supersedes it — avoids showing e.g. a just-closed
+                    // homework for one frame. Offline: the cache still shows after
+                    // the grace window (server snapshot never comes).
+                    .debounce { if (it.metadata.isFromCache) STALE_CACHE_GRACE_MS else 0L }
+                    .map { snapshot ->
                         snapshot.documents.mapNotNull { doc ->
                             doc.toObject(HomeworkDoc::class.java)
+                        }
+                    }.catch { e ->
+                        // observeQuery has no built-in index fallback: a missing
+                        // composite index (FAILED_PRECONDITION) closes the flow
+                        // with an error. Until the [schoolId, sectionKey, status,
+                        // session, createdAt DESC] index is deployed, fall back to
+                        // a listener WITHOUT the session filter / orderBy, then
+                        // apply session-filter + createdAt sort client-side.
+                        val fpe = e as? com.google.firebase.firestore.FirebaseFirestoreException
+                        if (fpe?.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION) {
+                            android.util.Log.w("HomeworkRepo",
+                                "observeHomework composite index missing — falling back to client-side filter/sort")
+                            emitAll(
+                                firestoreService.observeQuery(
+                                    Constants.Firestore.HOMEWORK
+                                ) { ref ->
+                                    ref.whereEqualTo("schoolId", schoolId)
+                                        .whereEqualTo("sectionKey", sectionKey)
+                                        .whereEqualTo("status", "active")
+                                        .limit(ACTIVE_HW_LIMIT)
+                                }
+                                .debounce { if (it.metadata.isFromCache) STALE_CACHE_GRACE_MS else 0L }
+                                .map { snapshot ->
+                                    // session is guaranteed non-blank here
+                                    // (fail-closed guard above), so the
+                                    // client-side session filter is unconditional.
+                                    snapshot.documents
+                                        .mapNotNull { doc -> doc.toObject(HomeworkDoc::class.java) }
+                                        .filter { it.session == session }
+                                        .sortedByDescending { row ->
+                                            when (val ts = row.createdAt) {
+                                                is com.google.firebase.Timestamp -> ts.seconds
+                                                is Long -> ts / 1000
+                                                is Number -> ts.toLong() / 1000
+                                                else -> 0L
+                                            }
+                                        }
+                                }
+                            )
+                        } else {
+                            throw e
                         }
                     }
                 }

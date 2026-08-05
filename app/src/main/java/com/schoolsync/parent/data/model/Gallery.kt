@@ -55,26 +55,12 @@ data class GalleryAlbum(
             )
         }
 
-        /** Create a virtual album from an Event that has media. */
-        fun fromEvent(event: Event): GalleryAlbum {
-            return GalleryAlbum(
-                albumId     = "event_${event.eventId}",
-                title       = event.title,
-                description = event.description,
-                coverImage  = event.mediaUrls.firstOrNull { it.type == "image" }?.url
-                    ?: event.mediaUrls.firstOrNull()?.thumbnail ?: "",
-                source      = "event",
-                eventId     = event.eventId,
-                session     = "",
-                category    = event.category,
-                mediaCount  = event.mediaUrls.size,
-                isArchived  = false,
-                createdBy   = "",
-                createdAt   = event.startDate,
-                updatedAt   = "",
-                media       = event.mediaUrls.map { GalleryMedia.fromEventMedia(it) }
-            )
-        }
+        // Event→gallery bridging is now a real link: the admin publishes a
+        // `galleryAlbums` doc (source="event", eventId=<id>) per event that has
+        // photos, and the Parent app jumps to it via
+        // GalleryFirestoreRepository.getEventAlbum(). The old client-side
+        // fromEvent()/fromEventMedia() virtual-album builders (TODO Wave B) are
+        // therefore obsolete and were removed.
     }
 }
 
@@ -108,17 +94,6 @@ data class GalleryMedia(
                 uploadedAt = data["uploadedAt"]?.toString() ?: "",
                 updatedAt  = data["updatedAt"]?.toString() ?: "",
                 duration   = data["duration"]?.toString()
-            )
-        }
-
-        /** Convert an EventMedia into a GalleryMedia. */
-        fun fromEventMedia(eventMedia: EventMedia): GalleryMedia {
-            return GalleryMedia(
-                mediaId   = eventMedia.mediaId,
-                url       = eventMedia.url,
-                thumbnail = eventMedia.thumbnail,
-                type      = eventMedia.type,
-                duration  = eventMedia.duration
             )
         }
     }

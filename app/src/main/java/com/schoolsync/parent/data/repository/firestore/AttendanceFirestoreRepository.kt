@@ -2,15 +2,9 @@ package com.schoolsync.parent.data.repository.firestore
 
 import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
-import com.schoolsync.parent.data.model.firestore.AttendanceDoc
 import com.schoolsync.parent.data.model.firestore.AttendanceSummaryDoc
 import com.schoolsync.parent.util.Constants
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,6 +15,15 @@ import javax.inject.Singleton
  * - attendance: daily per-student records
  * - attendanceSummary: monthly rollups with dayWise string and stats
  */
+/**
+ * Thrown when a month's attendance summary doc simply does not exist — a
+ * legitimate "no data yet" empty state, NOT a failure. Distinct from the
+ * generic exceptions raised on network/permission/index errors so the UI can
+ * render an empty month vs. a real error+retry differently.
+ */
+class AttendanceNotFoundException(month: String) :
+    Exception("Attendance summary not found for $month")
+
 @Singleton
 class AttendanceFirestoreRepository @Inject constructor(
     private val firestoreService: FirestoreService,
@@ -54,7 +57,10 @@ class AttendanceFirestoreRepository @Inject constructor(
             if (doc != null) {
                 Result.success(doc)
             } else {
-                Result.failure(Exception("Attendance summary not found for $month"))
+                // Distinct type so callers can tell a legitimately-absent month
+                // (empty state) apart from a real network/permission/index
+                // failure — the two must render very differently.
+                Result.failure(AttendanceNotFoundException(month))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -108,70 +114,14 @@ class AttendanceFirestoreRepository @Inject constructor(
     }
 
     /**
-     * Fetch daily attendance for a student on a specific date.
-     * Query: schoolId + studentId + date.
-     * Returns null if no attendance record exists for that date.
+     * Resolve the docId-prefix school key. MUST match the resolution used by
+     * [StudentFirestoreRepository] (`schoolCode ?: schoolId`) so both repos
+     * build identical `{schoolKey}_{studentId}_…` doc ids — a mismatch here
+     * would silently read the wrong document and render a blank month.
      */
-    suspend fun getDailyAttendance(
-        studentId: String,
-        date: String
-    ): Result<AttendanceDoc?> {
-        val schoolCode = getSchoolCode()
-            ?: return Result.failure(Exception("School code not available"))
-
-        return try {
-            val records = firestoreService.queryDocumentsAs<AttendanceDoc>(
-                Constants.Firestore.ATTENDANCE
-            ) { ref ->
-                ref.whereEqualTo("schoolId", schoolCode)
-                    .whereEqualTo("studentId", studentId)
-                    .whereEqualTo("date", date)
-            }
-            Result.success(records.firstOrNull())
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Observe today's attendance for a student in real time.
-     * Reacts to user profile changes (school code) via [flatMapLatest].
-     * Emits null when the document does not exist or identifiers are unavailable.
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun observeAttendanceToday(studentId: String): Flow<AttendanceDoc?> {
-        return tokenManager.user
-            .map { user ->
-                user.schoolCode.takeIf { it.isNotBlank() }
-            }
-            .flatMapLatest { schoolCode ->
-                if (schoolCode == null) {
-                    flowOf(null)
-                } else {
-                    firestoreService.observeQuery(
-                        Constants.Firestore.ATTENDANCE
-                    ) { ref ->
-                        ref.whereEqualTo("schoolId", schoolCode)
-                            .whereEqualTo("studentId", studentId)
-                            .whereEqualTo("date", todayDate())
-                            .limit(1)
-                    }.map { snapshot ->
-                        snapshot.documents.firstOrNull()
-                            ?.toObject(AttendanceDoc::class.java)
-                    }
-                }
-            }
-    }
-
     private suspend fun getSchoolCode(): String? {
-        return tokenManager.user.firstOrNull()?.schoolId?.takeIf { it.isNotBlank() }
-    }
-
-    private fun todayDate(): String {
-        val cal = java.util.Calendar.getInstance()
-        val year = cal.get(java.util.Calendar.YEAR)
-        val month = cal.get(java.util.Calendar.MONTH) + 1
-        val day = cal.get(java.util.Calendar.DAY_OF_MONTH)
-        return "%d-%02d-%02d".format(year, month, day)
+        val user = tokenManager.user.firstOrNull() ?: return null
+        return user.schoolCode.takeIf { it.isNotBlank() }
+            ?: user.schoolId.takeIf { it.isNotBlank() }
     }
 }

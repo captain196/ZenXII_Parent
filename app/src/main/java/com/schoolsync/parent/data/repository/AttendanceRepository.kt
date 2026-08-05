@@ -3,6 +3,7 @@ package com.schoolsync.parent.data.repository
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.AttendanceData
 import com.schoolsync.parent.data.repository.firestore.AttendanceFirestoreRepository
+import com.schoolsync.parent.util.debugLog
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import javax.inject.Singleton

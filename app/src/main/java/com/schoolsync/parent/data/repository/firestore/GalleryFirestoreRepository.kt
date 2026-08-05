@@ -7,6 +7,9 @@ import com.schoolsync.parent.data.model.GalleryAlbum
 import com.schoolsync.parent.data.model.GalleryMedia
 import com.schoolsync.parent.data.model.firestore.GalleryAlbumDoc
 import com.schoolsync.parent.data.model.firestore.GalleryMediaDoc
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,22 +54,29 @@ class GalleryFirestoreRepository @Inject constructor(
         mediaId    = id,
         albumId    = albumId,
         url        = url,
+        thumbnail  = thumbnail.ifBlank { null },
         type       = type,
         caption    = caption,
         isArchived = isArchived,
         uploadedBy = uploadedBy,
         uploadedAt = uploadedAt,
-        updatedAt  = updatedAt
+        updatedAt  = updatedAt,
+        duration   = duration.ifBlank { null }
     )
 
     // ── Reads ──────────────────────────────────────────────────────────
 
     /**
      * All non-archived albums for this user's school, newest first.
+     *
+     * Returns [Result] so the caller can distinguish a genuine "no albums"
+     * (empty success) from a query failure — an undeployed composite index
+     * or PERMISSION_DENIED must surface an error + Retry in the UI, not the
+     * same silent empty state as "school has published nothing yet".
      */
-    suspend fun getAlbums(): List<GalleryAlbum> {
+    suspend fun getAlbums(): Result<List<GalleryAlbum>> {
         val schoolCode = tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
-            ?: return emptyList()
+            ?: return Result.failure(Exception("School id not available"))
 
         return try {
             val docs = firestoreService.queryDocumentsAs<GalleryAlbumDoc>(
@@ -75,11 +85,56 @@ class GalleryFirestoreRepository @Inject constructor(
                 ref.whereEqualTo("schoolId", schoolCode)
                     .whereEqualTo("isArchived", false)
                     .orderBy("createdAt", Query.Direction.DESCENDING)
+                    .limit(100)
             }
-            docs.map { it.toAlbum() }
-        } catch (_: Exception) {
-            emptyList()
+            Result.success(docs.map { it.toAlbum() })
+        } catch (e: Exception) {
+            android.util.Log.e("GalleryRepo", "getAlbums failed", e)
+            Result.failure(e)
         }
+    }
+
+    /**
+     * Real-time variant of [getAlbums]: emits a fresh [Result] every time the
+     * `galleryAlbums` collection changes, so newly published albums appear on
+     * the Gallery screen without a manual refresh.
+     *
+     * Preserves the exact query of [getAlbums] (schoolId + isArchived==false,
+     * createdAt DESC, limit 100) and the same Result contract — a listener
+     * error (undeployed composite index / PERMISSION_DENIED) surfaces as
+     * `Result.failure`, distinct from an empty-but-successful snapshot. The
+     * registration is removed on cancellation via [awaitClose].
+     */
+    fun observeAlbums(): Flow<Result<List<GalleryAlbum>>> = callbackFlow {
+        val schoolCode = tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
+        if (schoolCode == null) {
+            trySend(Result.failure(Exception("School id not available")))
+            close()
+            return@callbackFlow
+        }
+
+        val registration = firestoreService.firestore.collection("galleryAlbums")
+            .whereEqualTo("schoolId", schoolCode)
+            .whereEqualTo("isArchived", false)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(100)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    android.util.Log.e("GalleryRepo", "observeAlbums failed", error)
+                    trySend(Result.failure(error))
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val albums = try {
+                        snapshot.toObjects(GalleryAlbumDoc::class.java).map { it.toAlbum() }
+                    } catch (e: Exception) {
+                        trySend(Result.failure(e))
+                        return@addSnapshotListener
+                    }
+                    trySend(Result.success(albums))
+                }
+            }
+        awaitClose { registration.remove() }
     }
 
     /**
@@ -94,18 +149,56 @@ class GalleryFirestoreRepository @Inject constructor(
         val schoolCode = tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
             ?: return emptyList()
 
+        // Deliberately NOT swallowing exceptions here — the only caller is
+        // getAlbumWithMedia(), which wraps this in a Result so an index /
+        // permission failure surfaces as a distinguishable error state.
+        val docs = firestoreService.queryDocumentsAs<GalleryMediaDoc>(
+            "galleryMedia"
+        ) { ref ->
+            ref.whereEqualTo("schoolId", schoolCode)
+                .whereEqualTo("albumId", albumId)
+                .whereEqualTo("isArchived", false)
+                .orderBy("uploadedAt", Query.Direction.DESCENDING)
+                .limit(300)
+        }
+        return docs.map { it.toMedia() }
+    }
+
+    /**
+     * Find the (non-archived) gallery album generated for a given event, if any.
+     *
+     * Admin's Events flow writes, per event that has photos, one `galleryAlbums`
+     * doc with `source="event"` and `eventId == <event id>`. This lets the event
+     * detail screen surface a "View Photos" jump into the full album.
+     *
+     * Returns [Result]: `success(null)` when the event has no album yet (a normal
+     * state — most events have no gallery), and `failure` only on a genuine query
+     * error (undeployed composite index / PERMISSION_DENIED) so the caller can tell
+     * the two apart instead of silently hiding a broken query.
+     */
+    suspend fun getEventAlbum(eventId: String): Result<GalleryAlbum?> {
+        if (eventId.isBlank()) return Result.success(null)
+        val schoolCode = tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
+            ?: return Result.failure(Exception("School id not available"))
+
+        // Event albums store the RAW event id (e.g. "EVT0001"), but callers pass
+        // EventDoc.id which is the @DocumentId full doc id "{schoolId}_{EVT...}".
+        // Strip the prefix so the query matches the album's eventId.
+        val rawEventId = eventId.removePrefix("${schoolCode}_")
+
         return try {
-            val docs = firestoreService.queryDocumentsAs<GalleryMediaDoc>(
-                "galleryMedia"
+            val docs = firestoreService.queryDocumentsAs<GalleryAlbumDoc>(
+                "galleryAlbums"
             ) { ref ->
                 ref.whereEqualTo("schoolId", schoolCode)
-                    .whereEqualTo("albumId", albumId)
+                    .whereEqualTo("eventId", rawEventId)
                     .whereEqualTo("isArchived", false)
-                    .orderBy("uploadedAt", Query.Direction.DESCENDING)
+                    .limit(1)
             }
-            docs.map { it.toMedia() }
-        } catch (_: Exception) {
-            emptyList()
+            Result.success(docs.firstOrNull()?.toAlbum())
+        } catch (e: Exception) {
+            android.util.Log.e("GalleryRepo", "getEventAlbum failed for eventId=$eventId", e)
+            Result.failure(e)
         }
     }
 
@@ -114,9 +207,9 @@ class GalleryFirestoreRepository @Inject constructor(
      * Returns an empty-shell album if the doc isn't found (matches the
      * legacy GalleryRepository.getAlbumWithMedia contract).
      */
-    suspend fun getAlbumWithMedia(albumId: String): GalleryAlbum {
+    suspend fun getAlbumWithMedia(albumId: String): Result<GalleryAlbum> {
         val schoolCode = tokenManager.user.firstOrNull()?.schoolCode?.takeIf { it.isNotBlank() }
-            ?: return GalleryAlbum(albumId = albumId)
+            ?: return Result.failure(Exception("School id not available"))
 
         return try {
             // Find the matching album by albumId field (doc-ID format varies
@@ -128,14 +221,19 @@ class GalleryFirestoreRepository @Inject constructor(
                 ref.whereEqualTo("schoolId", schoolCode)
                     .whereEqualTo("albumId", albumId)
                     .whereEqualTo("isArchived", false)
+                    .limit(1)
             }
+            // Not-found is a success with an empty-shell album (the detail
+            // screen renders "Album not found" style state); only a genuine
+            // query failure below becomes Result.failure.
             val albumDoc = albumDocs.firstOrNull()
-                ?: return GalleryAlbum(albumId = albumId)
+                ?: return Result.success(GalleryAlbum(albumId = albumId))
 
             val mediaList = getAlbumMedia(albumId)
-            albumDoc.toAlbum(mediaList)
-        } catch (_: Exception) {
-            GalleryAlbum(albumId = albumId)
+            Result.success(albumDoc.toAlbum(mediaList))
+        } catch (e: Exception) {
+            android.util.Log.e("GalleryRepo", "getAlbumWithMedia failed for albumId=$albumId", e)
+            Result.failure(e)
         }
     }
 }

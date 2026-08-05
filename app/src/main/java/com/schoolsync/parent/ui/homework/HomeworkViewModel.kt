@@ -6,17 +6,18 @@ import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.Homework
 import com.schoolsync.parent.data.model.User
+import com.schoolsync.parent.data.model.isActionNeeded
 import com.schoolsync.parent.data.repository.firestore.HomeworkFirestoreRepository
 import com.schoolsync.parent.util.Constants
 import com.schoolsync.parent.util.debugLog
 import com.schoolsync.parent.util.toDateOrNull
 import com.schoolsync.parent.util.toEpochMillisOrNull
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
@@ -28,7 +29,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 // ── Subject visual mapping ──────────────────────────────────────────────────
@@ -71,7 +71,8 @@ data class CompletionStats(
     val completed: Int = 0,
     val percentage: Float = 0f,
     val streak: Int = 0,
-    val aPlusCount: Int = 0,
+    // FIX 3: removed always-0 `aPlusCount` — `grade` was never populated on the
+    // live path, so the stat was permanently 0 and had no UI consumer.
     val weekTotal: Int = 0,
     val weekCompleted: Int = 0
 )
@@ -84,20 +85,20 @@ data class HomeworkUiState(
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
     val allHomework: List<Homework> = emptyList(),
-    val filteredHomework: List<Homework> = emptyList(),
     val subjects: List<String> = emptyList(),
     val selectedSubject: String? = null,          // null = "All"
     val selectedTab: String = "all",               // "all" | "pending" | "submitted" | "graded". Default "all" — opening on "pending" caused a visible flicker when the autoSelectTab flipped it to "all" after the first data load.
     val selectedHomework: Homework? = null,        // non-null = detail view
     val completionStats: CompletionStats = CompletionStats(),
-    val pendingCount: Int = 0,
-    val completedCount: Int = 0,
     val userName: String = "",
     val className: String = "",
     val section: String = "",
     val errorMessage: String? = null,
     val markingDone: Boolean = false,
-    val showSubmitDialog: Boolean = false
+    val showSubmitDialog: Boolean = false,
+    // Dialog-local error so a failed submit is visible ON the dialog itself,
+    // not just on the list banner hidden behind it.
+    val submitError: String? = null
 )
 
 @HiltViewModel
@@ -134,57 +135,77 @@ class HomeworkViewModel @Inject constructor(
 
     private fun loadUserInfo() {
         viewModelScope.launch {
-            val user = tokenManager.user.firstOrNull() ?: User.empty()
-            _uiState.update {
-                it.copy(
-                    userName = user.name.split(" ").firstOrNull() ?: user.name,
-                    className = user.className,
-                    section = user.section
-                )
+            // Collect (not firstOrNull) so the header — incl. the active child's
+            // name (issue 9) — stays correct if the VM outlives a child switch,
+            // mirroring the listener's re-keying.
+            tokenManager.user.collect { user ->
+                _uiState.update {
+                    it.copy(
+                        userName = user.name.split(" ").firstOrNull() ?: user.name,
+                        className = user.className,
+                        section = user.section
+                    )
+                }
             }
         }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private fun startLiveListener() {
         listenerJob?.cancel()
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
         listenerJob = viewModelScope.launch {
-            // Reactive on the student's class/section: a mid-session promotion
-            // (className/section change in tokenManager.user) re-subscribes the
-            // homework listener via flatMapLatest instead of staying pinned to
-            // the class captured at screen-open. Mirrors
-            // SchoolFirestoreRepository.observeSchool()'s reactive pattern.
-            try {
-                tokenManager.user
-                    .map { it.className to it.section }
-                    .distinctUntilChanged()
-                    .flatMapLatest { (className, section) ->
-                        if (className.isBlank() || section.isBlank()) {
-                            flowOf(emptyList())
-                        } else {
-                            homeworkFirestoreRepo.observeHomework(className, section)
-                        }
+            // Re-key on (className, section, studentId) so a child-switch while
+            // this VM is alive tears down the previous child's listener and
+            // re-subscribes for the new child. observeHomework only reacts to
+            // schoolId internally, so without re-keying here a sibling switch
+            // would keep showing the previous child's homework.
+            tokenManager.user
+                .map { Triple(it.className, it.section, it.userId) }
+                .distinctUntilChanged()
+                .flatMapLatest { (className, section, studentId) ->
+                    if (className.isNotBlank() && section.isNotBlank()) {
+                        homeworkFirestoreRepo.observeHomework(className, section)
+                            .map { docs -> studentId to docs }
+                    } else {
+                        flowOf(null)
                     }
-                    .collect { homeworkDocs ->
-                        val studentId = tokenManager.user.firstOrNull()?.userId.orEmpty()
-                        Log.d("HomeworkVM", "Firestore live update: ${homeworkDocs.size} homework items")
+                }
+                .catch { e ->
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Log.e("HomeworkVM", "Firestore listener failed", e)
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = e.message ?: "Failed to load homework"
+                        )
+                    }
+                }
+                .collect { keyed ->
+                    if (keyed == null) {
+                        _uiState.update {
+                            it.copy(isLoading = false, errorMessage = "Class/section not available")
+                        }
+                        return@collect
+                    }
+                    val (studentId, homeworkDocs) = keyed
+                    Log.d("HomeworkVM", "Firestore live update: ${homeworkDocs.size} homework items")
 
-                        // Bulk-fetch THIS student's submissions + teacherMarks
-                        // ONCE per refresh — replaces the per-homework N+1
-                        // pattern. Both queries are indexed (schoolId+studentId).
-                        val submissionsMap: Map<String, com.schoolsync.parent.data.model.firestore.SubmissionDoc> =
-                            if (studentId.isNotBlank())
-                                homeworkFirestoreRepo.getSubmissionsForStudent(studentId)
-                            else emptyMap()
-                        val teacherMarksMap: Map<String, Pair<Int, String>> =
-                            if (studentId.isNotBlank())
-                                homeworkFirestoreRepo.getTeacherMarksForStudent(studentId)
-                            else emptyMap()
+                    // Bulk-fetch THIS student's submissions + teacherMarks
+                    // ONCE per refresh — replaces the per-homework N+1
+                    // pattern. Both queries are indexed (schoolId+studentId).
+                    val submissionsMap: Map<String, com.schoolsync.parent.data.model.firestore.SubmissionDoc> =
+                        if (studentId.isNotBlank())
+                            homeworkFirestoreRepo.getSubmissionsForStudent(studentId)
+                        else emptyMap()
+                    val teacherMarksMap: Map<String, Pair<Int, String>> =
+                        if (studentId.isNotBlank())
+                            homeworkFirestoreRepo.getTeacherMarksForStudent(studentId)
+                        else emptyMap()
 
-                        // Map HomeworkDoc → existing Homework model, checking submission status
-                        val items = homeworkDocs.map { doc ->
+                    // Map HomeworkDoc → existing Homework model, checking submission status
+                    val items = homeworkDocs.map { doc ->
                             // O(1) lookup — same status-extraction logic as before.
                             val submissionDoc = submissionsMap[doc.id]
                             val submissionStatus = submissionDoc?.status ?: "pending"
@@ -229,24 +250,9 @@ class HomeworkViewModel @Inject constructor(
                                 subjects = subjects
                             )
                         }
-                        recomputeAll()
-                    }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                Log.d("HomeworkVM", "Firestore listener cancelled (normal)")
-            } catch (e: Exception) {
-                Log.e("HomeworkVM", "Firestore listener failed", e)
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = e.message ?: "Failed to load homework"
-                    )
+                    recomputeAll()
                 }
-            }
         }
-    }
-
-    fun loadHomework() {
-        startLiveListener()
     }
 
     /** Pull-to-refresh: re-trigger listener with min spinner time. */
@@ -275,13 +281,11 @@ class HomeworkViewModel @Inject constructor(
     // ── Tab switching ───────────────────────────────────────────────────────
     fun setTab(tab: String) {
         _uiState.update { it.copy(selectedTab = tab) }
-        applyFilters()
     }
 
     // ── Subject filter ──────────────────────────────────────────────────────
     fun selectSubject(subject: String?) {
         _uiState.update { it.copy(selectedSubject = subject) }
-        applyFilters()
     }
 
     // ── Detail selection ────────────────────────────────────────────────────
@@ -292,10 +296,15 @@ class HomeworkViewModel @Inject constructor(
     // ── Submit homework with text response ──────────────────────────────────
     fun markAsDone(homework: Homework, submissionText: String = "") {
         viewModelScope.launch {
-            _uiState.update { it.copy(markingDone = true) }
+            _uiState.update { it.copy(markingDone = true, submitError = null) }
             try {
                 val user = tokenManager.user.firstOrNull() ?: User.empty()
-                if (user.isLoggedIn && user.schoolCode.isNotBlank()) {
+                // Gate on schoolId — that's what the repo's submitHomework
+                // actually requires (getSchoolCode() reads schoolId, not the
+                // login schoolCode). Gating on schoolCode could be blank even
+                // when submit would succeed, and with no else branch markingDone
+                // never reset → undismissable spinner.
+                if (user.isLoggedIn && user.schoolId.isNotBlank()) {
                     homeworkFirestoreRepo.submitHomework(
                         homeworkId = homework.hwId,
                         studentId = user.userId,
@@ -325,39 +334,56 @@ class HomeworkViewModel @Inject constructor(
                         },
                         onFailure = { e ->
                             Log.e("HomeworkVM", "Failed to submit homework", e)
-                            _uiState.update { it.copy(markingDone = false, errorMessage = "Failed to submit") }
+                            // Surface the real reason on the dialog so a rule
+                            // denial ("PERMISSION_DENIED") or network error is
+                            // visible instead of the dialog appearing to do nothing.
+                            _uiState.update {
+                                it.copy(
+                                    markingDone = false,
+                                    submitError = friendlySubmitError(e)
+                                )
+                            }
                         }
                     )
+                } else {
+                    // Identifiers missing — reset the spinner and surface an
+                    // error so the submit dialog can be dismissed (dismissal is
+                    // gated on !isSubmitting).
+                    _uiState.update {
+                        it.copy(markingDone = false, submitError = "Cannot submit — your account has no school linked. Log out and back in.")
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("HomeworkVM", "Failed to mark as done", e)
-                _uiState.update { it.copy(markingDone = false, errorMessage = "Failed to submit") }
+                _uiState.update { it.copy(markingDone = false, submitError = friendlySubmitError(e)) }
             }
         }
     }
 
     fun showSubmitDialog(homework: Homework) {
-        _uiState.update { it.copy(showSubmitDialog = true, selectedHomework = homework) }
+        _uiState.update { it.copy(showSubmitDialog = true, selectedHomework = homework, submitError = null) }
     }
 
     fun hideSubmitDialog() {
-        _uiState.update { it.copy(showSubmitDialog = false) }
+        _uiState.update { it.copy(showSubmitDialog = false, submitError = null) }
     }
 
-    // ── Backward compatibility ──────────────────────────────────────────────
-    fun setStatusFilter(filter: String) {
-        val tab = when (filter) {
-            "completed" -> "completed"
-            else -> "pending"
+    /** Map a submit exception to a short, user-readable reason. */
+    private fun friendlySubmitError(e: Throwable): String {
+        val msg = e.message ?: ""
+        return when {
+            msg.contains("PERMISSION_DENIED", true) ->
+                "Submission blocked by permissions. Log out and back in, then retry."
+            msg.contains("UNAVAILABLE", true) || msg.contains("network", true) ->
+                "Network problem — check your connection and try again."
+            else -> "Couldn't submit: ${msg.ifBlank { "unknown error" }}"
         }
-        setTab(tab)
     }
 
     // ── Internal helpers ────────────────────────────────────────────────────
     private fun recomputeAll() {
         computeStats()
         computeCounts()
-        applyFilters()
     }
 
     private fun computeStats() {
@@ -366,7 +392,6 @@ class HomeworkViewModel @Inject constructor(
             val total = all.size
             val completed = all.count { isCompleted(it) }
             val pct = if (total > 0) completed.toFloat() / total else 0f
-            val aPlusCount = all.count { it.grade.equals("A+", ignoreCase = true) }
 
             // Week stats: homework with due date this week
             val calendar = Calendar.getInstance()
@@ -375,15 +400,15 @@ class HomeworkViewModel @Inject constructor(
             calendar.add(Calendar.DAY_OF_WEEK, 7)
             val weekEnd = calendar.time
 
+            // FIX 9: only homework that actually falls within this week counts
+            // toward the weekly bucket. Undated homework (blank/unparseable
+            // dueDate) is NOT "due this week" and was wrongly inflating the
+            // weekly total before.
             var weekTotal = 0
             var weekCompleted = 0
             all.forEach { hw ->
                 val dueDate = parseDueDate(hw.dueDate)
                 if (dueDate != null && !dueDate.before(weekStart) && dueDate.before(weekEnd)) {
-                    weekTotal++
-                    if (isCompleted(hw)) weekCompleted++
-                } else if (hw.dueDate.isBlank()) {
-                    // Include homework without due dates in the weekly count
                     weekTotal++
                     if (isCompleted(hw)) weekCompleted++
                 }
@@ -404,7 +429,6 @@ class HomeworkViewModel @Inject constructor(
                     completed = completed,
                     percentage = pct,
                     streak = streak,
-                    aPlusCount = aPlusCount,
                     weekTotal = weekTotal,
                     weekCompleted = weekCompleted
                 )
@@ -414,30 +438,19 @@ class HomeworkViewModel @Inject constructor(
 
     private fun computeCounts() {
         val all = _uiState.value.allHomework
-        val pending = all.count { it.studentStatus.lowercase().trim() == "pending" }
-        val completed = all.count {
-            val s = it.studentStatus.lowercase().trim()
-            s == "complete" || s == "submitted" || s == "reviewed"
-        }
-        badgeBus.setCount("homework", pending)
-        _uiState.update { it.copy(pendingCount = pending, completedCount = completed) }
-    }
-
-    private fun applyFilters() {
-        _uiState.update { state ->
-            state.copy(
-                filteredHomework = filterForTab(state.allHomework, state.selectedTab, state.selectedSubject)
-            )
-        }
+        // FIX 2: use the shared isActionNeeded() predicate (pending OR
+        // incomplete) so the nav badge agrees with the Dashboard/Profile counts.
+        val actionNeeded = all.count { isActionNeeded(it.studentStatus) }
+        badgeBus.setCount("homework", actionNeeded)
     }
 
     // ── Static helpers ──────────────────────────────────────────────────────
     companion object {
 
         /**
-         * Filter + sort for a single tab. Used by applyFilters() AND by the
-         * pager pages so each tab's view is computed identically without
-         * needing to round-trip through the ViewModel during a swipe.
+         * Filter + sort for a single tab. Used directly by the pager pages
+         * so each tab's view is computed identically without needing to
+         * round-trip through the ViewModel during a swipe.
          */
         fun filterForTab(
             all: List<Homework>,
@@ -446,9 +459,12 @@ class HomeworkViewModel @Inject constructor(
         ): List<Homework> {
             var filtered = when (tab) {
                 "pending" -> all.filter { it.studentStatus.lowercase().trim() == "pending" }
+                "incomplete" -> all.filter { it.studentStatus.lowercase().trim() == "incomplete" }
                 "submitted" -> all.filter { it.studentStatus.lowercase().trim() == "submitted" }
                 "graded" -> all.filter {
                     val s = it.studentStatus.lowercase().trim()
+                    // "complete" is a dead branch — no writer (parent/teacher/
+                    // admin) emits it; kept harmless for forward-compat.
                     s == "reviewed" || s == "complete"
                 }
                 else -> all // "all"
@@ -456,7 +472,9 @@ class HomeworkViewModel @Inject constructor(
             if (subject != null) {
                 filtered = filtered.filter { it.subject.equals(subject, ignoreCase = true) }
             }
-            return if (tab == "pending") {
+            // Pending AND incomplete are both action-needed queues, so order
+            // them by urgency (priority, then soonest due) rather than recency.
+            return if (tab == "pending" || tab == "incomplete") {
                 filtered.sortedWith(compareBy<Homework> {
                     when (derivePriority(it)) {
                         Priority.HIGH -> 0
@@ -470,21 +488,79 @@ class HomeworkViewModel @Inject constructor(
         }
 
         private val IST_TZ: java.util.TimeZone = java.util.TimeZone.getTimeZone("Asia/Kolkata")
-        private val dateFormats = listOf(
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US),  // ISO 8601 with offset (e.g. +05:30)
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") },
-            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
-            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()),
-            SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()),
-            SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+
+        // Time-bearing ISO shapes — the embedded offset / 'Z' fixes the instant,
+        // so we use the parsed moment exactly as written.
+        // isLenient=false is CRITICAL: lenient SimpleDateFormat mangles a
+        // wrong-separator input (e.g. "15-05-2026" against dd/MM/yyyy) into a
+        // garbage date instead of throwing, so the correct format later in the
+        // list never gets tried. Non-lenient makes each format reject inputs it
+        // doesn't truly match, letting parseDueDate fall through to the right one.
+        private val isoDateTimeFormats = listOf(
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).apply { isLenient = false },  // ISO 8601 with offset (e.g. +05:30)
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC"); isLenient = false }
+        )
+        // Date-only shapes — parsed in IST so the calendar day is unambiguous;
+        // we then push the instant to END OF DAY IST (see parseDueDate).
+        private val dateOnlyFormats = listOf(
+            SimpleDateFormat("dd/MM/yyyy", Locale.US).apply { timeZone = IST_TZ; isLenient = false },
+            SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = IST_TZ; isLenient = false },
+            SimpleDateFormat("dd-MM-yyyy", Locale.US).apply { timeZone = IST_TZ; isLenient = false },
+            SimpleDateFormat("dd MMM yyyy", Locale.US).apply { timeZone = IST_TZ; isLenient = false }
         )
 
+        /**
+         * IST calendar-day bucket for an instant (days since epoch in
+         * Asia/Kolkata). Shared by [derivePriority] and [dueDateLabel] so their
+         * day-boundary math agrees — a raw millis / toDays() truncation drifts
+         * across the IST day boundary and mislabels "due tomorrow" vs "in 2 days".
+         */
+        internal fun istDay(d: Date): Long {
+            val c = Calendar.getInstance(IST_TZ).apply {
+                time = d
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            return c.timeInMillis / 86_400_000L
+        }
+
+        /** Shift an IST-midnight instant to 23:59:59.999 of that same IST day. */
+        internal fun toEndOfDayIst(midnight: Date): Date {
+            val c = Calendar.getInstance(IST_TZ).apply {
+                time = midnight
+                set(Calendar.HOUR_OF_DAY, 23)
+                set(Calendar.MINUTE, 59)
+                set(Calendar.SECOND, 59)
+                set(Calendar.MILLISECOND, 999)
+            }
+            return c.time
+        }
+
+        /**
+         * Parse a stored dueDate. The contract: teacher/admin write end-of-day
+         * IST ISO ("YYYY-MM-DDT23:59:59+05:30"), but a bare "YYYY-MM-DD" may
+         * also appear. If a time component is present we use it verbatim;
+         * otherwise we treat the date as END OF DAY IST (23:59:59), NOT
+         * midnight — so an item due "today" isn't already overdue this morning.
+         */
         fun parseDueDate(dateStr: String): Date? {
             if (dateStr.isBlank()) return null
-            for (fmt in dateFormats) {
+            // Time-bearing ISO — use the instant as written.
+            if (dateStr.contains('T')) {
+                for (fmt in isoDateTimeFormats) {
+                    try {
+                        val d = fmt.parse(dateStr)
+                        if (d != null) return d
+                    } catch (_: Exception) {}
+                }
+            }
+            // Date-only — treat as end of day IST.
+            for (fmt in dateOnlyFormats) {
                 try {
                     val d = fmt.parse(dateStr)
-                    if (d != null) return d
+                    if (d != null) return toEndOfDayIst(d)
                 } catch (_: Exception) {}
             }
             return null
@@ -494,11 +570,15 @@ class HomeworkViewModel @Inject constructor(
             if (isCompleted(homework)) return false
             if (homework.dueDate.isBlank()) return false
             val due = parseDueDate(homework.dueDate) ?: return false
+            // Date comparison is an absolute-instant compare, so IST end-of-day
+            // due dates only flip overdue once the IST day has actually ended.
             return due.before(Date())
         }
 
         fun isCompleted(homework: Homework): Boolean {
             val s = homework.studentStatus.lowercase().trim()
+            // "complete" / "done" are dead branches — no writer emits them;
+            // retained as harmless forward-compat.
             return s == "complete" || s == "submitted" || s == "done" || s == "reviewed"
         }
 
@@ -523,27 +603,19 @@ class HomeworkViewModel @Inject constructor(
             val now = Date()
             if (dueDate.before(now)) return Priority.HIGH // overdue
 
-            val diffMs = dueDate.time - now.time
-            val diffDays = TimeUnit.MILLISECONDS.toDays(diffMs)
+            // FIX 9: bucket by IST calendar day (same normalization dueDateLabel
+            // uses) instead of TimeUnit.MILLISECONDS.toDays(), whose truncation
+            // drifts the HIGH/MEDIUM boundary depending on the time of day.
+            val diffDays = istDay(dueDate) - istDay(now)
             return when {
-                diffDays <= 1 -> Priority.HIGH     // due today or tomorrow
-                diffDays <= 3 -> Priority.MEDIUM   // within 3 days
+                diffDays <= 1L -> Priority.HIGH     // due today or tomorrow
+                diffDays <= 3L -> Priority.MEDIUM   // within 3 days
                 else -> Priority.LOW
             }
         }
 
         fun dueDateLabel(homework: Homework): String {
             val due = parseDueDate(homework.dueDate) ?: return homework.dueDate
-            fun istDay(d: Date): Long {
-                val c = java.util.Calendar.getInstance(IST_TZ).apply {
-                    time = d
-                    set(java.util.Calendar.HOUR_OF_DAY, 0)
-                    set(java.util.Calendar.MINUTE, 0)
-                    set(java.util.Calendar.SECOND, 0)
-                    set(java.util.Calendar.MILLISECOND, 0)
-                }
-                return c.timeInMillis / 86_400_000L
-            }
             val diffDays = istDay(due) - istDay(Date())
             val timeFmt  = SimpleDateFormat("h:mm a", Locale.US).apply { timeZone = IST_TZ }
             val dateFmt  = SimpleDateFormat("dd MMM", Locale.US).apply { timeZone = IST_TZ }

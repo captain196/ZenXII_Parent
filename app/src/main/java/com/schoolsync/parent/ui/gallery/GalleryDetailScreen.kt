@@ -2,17 +2,11 @@
 
 package com.schoolsync.parent.ui.gallery
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,17 +25,16 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,20 +43,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -74,6 +63,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.schoolsync.parent.data.model.GalleryMedia
+import com.schoolsync.parent.ui.common.FullscreenMediaItem
+import com.schoolsync.parent.ui.common.FullscreenMediaViewer
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
@@ -85,9 +76,10 @@ fun GalleryDetailScreen(
     viewModel: GalleryViewModel = hiltViewModel()
 ) {
     val c = LocalAppColors.current
-    val context = LocalContext.current
     val detailState by viewModel.detailState.collectAsStateWithLifecycle()
-    var viewerIndex by remember { mutableIntStateOf(-1) }
+    // rememberSaveable so an open fullscreen viewer survives config change /
+    // process death.
+    var viewerIndex by rememberSaveable { mutableIntStateOf(-1) }
 
     LaunchedEffect(albumId) {
         viewModel.loadAlbumDetail(albumId)
@@ -132,6 +124,64 @@ fun GalleryDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(color = c.accent)
+                    }
+                }
+
+                // Real load failure vs. genuinely-missing album: give the
+                // failure a Retry instead of the identical "not found" state.
+                detailState.errorMessage != null -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Filled.CloudOff,
+                                contentDescription = null,
+                                tint = c.textTertiary,
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Couldn't load this album",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = c.textSecondary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Check your connection and try again.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = c.textTertiary,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(c.accent.copy(alpha = 0.15f))
+                                    .clickable { viewModel.loadAlbumDetail(albumId) }
+                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Refresh,
+                                    contentDescription = null,
+                                    tint = c.accent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Retry",
+                                    style = TextStyle(
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = c.accent
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -208,16 +258,9 @@ fun GalleryDetailScreen(
                         ) { index, mediaItem ->
                             MediaThumbnail(
                                 media = mediaItem,
-                                onClick = {
-                                    if (mediaItem.type == "video") {
-                                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                                            setDataAndType(Uri.parse(mediaItem.url), "video/*")
-                                        }
-                                        context.startActivity(intent)
-                                    } else {
-                                        viewerIndex = index
-                                    }
-                                }
+                                // Images and videos both open the shared fullscreen
+                                // viewer — videos now play inline (no external launch).
+                                onClick = { viewerIndex = index }
                             )
                         }
 
@@ -229,10 +272,9 @@ fun GalleryDetailScreen(
             }
         }
 
-        // Fullscreen image viewer
+        // Fullscreen viewer (shared with the Events screen). Videos play inline.
         val album = detailState.album
         val allMedia = album?.media ?: emptyList()
-        val imageMedia = allMedia.filter { it.type == "image" }
 
         AnimatedVisibility(
             visible = viewerIndex >= 0 && viewerIndex < allMedia.size,
@@ -240,8 +282,23 @@ fun GalleryDetailScreen(
             exit = fadeOut()
         ) {
             if (viewerIndex >= 0 && allMedia.isNotEmpty() && viewerIndex < allMedia.size) {
-                FullscreenGalleryViewer(
-                    media = allMedia,
+                val viewerItems = remember(allMedia) {
+                    allMedia.map { m ->
+                        FullscreenMediaItem(
+                            url = m.url,
+                            isVideo = m.type == "video",
+                            // Video-decode guard: never feed a raw video URL as a poster.
+                            posterUrl = when {
+                                m.type != "video" -> m.url
+                                !m.thumbnail.isNullOrBlank() -> m.thumbnail
+                                else -> null
+                            },
+                            caption = m.caption
+                        )
+                    }
+                }
+                FullscreenMediaViewer(
+                    items = viewerItems,
                     initialIndex = viewerIndex,
                     onDismiss = { viewerIndex = -1 },
                     onIndexChange = { viewerIndex = it }
@@ -301,20 +358,24 @@ private fun MediaThumbnail(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        val imageUrl = if (media.type == "video" && !media.thumbnail.isNullOrBlank()) {
-            media.thumbnail
-        } else {
-            media.url
+        // Poster = photo url, or a video's poster frame when it has one. We do
+        // NOT feed the raw .mp4 to Coil for a grid tile (decoding a frame off a
+        // remote video downloads the whole file — slow + often blank). A
+        // poster-less video shows the play overlay below on the glass tile.
+        val posterUrl = when {
+            media.type != "video" -> media.url
+            !media.thumbnail.isNullOrBlank() -> media.thumbnail
+            else -> null
         }
 
-        if (imageUrl.isNotBlank()) {
+        if (!posterUrl.isNullOrBlank()) {
             AsyncImage(
-                model = imageUrl,
+                model = posterUrl,
                 contentDescription = media.caption.ifBlank { "Gallery photo" },
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-        } else {
+        } else if (media.type != "video") {
             Icon(
                 imageVector = Icons.Filled.Image,
                 contentDescription = null,
@@ -376,179 +437,6 @@ private fun MediaThumbnail(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FullscreenGalleryViewer(
-    media: List<GalleryMedia>,
-    initialIndex: Int,
-    onDismiss: () -> Unit,
-    onIndexChange: (Int) -> Unit
-) {
-    val pagerState = rememberPagerState(initialPage = initialIndex, pageCount = { media.size })
-    var showControls by remember { mutableStateOf(true) }
-    val controlsAlpha by animateFloatAsState(
-        targetValue = if (showControls) 1f else 0f,
-        animationSpec = tween(200), label = "controls"
-    )
-
-    LaunchedEffect(pagerState.currentPage) {
-        onIndexChange(pagerState.currentPage)
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-            val item = media[page]
-            var scale by remember { mutableFloatStateOf(1f) }
-            var offsetX by remember { mutableFloatStateOf(0f) }
-            var offsetY by remember { mutableFloatStateOf(0f) }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = { showControls = !showControls },
-                            onDoubleTap = {
-                                scale = if (scale > 1.5f) 1f else 2.5f
-                                offsetX = 0f
-                                offsetY = 0f
-                            }
-                        )
-                    }
-                    .pointerInput(Unit) {
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            scale = (scale * zoom).coerceIn(1f, 5f)
-                            if (scale > 1f) {
-                                offsetX += pan.x
-                                offsetY += pan.y
-                            } else {
-                                offsetX = 0f
-                                offsetY = 0f
-                            }
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                val imageUrl = if (item.type == "video" && !item.thumbnail.isNullOrBlank()) {
-                    item.thumbnail
-                } else {
-                    item.url
-                }
-                AsyncImage(
-                    model = imageUrl,
-                    contentDescription = item.caption.ifBlank { null },
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer(
-                            scaleX = scale,
-                            scaleY = scale,
-                            translationX = offsetX,
-                            translationY = offsetY
-                        )
-                )
-            }
-        }
-
-        // Top bar
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .graphicsLayer(alpha = controlsAlpha)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent)
-                    )
-                )
-                .statusBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "Close",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Text(
-                    text = "${pagerState.currentPage + 1} of ${media.size}",
-                    style = TextStyle(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.8f)
-                    )
-                )
-                Spacer(modifier = Modifier.size(40.dp))
-            }
-        }
-
-        // Caption overlay at bottom
-        val currentMedia = media.getOrNull(pagerState.currentPage)
-        if (currentMedia?.caption?.isNotBlank() == true) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .graphicsLayer(alpha = controlsAlpha)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
-                        )
-                    )
-                    .padding(horizontal = 20.dp, vertical = 24.dp)
-            ) {
-                Text(
-                    text = currentMedia.caption,
-                    style = TextStyle(
-                        fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.9f),
-                        lineHeight = 20.sp
-                    ),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        // Dot indicators
-        if (media.size > 1 && media.size <= 20) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .graphicsLayer(alpha = controlsAlpha)
-                    .padding(bottom = if (currentMedia?.caption?.isNotBlank() == true) 60.dp else 40.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(media.size) { i ->
-                    Box(
-                        modifier = Modifier
-                            .size(if (i == pagerState.currentPage) 8.dp else 6.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (i == pagerState.currentPage) Color.White
-                                else Color.White.copy(alpha = 0.35f)
-                            )
-                    )
-                }
             }
         }
     }

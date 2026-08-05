@@ -25,7 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.EventNote
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
@@ -118,6 +120,65 @@ fun EventsScreen(
                     }
                 }
 
+                // Load FAILED (no PTMs to fall back on) — a distinct error+Retry
+                // state, NOT the calm "No Events" empty state that looks identical
+                // and hides the problem. Mirrors the Gallery screen.
+                uiState.errorMessage != null && uiState.events.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Filled.CloudOff,
+                                contentDescription = null,
+                                tint = c.textTertiary,
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Couldn't load events",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = c.textSecondary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Something went wrong loading events. Please try again.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = c.textTertiary,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(c.accent.copy(alpha = 0.15f))
+                                    .clickable { viewModel.refresh() }
+                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Refresh,
+                                    contentDescription = null,
+                                    tint = c.accent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Retry",
+                                    style = TextStyle(
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = c.accent
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
                 uiState.events.isEmpty() -> {
                     Box(
                         modifier = Modifier
@@ -134,13 +195,16 @@ fun EventsScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "No Upcoming Events",
+                                // The list shows ALL events (past + upcoming),
+                                // not just upcoming, so the label must not imply
+                                // upcoming-only.
+                                text = "No Events",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = c.textSecondary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Upcoming events will appear here when published by the school.",
+                                text = "Events will appear here when published by the school.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = c.textTertiary,
                                 textAlign = TextAlign.Center
@@ -182,8 +246,10 @@ fun EventsScreen(
             }
         }
 
-        // Error message
-        uiState.errorMessage?.let { error ->
+        // Inline error banner — only when events are ALREADY showing (a refresh
+        // failed). An empty-list failure is handled by the full-screen error+Retry
+        // state above, so we don't double up here.
+        uiState.errorMessage?.takeIf { uiState.events.isNotEmpty() }?.let { error ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -210,6 +276,13 @@ private fun EventListCard(
     val c = LocalAppColors.current
     val (categoryColor, categoryGradStart, categoryGradEnd) = getCategoryColors(event.category, c)
 
+    // Cover = first photo (or a video's poster), else the cover borrowed from the
+    // linked gallery album. The borrowed cover is a separate field so that
+    // video-only events keep their videos in mediaUrls (see Event.borrowedCoverUrl).
+    val cover = event.mediaUrls.firstOrNull { it.type == "image" }?.url
+        ?: event.mediaUrls.firstOrNull { !it.thumbnail.isNullOrBlank() }?.thumbnail
+        ?: event.borrowedCoverUrl.takeIf { it.isNotBlank() }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -217,17 +290,51 @@ private fun EventListCard(
             .bouncyClickable(onClick = onClick)
             .animateContentSize()
     ) {
-        // Gradient accent bar at top
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(categoryGradStart, categoryGradEnd)
-                    )
+        if (cover != null) {
+            // Cover header — the event's first media.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            ) {
+                AsyncImage(
+                    model = cover,
+                    contentDescription = event.title.ifBlank { "Event photo" },
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
                 )
-        )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f))
+                            )
+                        )
+                )
+            }
+        } else {
+            // No photo yet — polished category-colored header + glyph so the
+            // event reads as intentional rather than blank/half-rendered.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(96.dp)
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    .background(
+                        Brush.linearGradient(colors = listOf(categoryGradStart, categoryGradEnd))
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = eventCategoryIcon(event.category),
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+        }
 
         Column(
             modifier = Modifier.padding(16.dp),
@@ -340,8 +447,9 @@ private fun EventListCard(
                 )
             }
 
-            // Media preview row
-            if (event.mediaUrls.isNotEmpty()) {
+            // Media preview row — only when there's MORE than the cover, so a
+            // single-photo event isn't shown twice.
+            if (event.mediaUrls.size > 1) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -356,17 +464,19 @@ private fun EventListCard(
                                 .background(c.glass),
                             contentAlignment = Alignment.Center
                         ) {
-                            val imageUrl = if (media.type == "video" && !media.thumbnail.isNullOrBlank()) {
-                                media.thumbnail
-                            } else {
-                                media.url
+                            val posterUrl = when {
+                                media.type != "video" -> media.url
+                                !media.thumbnail.isNullOrBlank() -> media.thumbnail
+                                else -> null
                             }
-                            AsyncImage(
-                                model = imageUrl,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            if (!posterUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = posterUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                             if (media.type == "video") {
                                 Box(
                                     modifier = Modifier
@@ -417,35 +527,5 @@ private fun InfoRow(
     }
 }
 
-private data class CategoryColorSet(
-    val main: Color,
-    val gradStart: Color,
-    val gradEnd: Color
-)
-
-@Composable
-private fun getCategoryColors(category: String, c: com.schoolsync.parent.ui.theme.AppColors): CategoryColorSet {
-    return when (category.lowercase()) {
-        "cultural" -> CategoryColorSet(c.purple, c.banner3Start, c.banner3End)
-        "sports" -> CategoryColorSet(c.success, c.banner2Start, c.banner2End)
-        "academic" -> CategoryColorSet(c.info, c.banner1Start, c.banner1End)
-        "exam" -> CategoryColorSet(c.error, c.error.copy(alpha = 0.5f), c.error.copy(alpha = 0.2f))
-        "holiday" -> CategoryColorSet(c.warning, c.warning.copy(alpha = 0.5f), c.warning.copy(alpha = 0.2f))
-        // PTM = synthesized event from `ptmEvents`. Distinct dark-blue tint
-        // so the row visibly reads as a meeting and not a regular event.
-        "ptm" -> CategoryColorSet(Color(0xFF1565C0), Color(0xFF1565C0).copy(alpha = 0.5f), Color(0xFF1565C0).copy(alpha = 0.2f))
-        else -> CategoryColorSet(c.accent, c.banner1Start, c.banner1End)
-    }
-}
-
-@Composable
-private fun getStatusColor(status: String, c: com.schoolsync.parent.ui.theme.AppColors): Color {
-    return when (status.lowercase()) {
-        "scheduled" -> c.info
-        "ongoing", "active" -> c.success
-        "completed", "finished" -> c.textTertiary
-        "cancelled" -> c.error
-        "postponed" -> c.warning
-        else -> c.textSecondary
-    }
-}
+// Category / status color helpers live in EventColors.kt (shared with
+// EventDetailScreen).

@@ -8,14 +8,13 @@ import com.schoolsync.parent.data.firebase.FirebaseService
 import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.remote.ApiService
+import com.schoolsync.parent.data.remote.AuthApi
 import com.schoolsync.parent.data.remote.AuthInterceptor
 import com.schoolsync.parent.data.remote.FeesApi
 import com.schoolsync.parent.data.repository.AttendanceRepository
 import com.schoolsync.parent.data.repository.AuthRepository
 import com.schoolsync.parent.data.repository.DataRepository
-import com.schoolsync.parent.data.repository.EventRepository
 import com.schoolsync.parent.data.repository.HomeworkRepository
-import com.schoolsync.parent.data.repository.NoticeRepository
 import com.schoolsync.parent.data.repository.RedFlagRepository
 import com.schoolsync.parent.data.repository.StudentRepository
 import com.schoolsync.parent.data.repository.firestore.AttendanceFirestoreRepository
@@ -129,6 +128,14 @@ object AppModule {
         return retrofit.create(FeesApi::class.java)
     }
 
+    @Provides
+    @Singleton
+    fun provideAuthApi(
+        retrofit: Retrofit
+    ): AuthApi {
+        return retrofit.create(AuthApi::class.java)
+    }
+
     // ── Firebase ─────────────────────────────────────────────────────────
 
     @Provides
@@ -165,9 +172,10 @@ object AppModule {
         tokenManager: TokenManager,
         firebaseAuthManager: FirebaseAuthManager,
         firebaseService: FirebaseService,
-        firestoreService: FirestoreService
+        firestoreService: FirestoreService,
+        authApi: AuthApi
     ): AuthRepository {
-        return AuthRepository(tokenManager, firebaseAuthManager, firebaseService, firestoreService)
+        return AuthRepository(tokenManager, firebaseAuthManager, firebaseService, firestoreService, authApi)
     }
 
     @Provides
@@ -203,24 +211,6 @@ object AppModule {
     // GalleryRepository (RTDB) removed in Phase C-2 (2026-04-26).
     // GalleryFirestoreRepository is now the canonical reader; Hilt resolves
     // it via its @Inject constructor — no explicit @Provides needed.
-
-    @Provides
-    @Singleton
-    fun provideNoticeRepository(
-        firebaseService: FirebaseService,
-        tokenManager: TokenManager
-    ): NoticeRepository {
-        return NoticeRepository(firebaseService, tokenManager)
-    }
-
-    @Provides
-    @Singleton
-    fun provideEventRepository(
-        firebaseService: FirebaseService,
-        tokenManager: TokenManager
-    ): EventRepository {
-        return EventRepository(firebaseService, tokenManager)
-    }
 
     @Provides
     @Singleton

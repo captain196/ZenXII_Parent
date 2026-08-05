@@ -68,6 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.schoolsync.parent.ui.components.ClassTeacherCard
 import com.schoolsync.parent.ui.components.bouncyClickable
 import com.schoolsync.parent.ui.theme.AppColors
 import com.schoolsync.parent.ui.theme.LocalAppColors
@@ -77,6 +78,8 @@ import com.schoolsync.parent.ui.theme.gradientBackground
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
+    onNavigateToMyTeachers: () -> Unit = {},
+    onOpenHomework: (String) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val c = LocalAppColors.current
@@ -237,12 +240,21 @@ fun ProfileScreen(
                             bgColor = c.infoBg,
                             modifier = Modifier.weight(1f)
                         )
+                        val pending = uiState.pendingHomeworkCount
+                        val homeworkValue = when {
+                            !uiState.homeworkLoaded -> "\u2014"
+                            pending == 0 -> "All done"
+                            else -> pending.toString()
+                        }
                         StatPill(
-                            value = "\u2014 done",
-                            label = "Homework",
+                            value = homeworkValue,
+                            label = if (uiState.homeworkLoaded && pending > 0) "Pending" else "Homework",
                             valueColor = c.purple,
                             bgColor = c.purpleBg,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            // Pending \u2192 jump into the Pending tab; all done \u2192 open
+                            // the full homework list.
+                            onClick = { onOpenHomework(if (pending > 0) "pending" else "all") }
                         )
                     }
                 }
@@ -336,6 +348,24 @@ fun ProfileScreen(
                             }
                         }
                     }
+                }
+
+                // ── 4b. Class Teacher contact card ──────────────────────
+                // Pinned directly below the student detail card so the
+                // parent's primary point of contact is one tap away. Hidden
+                // when no Active class teacher is assigned.
+                if (uiState.classTeacher != null) {
+                    item {
+                        ClassTeacherCard(
+                            entry = uiState.classTeacher!!,
+                            subjects = uiState.classTeacherSubjects,
+                            onMessage = onNavigateToMyTeachers
+                        )
+                    }
+                } else if (uiState.classTeacherLoading) {
+                    // Skeleton while the first fetch resolves — reserves the
+                    // card's space so nothing pops in / shifts on open.
+                    item { ClassTeacherSkeleton() }
                 }
 
                 // ── 5. Settings Group 1 ─────────────────────────────────
@@ -488,7 +518,7 @@ fun ProfileScreen(
                         SettingsRow(
                             emoji = "\uD83D\uDCC4",
                             label = "About",
-                            subtitle = "SchoolSync Parent v1.0",
+                            subtitle = "ZenXii Parent v1.0",
                             onClick = { aboutExpanded = !aboutExpanded }
                         )
                         AnimatedVisibility(
@@ -532,7 +562,7 @@ fun ProfileScreen(
                 // ── 9. Version ──────────────────────────────────────────
                 item {
                     Text(
-                        text = "SchoolSync Parent v1.0",
+                        text = "ZenXii Parent v1.0",
                         style = TextStyle(fontSize = 11.sp, color = c.textTertiary),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -561,12 +591,51 @@ private fun buildInitials(name: String): String {
 // ─── Stat Pill ────────────────────────────────────────────────────────────────
 
 @Composable
+private fun ClassTeacherSkeleton() {
+    val c = LocalAppColors.current
+    val block = c.shimmerBase.copy(alpha = 0.5f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .glassCard(16.dp)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(block)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.55f)
+                    .height(13.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(block)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .height(11.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(block)
+            )
+        }
+    }
+}
+
+@Composable
 private fun StatPill(
     value: String,
     label: String,
     valueColor: Color,
     bgColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     val c = LocalAppColors.current
 
@@ -574,11 +643,13 @@ private fun StatPill(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(bgColor)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = value,
+            maxLines = 1,
             style = TextStyle(
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
@@ -1191,7 +1262,7 @@ private fun AboutContent() {
             .padding(bottom = 14.dp)
     ) {
         Text(
-            text = "SchoolSync Parent",
+            text = "ZenXii Parent",
             style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
         )
         Spacer(modifier = Modifier.height(2.dp))
@@ -1201,7 +1272,7 @@ private fun AboutContent() {
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "SchoolSync is your direct line to your child's school. Track " +
+            text = "ZenXii is your direct line to your child's school. Track " +
                 "attendance, pay fees securely, view homework and results, read " +
                 "circulars, and stay informed of every event \u2014 all in one place.",
             style = TextStyle(fontSize = 11.sp, color = c.textSecondary, lineHeight = 16.sp)
@@ -1214,7 +1285,7 @@ private fun AboutContent() {
             "Firebase project, never shared with third parties")
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "\u00A9 2026 SchoolSync. Built for Indian schools.",
+            text = "\u00A9 2026 ZenXii. Built for Indian schools.",
             style = TextStyle(fontSize = 10.sp, color = c.textTertiary)
         )
     }

@@ -13,7 +13,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -21,7 +24,9 @@ import javax.inject.Inject
 
 data class StoryUiState(
     val isLoading: Boolean = true,
-    val storyGroups: List<TeacherStoryGroup> = emptyList()
+    val storyGroups: List<TeacherStoryGroup> = emptyList(),
+    /** storyId → the emoji THIS parent reacted with (for highlighting). */
+    val myReactions: Map<String, String> = emptyMap()
 )
 
 /**
@@ -50,89 +55,129 @@ class StoryViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(StoryUiState())
     val uiState: StateFlow<StoryUiState> = _uiState.asStateFlow()
 
-    /** In-memory snapshot of which storyIds the current parent has
-     *  already viewed — populated lazily on first observation so the
-     *  "unviewed ring" UI is correct on cold start. Updated when
-     *  markStoryViewed() runs. */
-    private val viewedStoryIds = mutableSetOf<String>()
-    private var viewedHydrated = false
+    /** LIVE set of storyIds this parent has viewed — fed by a real-time
+     *  `viewers` collection-group listener in the repo. Because it's live
+     *  (not a one-shot hydrate), a view recorded by the SEPARATE full-screen
+     *  viewer VM propagates here within ~100ms and greys the Dashboard ring
+     *  immediately — the two VMs no longer need to share an instance. */
+    private val seenIds = MutableStateFlow<Set<String>>(emptySet())
 
     init {
+        // SEC-1: (re)build this parent's SERVER-SIDE audience entitlement doc
+        // (storyAudience/{uid}) on app-start AND whenever the active child's
+        // class/section changes, BEFORE/independently of the stories listener,
+        // so class-targeted stories become visible. Fire-and-forget: never
+        // block the UI, ignore failure (the parent then temporarily sees only
+        // whole-school stories — fail-safe, never a leak). The first emit
+        // covers app-start/login; subsequent distinct emits cover child-switch.
+        viewModelScope.launch {
+            tokenManager.user
+                .map { Triple(it.schoolId.ifBlank { it.schoolCode }, it.className, it.section) }
+                .distinctUntilChanged()
+                .collect { runCatching { storyRepo.refreshAudienceIndex() } }
+        }
+        // Live seen-state → drives the ring's grey/colored transition.
+        viewModelScope.launch { storyRepo.observeSeenStoryIds().collect { seenIds.value = it } }
+        observeMyReactions()
         observeStories()
     }
 
     /**
-     * Real-time stream of active stories, grouped by teacher.
-     * Replaces the old one-shot loadStories() / pull-to-refresh
-     * pattern — the listener keeps the list fresh without manual
-     * refresh.
+     * Real-time stream of active stories, grouped by teacher, recomputed
+     * whenever EITHER the story list OR the seen-set changes — so viewing a
+     * story greys its ring without any manual refresh.
      */
     private fun observeStories() {
         viewModelScope.launch {
-            // Load the parent's previously-viewed story ids from
-            // Firestore once so the unviewed-ring is correct from
-            // the first emission. Cheap (one-time read).
-            hydrateViewedStoryIds()
-
-            storyRepo.observeActiveStories().collect { docs ->
-                val groups = groupByTeacher(docs)
-                Log.d(TAG, "snapshot: ${docs.size} stories → ${groups.size} teachers")
+            combine(storyRepo.observeActiveStories(), seenIds) { docs, seen ->
+                groupByTeacher(docs, seen)
+            }.collect { groups ->
+                Log.d(TAG, "snapshot: ${groups.size} teacher groups")
                 _uiState.update { it.copy(isLoading = false, storyGroups = groups) }
             }
         }
     }
 
-    // Look up viewer-docs (subcollection 'viewers' under each story)
-    // once on init so we know which stories already have a viewer
-    // record for this user. Plain comment to avoid kdoc treating the
-    // collection-group path glob as a comment terminator.
-    private suspend fun hydrateViewedStoryIds() {
-        if (viewedHydrated) return
-        viewedHydrated = true
-        try {
-            val userId = tokenManager.user.firstOrNull()?.userId.orEmpty()
-            if (userId.isBlank()) return
-            // Collection-group query so we don't have to know the
-            // story IDs in advance. Returns all viewer-docs whose
-            // userId matches the current parent.
-            val snap = FirebaseFirestore.getInstance()
-                .collectionGroup("viewers")
+    /** Live registration for this parent's reactions collection-group listener. */
+    private var reactionsListener: com.google.firebase.firestore.ListenerRegistration? = null
+
+    // LIVE stream of this parent's reactions (storyId → emoji) so the tray
+    // shows their current pick highlighted. Previously a one-shot .get() at
+    // init, which meant a reaction toggled on ANOTHER device (or the server
+    // reconciling the optimistic write) never reflected until app restart.
+    // A real-time collection-group listener keeps myReactions in sync.
+    private fun observeMyReactions() {
+        viewModelScope.launch {
+            val user = tokenManager.user.firstOrNull()
+            val userId = user?.userId.orEmpty()
+            if (userId.isBlank()) return@launch
+            // SEC-3: the reactions collection-group READ rule is tenant-bound
+            // (reaction.schoolId == caller's school_id claim), so the query
+            // MUST carry the same schoolId filter or Firestore rejects it
+            // wholesale. If we can't resolve the school, listen to nothing.
+            val school = (user?.schoolId ?: "").ifBlank { user?.schoolCode ?: "" }
+            if (school.isBlank()) return@launch
+            reactionsListener?.remove()
+            reactionsListener = FirebaseFirestore.getInstance()
+                .collectionGroup("reactions")
+                .whereEqualTo("schoolId", school)
                 .whereEqualTo("userId", userId)
-                .get().await()
-            for (doc in snap.documents) {
-                // Parent doc id of viewers/{userId} is the story id.
-                doc.reference.parent.parent?.id?.let { viewedStoryIds.add(it) }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "hydrateViewedStoryIds failed (non-fatal)", e)
+                .addSnapshotListener { snap, err ->
+                    if (err != null) {
+                        Log.w(TAG, "observeMyReactions failed (non-fatal)", err)
+                        return@addSnapshotListener
+                    }
+                    if (snap == null) return@addSnapshotListener
+                    val map = mutableMapOf<String, String>()
+                    for (doc in snap.documents) {
+                        val storyId = doc.reference.parent.parent?.id ?: continue
+                        val emoji = doc.getString("emoji").orEmpty()
+                        if (emoji.isNotBlank()) map[storyId] = emoji
+                    }
+                    _uiState.update { it.copy(myReactions = map) }
+                }
         }
     }
 
-    fun markStoryViewed(storyId: String) {
-        if (viewedStoryIds.contains(storyId)) return  // local idempotency
-        viewedStoryIds.add(storyId)
-        viewModelScope.launch {
-            storyRepo.markAsViewed(storyId)
-            // Recompute the hasUnviewed flag for the UI without
-            // re-fetching the whole list — listener will overwrite
-            // on next snapshot anyway.
-            _uiState.update { state ->
-                state.copy(storyGroups = state.storyGroups.map { g ->
-                    g.copy(hasUnviewed = g.stories.any { !viewedStoryIds.contains(it.storyId) })
-                })
-            }
+    override fun onCleared() {
+        super.onCleared()
+        reactionsListener?.remove()
+    }
+
+    /**
+     * Toggle the parent's emoji reaction on a story. Optimistically
+     * updates local state (same toggle rule as the repo) and persists
+     * via the transaction; the aggregate `reactionCounts` flows back
+     * through the listener.
+     */
+    fun reactToStory(storyId: String, emoji: String) {
+        val current = _uiState.value.myReactions[storyId]
+        val next = if (current == emoji) "" else emoji   // tap same = clear
+        _uiState.update { state ->
+            val m = state.myReactions.toMutableMap()
+            if (next.isBlank()) m.remove(storyId) else m[storyId] = next
+            state.copy(myReactions = m)
         }
+        viewModelScope.launch { storyRepo.reactToStory(storyId, emoji) }
+    }
+
+    fun markStoryViewed(storyId: String) {
+        if (seenIds.value.contains(storyId)) return  // idempotent
+        // Optimistic: grey the ring instantly; the live listener confirms
+        // once the viewer doc write lands.
+        seenIds.update { it + storyId }
+        viewModelScope.launch { storyRepo.markAsViewed(storyId) }
     }
 
     // ─── Private mappers ───────────────────────────────────────────
 
-    private fun groupByTeacher(docs: List<StoryDoc>): List<TeacherStoryGroup> {
+    private fun groupByTeacher(docs: List<StoryDoc>, seen: Set<String>): List<TeacherStoryGroup> {
         return docs.groupBy { it.effectiveAuthorId }
             .map { (_, authorDocs) ->
                 val first = authorDocs.first()
                 val stories = authorDocs
                     .sortedBy { it.expiresAtMillis }   // oldest-expiring first
-                    .map { it.toStory(viewedStoryIds.contains(it.id)) }
+                    .map { it.toStory(seen.contains(it.id)) }
                 TeacherStoryGroup(
                     teacherId   = first.effectiveAuthorId,
                     teacherName = first.effectiveAuthorName,
@@ -154,10 +199,24 @@ class StoryViewModel @Inject constructor(
             )
     }
 
+    /**
+     * Parse an ISO-8601 timestamp to epoch millis, or 0 when unparseable
+     * (rendered as "no time" rather than a wrong one). Needed because the
+     * admin panel writes story createdAt as a STRING via date('c').
+     */
+    private fun parseIsoMillis(s: String): Long = runCatching {
+        java.time.OffsetDateTime.parse(s).toInstant().toEpochMilli()
+    }.recoverCatching {
+        java.time.Instant.parse(s).toEpochMilli()
+    }.getOrDefault(0L)
+
     private fun StoryDoc.toStory(viewed: Boolean): Story {
         val createdMillis = when (val ts = createdAt) {
             is com.google.firebase.Timestamp -> ts.seconds * 1000L + ts.nanoseconds / 1_000_000L
             is Number -> ts.toLong()
+            // Admin-panel stories carry an ISO-8601 string, not a Timestamp.
+            // Coercing to 0 blanked the timestamp on every admin-posted story.
+            is String -> parseIsoMillis(ts)
             else -> 0L
         }
         return Story(
@@ -167,6 +226,7 @@ class StoryViewModel @Inject constructor(
             teacherPic  = effectiveAuthorPic,
             mediaUrl   = mediaUrl,
             type       = type,
+            thumbnailUrl = thumbnailUrl,
             caption    = caption,
             createdAt  = createdMillis,
             expiresAt  = expiresAtMillis,
