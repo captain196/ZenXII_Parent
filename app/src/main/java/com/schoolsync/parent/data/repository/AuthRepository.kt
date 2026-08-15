@@ -281,13 +281,19 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun logout(): AuthResult<Unit> {
+        // Clear local state BEFORE signing out of Firebase. SessionGuard watches
+        // observeAuthState() and ends the session when Firebase drops currentUser
+        // while we still believe we are signed in — which is exactly the state
+        // this method passes through if signOut() runs first. In that window an
+        // ordinary, user-initiated logout would surface "Your session has ended"
+        // as though something had gone wrong. Clearing first closes the window.
         return try {
-            firebaseAuthManager.signOut()
             tokenManager.clearAll()
+            firebaseAuthManager.signOut()
             AuthResult.Success(Unit)
         } catch (e: Exception) {
-            firebaseAuthManager.signOut()
             tokenManager.clearAll()
+            firebaseAuthManager.signOut()
             AuthResult.Success(Unit)
         }
     }
@@ -329,11 +335,36 @@ class AuthRepository @Inject constructor(
                 return AuthResult.Error(payload?.message ?: "Reset failed.")
             }
 
+            val cachedUser = tokenManager.user.firstOrNull()
+
+            // Re-authenticate with the password we just set.
+            //
+            // The server changed it through the Admin SDK, which invalidates the
+            // refresh token this client is holding — it was minted against the OLD
+            // password. The current session keeps working until that token expires,
+            // so the change *looks* fine, but on the next cold start Splash's forced
+            // refresh throws FirebaseAuthInvalidUserException and signs the user out:
+            // they set a password in the app and are dropped on the Login screen with
+            // no explanation. (Observed on STU0162 during UAT.) SessionGuard now
+            // refreshes on every foreground too, which would surface it in seconds.
+            //
+            // We hold the new password right here, so mint a fresh session instead.
+            // Best-effort: if it fails the user simply logs in again, which is the
+            // old behaviour — never worse.
+            val reauthId = cachedUser?.userId
+            if (!reauthId.isNullOrBlank()) {
+                try {
+                    firebaseAuthManager.signInWithEmailAndPassword(reauthId, newPassword)
+                    Log.d(TAG, "clearMustChange: re-authenticated after password change")
+                } catch (e: Exception) {
+                    Log.w(TAG, "clearMustChange: re-auth failed; user will be asked to log in again", e)
+                }
+            }
+
             // Force-refresh the ID token so subsequent calls see the cleared claim.
             try { firebaseAuthManager.getIdTokenResult(forceRefresh = true) } catch (_: Exception) {}
 
             // Update local cache so the NavGraph gate releases without a full re-login.
-            val cachedUser = tokenManager.user.firstOrNull()
             if (cachedUser != null && cachedUser.mustChangePassword) {
                 try {
                     tokenManager.saveUserDirect(cachedUser.copy(mustChangePassword = false))

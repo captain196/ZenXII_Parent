@@ -236,6 +236,38 @@ fun AppNavGraph(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Route.Splash.route
 ) {
+    // ── Mid-session credential enforcement ──
+    // Before this, `mustChangePassword` was only read on a cold start, so an
+    // admin resetting a password had no effect on a running app — the ID token
+    // stays valid for up to an hour and nothing re-read the flag. The guard
+    // re-checks whenever the app comes to the foreground, and also reacts to
+    // Firebase dropping the user (revoked token / disabled account).
+    val sessionGuard: com.schoolsync.parent.ui.session.SessionGuardViewModel = hiltViewModel()
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) sessionGuard.recheck()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val guardContext = androidx.compose.ui.platform.LocalContext.current
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        sessionGuard.sessionEnded.collect { message ->
+            android.widget.Toast.makeText(guardContext, message, android.widget.Toast.LENGTH_LONG).show()
+            navController.navigate(Route.Login.route) {
+                // Drop the whole back stack: the session is gone, so nothing
+                // behind us is still authorised to render. launchSingleTop stops
+                // a second trigger (auth-state AND foreground re-check can both
+                // fire) from stacking two Login screens.
+                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
