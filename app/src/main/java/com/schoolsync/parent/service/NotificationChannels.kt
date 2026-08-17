@@ -1,5 +1,7 @@
 package com.schoolsync.parent.service
 
+import com.schoolsync.parent.R
+import androidx.annotation.StringRes
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -37,20 +39,36 @@ object NotificationChannels {
     const val GALLERY = "ch_gallery"
     const val STORIES = "ch_stories"
 
-    private data class Def(val id: String, val name: String, val description: String)
+    /**
+     * Name and description are @StringRes ids, not Strings.
+     *
+     * CHANNELS is an object-level `val`, evaluated once at class-init with no
+     * Context in scope — and a String captured there would freeze whichever
+     * language the process started in. They are resolved inside
+     * [ensureChannels], which already receives a Context.
+     *
+     * `id` stays a plain String: channel ids are WIRE VALUES that Android and
+     * the manifest match on. Translating one would orphan the user's existing
+     * channel settings and silently drop notifications posted to the old id.
+     */
+    private data class Def(
+        val id: String,
+        @StringRes val nameRes: Int,
+        @StringRes val descriptionRes: Int,
+    )
 
     private val CHANNELS = listOf(
-        Def(GENERAL, "General", "General notifications from ZenXii"),
-        Def(NOTICES, "Notices & Circulars", "New notices and circulars"),
-        Def(HOMEWORK, "Homework", "New and graded homework"),
-        Def(ATTENDANCE, "Attendance", "Your child's attendance updates"),
-        Def(FEES, "Fees", "Fee reminders and payment confirmations"),
-        Def(LEAVE, "Leave", "Leave application updates"),
-        Def(EVENTS, "Events", "School events"),
-        Def(ALERTS, "Alerts", "Important alerts raised by teachers"),
-        Def(EXAMS, "Exams & Results", "Exam schedules and published results"),
-        Def(GALLERY, "Gallery", "New photos and albums"),
-        Def(STORIES, "Stories", "New school stories"),
+        Def(GENERAL, R.string.notif_ch_general, R.string.notif_ch_general_desc),
+        Def(NOTICES, R.string.notif_ch_notices, R.string.notif_ch_notices_desc),
+        Def(HOMEWORK, R.string.notif_ch_homework, R.string.notif_ch_homework_desc),
+        Def(ATTENDANCE, R.string.notif_ch_attendance, R.string.notif_ch_attendance_desc),
+        Def(FEES, R.string.notif_ch_fees, R.string.notif_ch_fees_desc),
+        Def(LEAVE, R.string.notif_ch_leave, R.string.notif_ch_leave_desc),
+        Def(EVENTS, R.string.notif_ch_events, R.string.notif_ch_events_desc),
+        Def(ALERTS, R.string.notif_ch_alerts, R.string.notif_ch_alerts_desc),
+        Def(EXAMS, R.string.notif_ch_exams, R.string.notif_ch_exams_desc),
+        Def(GALLERY, R.string.notif_ch_gallery, R.string.notif_ch_gallery_desc),
+        Def(STORIES, R.string.notif_ch_stories, R.string.notif_ch_stories_desc),
     )
 
     /**
@@ -64,10 +82,10 @@ object NotificationChannels {
         CHANNELS.forEach { def ->
             val channel = NotificationChannel(
                 def.id,
-                def.name,
+                context.getString(def.nameRes),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = def.description
+                description = context.getString(def.descriptionRes)
                 enableLights(true)
                 enableVibration(true)
             }

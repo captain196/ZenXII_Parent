@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.exams
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -36,7 +39,8 @@ data class ExamScheduleUiState(
  */
 @HiltViewModel
 class ExamScheduleViewModel @Inject constructor(
-    private val examFirestoreRepo: ExamFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val examFirestoreRepo: ExamFirestoreRepository,
     private val tokenManager: TokenManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -71,7 +75,7 @@ class ExamScheduleViewModel @Inject constructor(
         val user = tokenManager.user.firstOrNull() ?: User.empty()
         if (user.className.isBlank() || user.section.isBlank()) {
             _uiState.update {
-                it.copy(errorMessage = "Class/section not available for this student")
+                it.copy(errorMessage = appContext.getString(R.string.exam_no_class_section))
             }
             return
         }
@@ -80,8 +84,8 @@ class ExamScheduleViewModel @Inject constructor(
         // first available exam. We fetch the exam list either way so we can
         // display a human-readable exam name.
         val exams = examFirestoreRepo.getAvailableExams().getOrElse { e ->
-            Log.e("ExamScheduleVM", "Failed to load exams", e)
-            _uiState.update { it.copy(errorMessage = e.message ?: "Failed to load exams") }
+            Log.e("ExamScheduleVM", appContext.getString(R.string.res_exams_load_failed), e)
+            _uiState.update { it.copy(errorMessage = e.message ?: appContext.getString(R.string.res_exams_load_failed)) }
             return
         }
 
@@ -112,8 +116,8 @@ class ExamScheduleViewModel @Inject constructor(
                 }
             },
             onFailure = { e ->
-                Log.e("ExamScheduleVM", "Failed to load schedule", e)
-                _uiState.update { it.copy(errorMessage = e.message ?: "Failed to load schedule") }
+                Log.e("ExamScheduleVM", appContext.getString(R.string.exam_schedule_load_failed), e)
+                _uiState.update { it.copy(errorMessage = e.message ?: appContext.getString(R.string.exam_schedule_load_failed)) }
             }
         )
     }

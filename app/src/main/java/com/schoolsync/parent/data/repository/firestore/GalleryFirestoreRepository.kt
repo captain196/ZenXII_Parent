@@ -1,5 +1,8 @@
 package com.schoolsync.parent.data.repository.firestore
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import com.google.firebase.firestore.Query
 import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
@@ -24,7 +27,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class GalleryFirestoreRepository @Inject constructor(
-    private val firestoreService: FirestoreService,
+    
+    @ApplicationContext private val appContext: Context,private val firestoreService: FirestoreService,
     private val tokenManager: TokenManager
 ) {
 
@@ -224,7 +228,7 @@ class GalleryFirestoreRepository @Inject constructor(
                     .limit(1)
             }
             // Not-found is a success with an empty-shell album (the detail
-            // screen renders "Album not found" style state); only a genuine
+            // screen renders appContext.getString(R.string.gal_album_not_found) style state); only a genuine
             // query failure below becomes Result.failure.
             val albumDoc = albumDocs.firstOrNull()
                 ?: return Result.success(GalleryAlbum(albumId = albumId))

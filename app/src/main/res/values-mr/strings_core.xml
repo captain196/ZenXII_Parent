@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    मराठी · Marathi
+
+    Core catalogue. Terminology per tools/i18n/glossary.md — read it before
+    editing so the pinned terms do not drift between waves.
+
+    Format arguments (%1$s, %2$d, %%) are preserved EXACTLY, including index
+    order. Word order differs from English in this language, so arguments are
+    reordered inside the sentence rather than renumbered. Lint fails the build
+    on any mismatch.
+-->
+<resources>
+    <string name="academics_attendance_subtitle">दैनिक आणि मासिक उपस्थिती नोंदी पहा</string>
+    <string name="academics_events_subtitle">आगामी शालेय कार्यक्रम आणि सुट्ट्या</string>
+    <string name="academics_gallery_subtitle">शाळेचे फोटो आणि कार्यक्रम गॅलरी</string>
+    <string name="academics_homework_subtitle">अभ्यास साहित्य आणि गृहपाठ पहा</string>
+    <string name="academics_library_subtitle">घेतलेली पुस्तके, दंड आणि सूची</string>
+    <string name="academics_results_subtitle">परीक्षा निकाल आणि प्रगती पुस्तक पहा</string>
+    <string name="academics_timetable_subtitle">वर्ग वेळापत्रक पहा</string>
+    <string name="academics_title">श्रेणी</string>
+    <string name="action_retry">पुन्हा प्रयत्न करा</string>
+    <string name="action_view_all">सर्व पहा</string>
+    <string name="cd_back">मागे</string>
+    <string name="cd_clear">साफ करा</string>
+    <string name="cd_close">बंद करा</string>
+    <string name="cd_collapse">लहान करा</string>
+    <string name="cd_expand">विस्तृत करा</string>
+    <string name="cd_grid">ग्रिड दृश्य</string>
+    <string name="cd_menu">मेनू</string>
+    <string name="cd_notifications">अधिसूचना</string>
+    <string name="cd_send">पाठवा</string>
+    <string name="cd_view_alerts">अलर्ट पहा</string>
+    <string name="chat_day_today">आज</string>
+    <string name="chat_day_yesterday">काल</string>
+    <string name="chat_default_title">संभाषण</string>
+    <string name="chat_empty_subtitle">संभाषण सुरू करण्यासाठी नमस्कार म्हणा</string>
+    <string name="chat_input_placeholder">संदेश लिहा…</string>
+    <string name="chat_status_read">वाचले</string>
+    <string name="chat_status_sent">पाठवले</string>
+    <string name="dashboard_attendance_change_format">या महिन्यात %1$s%2$.1f%%</string>
+    <string name="dashboard_attendance_this_month">या महिन्यात</string>
+    <string name="dashboard_class_rank_top">अव्वल %1$d%%</string>
+    <string name="dashboard_current_class_default">गणित</string>
+    <string name="dashboard_current_class_room">खोली 204</string>
+    <string name="dashboard_default_student_name">विद्यार्थी</string>
+    <string name="dashboard_greeting_afternoon">शुभ दुपार</string>
+    <string name="dashboard_greeting_evening">शुभ संध्याकाळ</string>
+    <string name="dashboard_greeting_morning">शुभ सकाळ</string>
+    <string name="dashboard_label_attendance">उपस्थिती</string>
+    <string name="dashboard_label_class_rank">वर्ग क्रमांक</string>
+    <string name="dashboard_label_now">आता</string>
+    <string name="dashboard_next_class_format">पुढील: %1$s · %2$s</string>
+    <string name="dashboard_no_upcoming_events">आगामी कार्यक्रम नाहीत</string>
+    <string name="dashboard_search_placeholder">शोधा…</string>
+    <string name="dashboard_section_highlights">ठळक मुद्दे</string>
+    <string name="dashboard_section_overview">आढावा</string>
+    <string name="dashboard_section_quick_actions">जलद क्रिया</string>
+    <string name="dashboard_section_subjects">विषय</string>
+    <string name="drawer_alerts">रेड फ्लॅग</string>
+    <string name="drawer_attendance">उपस्थिती</string>
+    <string name="drawer_events">कार्यक्रम</string>
+    <string name="drawer_fees">शुल्क</string>
+    <string name="drawer_gallery">गॅलरी</string>
+    <string name="drawer_homework">गृहपाठ</string>
+    <string name="drawer_library">ग्रंथालय</string>
+    <string name="drawer_my_teachers">माझे शिक्षक</string>
+    <string name="drawer_notices">सूचना</string>
+    <string name="drawer_profile">प्रोफाइल</string>
+    <string name="drawer_results">निकाल</string>
+    <string name="drawer_timetable">वेळापत्रक</string>
+    <string name="generic_unknown">अज्ञात</string>
+    <string name="messages_empty_subtitle">तुमच्या मुलाच्या शिक्षकांशी झालेले संभाषण येथे दिसेल.</string>
+    <string name="messages_empty_title">अद्याप संदेश नाहीत</string>
+    <string name="messages_re_format">Re: %1$s</string>
+    <string name="messages_re_with_class_format">Re: %1$s · %2$s</string>
+    <string name="messages_search_empty_subtitle">दुसरे नाव किंवा कीवर्ड वापरून पहा.</string>
+    <string name="messages_search_empty_title">जुळणारे नाही</string>
+    <string name="messages_search_placeholder">संभाषण शोधा…</string>
+    <string name="messages_tap_to_chat">चॅट सुरू करण्यासाठी टॅप करा</string>
+    <string name="messages_title">संदेश</string>
+    <string name="notices_attachment_invalid">संलग्नक दुवा अवैध आहे</string>
+    <string name="notices_attachment_no_app">कोणतेही अ‍ॅप हे संलग्नक उघडू शकत नाही</string>
+    <string name="notices_attachment_open">📎 संलग्नक उघडा</string>
+    <string name="notices_author_format">— %1$s</string>
+    <string name="notices_category_academic">शैक्षणिक</string>
+    <string name="notices_category_event">कार्यक्रम</string>
+    <string name="notices_category_exam">परीक्षा</string>
+    <string name="notices_category_fee">शुल्क</string>
+    <string name="notices_category_general">सामान्य</string>
+    <string name="notices_category_holiday">सुट्टी</string>
+    <string name="notices_category_important">महत्त्वाचे</string>
+    <string name="notices_category_payment">भरणा</string>
+    <string name="notices_category_policy">धोरण</string>
+    <string name="notices_category_recruitment">भरती</string>
+    <string name="notices_category_urgent">तातडीचे</string>
+    <string name="notices_empty_subtitle">सध्या कोणतीही सूचना नाही.\nरिफ्रेश करण्यासाठी खाली ओढा.</string>
+    <string name="notices_empty_title">सूचना नाहीत</string>
+    <string name="notices_refresh_failed">सूचना रिफ्रेश करता आल्या नाहीत. तुमचे कनेक्शन तपासा.</string>
+    <string name="notices_title">सूचना</string>
+    <string name="notices_unread">न वाचलेले</string>
+    <string name="quick_action_homework">गृहपाठ</string>
+    <string name="quick_action_pay_fees">शुल्क भरा</string>
+    <string name="quick_action_results">निकाल</string>
+    <string name="quick_action_timetable">वेळापत्रक</string>
+
+    <plurals name="dashboard_red_flag_alerts">
+        <item quantity="one">तुमच्या मुलासाठी %d सक्रिय अलर्ट</item>
+        <item quantity="other">तुमच्या मुलासाठी %d सक्रिय अलर्ट</item>
+    </plurals>
+
+</resources>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Canonical labels + settings. DISPLAY ONLY.
+
+    The English source of these ("Monday", "January", "Present") is also a
+    Firestore value, an RTDB node key and a document-id component. These
+    translations are read exclusively at render sites through CanonicalLabels /
+    StatusLabels. A translated form must NEVER be written back to the server.
+-->
+<resources>
+    <string name="settings_language">భాష</string>
+
+    <!-- Weekdays -->
+    <string name="day_monday">సోమవారం</string>
+    <string name="day_tuesday">మంగళవారం</string>
+    <string name="day_wednesday">బుధవారం</string>
+    <string name="day_thursday">గురువారం</string>
+    <string name="day_friday">శుక్రవారం</string>
+    <string name="day_saturday">శనివారం</string>
+    <string name="day_sunday">ఆదివారం</string>
+
+    <!-- Months -->
+    <string name="month_january">జనవరి</string>
+    <string name="month_february">ఫిబ్రవరి</string>
+    <string name="month_march">మార్చి</string>
+    <string name="month_april">ఏప్రిల్</string>
+    <string name="month_may">మే</string>
+    <string name="month_june">జూన్</string>
+    <string name="month_july">జూలై</string>
+    <string name="month_august">ఆగస్టు</string>
+    <string name="month_september">సెప్టెంబర్</string>
+    <string name="month_october">అక్టోబర్</string>
+    <string name="month_november">నవంబర్</string>
+    <string name="month_december">డిసెంబర్</string>
+
+    <!-- Attendance statuses -->
+    <string name="attendance_status_present">హాజరు</string>
+    <string name="attendance_status_absent">గైర్హాజరు</string>
+    <string name="attendance_status_leave">సెలవు</string>
+    <string name="attendance_status_holiday">సెలవు దినం</string>
+    <string name="attendance_status_tardy">ఆలస్యం</string>
+    <string name="attendance_status_not_recorded">నమోదు కాలేదు</string>
+
+</resources>

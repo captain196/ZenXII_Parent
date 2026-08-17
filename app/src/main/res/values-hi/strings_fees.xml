@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- हिन्दी · Hindi
+     W2 — fees + payment. Terminology per tools/i18n/glossary.md.
+     "Razorpay" is a brand and is never translated.
+     NOT here, deliberately: "Yearly Fees" and the status values compared
+     in FeesViewModel/FeesScreen — those are wire values. Only their
+     rendered labels appear below. -->
+<resources>
+    <string name="fees_all_clear">सब स्पष्ट</string>
+    <string name="fees_annual_fee">वार्षिक शुल्क</string>
+    <string name="fees_awarded_session">वर्तमान सत्र के लिए प्रदान किया गया</string>
+    <string name="fees_badge_full">पूर्ण भुगतान</string>
+    <string name="fees_badge_partial">आंशिक भुगतान</string>
+    <string name="fees_badge_refund">रिफ़ंड संसाधित</string>
+    <string name="fees_blocked_warning">परिणाम, टीसी और प्रवेश-पत्र रोके जा सकते हैं</string>
+    <string name="fees_breakdown_header">शुल्क विवरण</string>
+    <string name="fees_cancel_anytime">भुगतान पूरा करने से पहले आप कभी भी रद्द कर सकते हैं।</string>
+    <string name="fees_cancelled_no_deduction">आपने भुगतान रद्द किया। कोई राशि नहीं कटी।</string>
+    <string name="fees_clearance_unavailable">क्लियरेंस स्थिति उपलब्ध नहीं</string>
+    <string name="fees_cleared_this_receipt">इस रसीद में चुकता</string>
+    <string name="fees_create_order_failed">भुगतान ऑर्डर नहीं बन सका।</string>
+    <string name="fees_creating_order">ऑर्डर बनाया जा रहा है…</string>
+    <string name="fees_discounts_header">छूट और समायोजन</string>
+    <string name="fees_dues_pending">बकाया शेष</string>
+    <string name="fees_enter_amount">राशि दर्ज करें</string>
+    <string name="fees_failed_no_deduction">भुगतान की प्रक्रिया में कुछ गलत हुआ। कोई राशि नहीं कटी।</string>
+    <string name="fees_fee_structure">शुल्क संरचना</string>
+    <string name="fees_load_failed_refresh">शुल्क विवरण लोड नहीं हो सका। रिफ़्रेश करने के लिए नीचे खींचें।</string>
+    <string name="fees_need_concession">शुल्क में छूट चाहिए?</string>
+    <string name="fees_no_discounts">कोई छूट या समायोजन नहीं</string>
+    <string name="fees_no_history">कोई भुगतान इतिहास नहीं मिला</string>
+    <string name="fees_no_module_fees">कोई मॉड्यूल शुल्क लागू नहीं</string>
+    <string name="fees_not_paid_this_receipt">इस रसीद में नहीं भरा गया</string>
+    <string name="fees_one_time_due">एकमुश्त · देय</string>
+    <string name="fees_opening_checkout">चेकआउट खुल रहा है…</string>
+    <string name="fees_paid_for">किसके लिए भरा</string>
+    <string name="fees_partial_applied">इस रसीद में आंशिक रूप से लागू</string>
+    <string name="fees_partial_no_balance">इस रसीद में आंशिक रूप से लागू — कोई शेष नहीं</string>
+    <string name="fees_partially_paid">आंशिक रूप से भरा</string>
+    <string name="fees_pay_custom">अपनी राशि भरें</string>
+    <string name="fees_pay_full_year">पूरा वर्ष भरें</string>
+    <string name="fees_pay_full_year_q">पूरा वर्ष भरें?</string>
+    <string name="fees_pay_selected">चयनित भरें</string>
+    <string name="fees_paying_now">अभी भर रहे हैं</string>
+    <string name="fees_payment_cancelled">भुगतान रद्द</string>
+    <string name="fees_payment_failed">भुगतान विफल</string>
+    <string name="fees_pending_dues">लंबित बकाया</string>
+    <string name="fees_processing">प्रक्रिया जारी</string>
+    <string name="fees_receipt_info">रसीद जानकारी</string>
+    <string name="fees_receipt_load_failed">रसीद लोड नहीं हो सकी।</string>
+    <string name="fees_receipt_payment">भुगतान रसीद</string>
+    <string name="fees_receipt_refund">रिफ़ंड रसीद</string>
+    <string name="fees_refund_load_failed">रिफ़ंड लोड नहीं हो सका।</string>
+    <string name="fees_remaining_due">शेष देय</string>
+    <string name="fees_reopening_checkout">चेकआउट फिर खुल रहा है…</string>
+    <string name="fees_rolled_over">पिछले सत्र से आगे लाया गया बकाया शुल्क</string>
+    <string name="fees_start_payment_failed">भुगतान शुरू नहीं हो सका। कृपया थोड़ी देर में पुनः प्रयास करें।</string>
+    <string name="fees_status_due">देय</string>
+    <string name="fees_status_paid">भरा गया</string>
+    <string name="fees_structure_unavailable">शुल्क संरचना उपलब्ध नहीं</string>
+    <string name="fees_total_paid">कुल भुगतान</string>
+    <string name="fees_verified_by_school">विद्यालय द्वारा सत्यापित और दर्ज</string>
+    <string name="fees_yes_pay_full_year">हाँ, पूरा वर्ष भरें</string>
+    <string name="pay_already_paid">पहले ही भरा जा चुका</string>
+    <string name="pay_already_verified">यह भुगतान पहले ही सत्यापित हो चुका था।</string>
+    <string name="pay_balance_remaining">कुछ शेष राशि अभी बाकी है।</string>
+    <string name="pay_confirmed_razorpay">Razorpay द्वारा पुष्टि</string>
+    <string name="pay_dont_close">कृपया ऐप बंद न करें</string>
+    <string name="pay_fees_cleared">शुल्क चुकता</string>
+    <string name="pay_partial_received">आंशिक भुगतान प्राप्त</string>
+    <string name="pay_processing">आपका भुगतान संसाधित हो रहा है</string>
+    <string name="pay_receipt_preparing">विद्यालय रसीद तैयार कर रहा है। आप यह स्क्रीन सुरक्षित रूप से बंद कर सकते हैं।</string>
+    <string name="pay_recording_securely">आपका भुगतान सुरक्षित रूप से दर्ज किया जा रहा है</string>
+    <string name="pay_secured_by_razorpay">Razorpay द्वारा सुरक्षित</string>
+    <string name="pay_securing">आपका लेन-देन सुरक्षित किया जा रहा है</string>
+    <string name="pay_still_working">पृष्ठभूमि में अब भी काम जारी है</string>
+    <string name="pay_successful">भुगतान सफल</string>
+    <string name="pay_updating">शुल्क और रसीद अपडेट हो रही है</string>
+    <string name="pay_view_receipt">रसीद देखें</string>
+
+    <plurals name="fees_overdue_days">
+        <item quantity="one">%d दिन विलंब</item>
+        <item quantity="other">%d दिन विलंब</item>
+    </plurals>
+
+    <string name="fees_tab_discounts">छूट</string>
+    <string name="fees_tab_payments">भुगतान</string>
+
+</resources>

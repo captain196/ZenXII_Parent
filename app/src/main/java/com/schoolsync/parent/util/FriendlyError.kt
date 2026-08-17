@@ -1,5 +1,7 @@
 package com.schoolsync.parent.util
 
+import com.schoolsync.parent.R
+import android.content.Context
 import retrofit2.HttpException
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -31,18 +33,18 @@ import java.net.UnknownHostException
  *   - FeesViewModel.initiatePayment    — createOrder failure path
  *   - FeesViewModel.loadFeesAsync      — fee-structure load failure
  */
-fun friendlyErrorMessage(t: Throwable, fallback: String): String {
+fun friendlyErrorMessage(ctx: Context, t: Throwable, fallback: String): String {
     return when (t) {
         is UnknownHostException ->
-            "No internet connection. Please reconnect and try again."
+            ctx.getString(R.string.err_no_internet)
 
         is SocketTimeoutException ->
-            "The school server took too long to respond. Please try again in a moment."
+            ctx.getString(R.string.err_server_timeout)
 
         is HttpException -> when (t.code()) {
-            401, 403 -> "Your session has expired. Please log out and log in again."
-            404      -> "We couldn't find that on the server. Please refresh and try again."
-            408      -> "The school server took too long to respond. Please try again in a moment."
+            401, 403 -> ctx.getString(R.string.err_session_expired)
+            404      -> ctx.getString(R.string.err_not_found)
+            408      -> ctx.getString(R.string.err_server_timeout)
             // 423 Locked — emitted by either:
             //   • MY_Controller::_abort_if_session_frozen (R1.1)
             //     code='SESSION_FROZEN' — year-end rollover in progress
@@ -53,8 +55,8 @@ fun friendlyErrorMessage(t: Throwable, fallback: String): String {
             // copy per code it should parse the response payload. For
             // now the unified message covers both — the parent's next
             // action is identical (try later / contact school).
-            423      -> "The school has temporarily paused new payments (year-end close or period lock). Please try again shortly or contact the school office."
-            in 500..599 -> "The school server is temporarily unavailable. Please try again shortly."
+            423      -> ctx.getString(R.string.err_payments_paused)
+            in 500..599 -> ctx.getString(R.string.err_server_unavailable)
             else        -> fallback
         }
 
@@ -63,7 +65,7 @@ fun friendlyErrorMessage(t: Throwable, fallback: String): String {
         // network failures (SSL handshake, connection reset, etc.) all
         // land here.
         is IOException ->
-            "Couldn't reach the school server. Please check your connection and try again."
+            ctx.getString(R.string.err_cannot_reach_server)
 
         else -> fallback
     }

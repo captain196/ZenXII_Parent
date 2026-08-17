@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.ptm
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -81,12 +83,12 @@ fun PtmListScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = c.textPrimary
                 )
             }
             Text(
-                "Parent-Teacher Meetings",
+                stringResource(R.string.academics_ptm_title),
                 style = MaterialTheme.typography.titleLarge,
                 color = c.textPrimary,
                 fontWeight = FontWeight.SemiBold,
@@ -100,7 +102,7 @@ fun PtmListScreen(
             }
             state.errorMessage != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    state.errorMessage ?: "Failed to load.",
+                    state.errorMessage ?: stringResource(R.string.ptm_load_failed_dot),
                     color = c.error,
                     modifier = Modifier.padding(24.dp)
                 )
@@ -118,14 +120,14 @@ fun PtmListScreen(
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "No Parent-Teacher Meetings yet",
+                        stringResource(R.string.ptm_none_yet),
                         style = MaterialTheme.typography.titleMedium,
                         color = c.textPrimary,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "When your school schedules a PTM, it will appear here.",
+                        stringResource(R.string.ptm_none_yet_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = c.textSecondary,
                         modifier = Modifier.padding(horizontal = 32.dp)
@@ -138,14 +140,14 @@ fun PtmListScreen(
                 contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
             ) {
                 if (state.upcoming.isNotEmpty()) {
-                    item { SectionHeader("Upcoming", state.upcoming.size) }
+                    item { SectionHeader(stringResource(R.string.filter_upcoming), state.upcoming.size) }
                     items(state.upcoming, key = { it.ptm.id.ifBlank { it.ptm.ptmEventId } }) { row ->
                         PtmRow(row, onOpenPtm)
                     }
                 }
                 if (state.past.isNotEmpty()) {
                     item { Spacer(Modifier.height(12.dp)) }
-                    item { SectionHeader("Past", state.past.size) }
+                    item { SectionHeader(stringResource(R.string.filter_past), state.past.size) }
                     items(state.past, key = { "past-" + (it.ptm.id.ifBlank { it.ptm.ptmEventId }) }) { row ->
                         PtmRow(row, onOpenPtm)
                     }
@@ -249,7 +251,7 @@ private fun PtmRow(row: PtmListRow, onOpenPtm: (String) -> Unit) {
         // Middle: title + meta
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                ptm.title.ifBlank { "Parent-Teacher Meeting" },
+                ptm.title.ifBlank { stringResource(R.string.ptm_meeting_title) },
                 style = MaterialTheme.typography.titleSmall,
                 color = c.textPrimary,
                 fontWeight = FontWeight.SemiBold,
@@ -305,7 +307,7 @@ private fun StatusBadge(rsvpStatus: String, ptmStatus: String, isUpcoming: Boole
         rsvpStatus == "delivered" ->
             Triple("DELIVERED", Color(0x3322C55E), Color(0xFF22C55E))
         rsvpStatus == "no-show" ->
-            Triple("NO SHOW", c.errorBg, c.error)
+            Triple(stringResource(R.string.ptm_no_show), c.errorBg, c.error)
         ptmStatus.equals("completed", ignoreCase = true) && rsvpStatus == "none" ->
             Triple("MISSED", c.errorBg, c.error)
         rsvpStatus == "applied" ->
@@ -313,7 +315,7 @@ private fun StatusBadge(rsvpStatus: String, ptmStatus: String, isUpcoming: Boole
         rsvpStatus == "declined" ->
             Triple("DECLINED", c.errorBg, c.error)
         rsvpStatus == "none" && isUpcoming ->
-            Triple("RSVP NOW", Color(0x33D4AF37), c.accent)
+            Triple(stringResource(R.string.ptm_rsvp_now), Color(0x33D4AF37), c.accent)
         else ->
             Triple("PENDING", Color(0x33A0A0A0), c.textTertiary)
     }

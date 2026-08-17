@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- हिन्दी · Hindi
+     Format-argument strings. Indices are preserved but reordered
+     within the sentence where the language requires it. -->
+<resources>
+    <string name="common_page_of_fmt">%2$d में से %1$d</string>
+    <string name="dash_attendance_great_fmt">बढ़िया उपस्थिति · %1$d%%</string>
+    <string name="dash_attendance_low_fmt">उपस्थिति कम · %1$d%%</string>
+    <string name="dash_fees_due_fmt">शुल्क देय · %1$s</string>
+    <string name="dash_happy_birthday_fmt">जन्मदिन मुबारक, %1$s!</string>
+    <string name="exam_max_fmt">अधिकतम %1$d</string>
+    <string name="exam_room_fmt">कक्ष %1$s</string>
+    <string name="fees_checked_at">जाँचा गया: %1$s</string>
+    <string name="fees_outstanding_fmt">बकाया शुल्क: Rs. %1$s</string>
+    <string name="fees_receipt_hash">रसीद #%1$s</string>
+    <string name="fees_save_failed_fmt">सहेजा नहीं जा सका: %1$s</string>
+    <string name="fees_saved_to">%1$s में सहेजा गया</string>
+    <string name="fees_share_failed_fmt">रसीद साझा नहीं की जा सकी: %1$s</string>
+    <string name="fees_total_dues_fmt">कुल बकाया: Rs. %1$s</string>
+    <string name="hw_stale_fmt">⚠ %1$s — दिखाया गया डेटा पुराना हो सकता है।</string>
+    <string name="leave_end_date_fmt">समाप्ति तिथि: %1$s</string>
+    <string name="leave_remark_fmt">टिप्पणी: %1$s</string>
+    <string name="leave_start_date_fmt">प्रारंभ तिथि: %1$s</string>
+    <string name="lessons_by_teacher_fmt">%1$s द्वारा</string>
+    <string name="lessons_rescheduled_fmt">%1$s पर पुनर्निर्धारित</string>
+    <string name="lib_issued_fmt">जारी: %1$s</string>
+    <string name="lib_renewed_fmt">%1$d बार नवीनीकृत</string>
+    <string name="res_rank_colon_fmt">रैंक: %1$s</string>
+    <string name="res_rank_fmt">रैंक %1$s</string>
+    <string name="res_result_status_fmt">परिणाम: %1$s</string>
+    <string name="rf_severity_fmt">गंभीरता: %1$s</string>
+    <string name="stories_profile_photo_fmt">%1$s की प्रोफ़ाइल फ़ोटो</string>
+    <string name="tch_call_name">%1$s को कॉल करें</string>
+    <string name="tch_message_name">%1$s को संदेश भेजें</string>
+    <string name="tt_period_fmt">कालांश %1$s</string>
+
+    <plurals name="att_day_streak">
+        <item quantity="one">%d दिन की लय</item>
+        <item quantity="other">%d दिन की लय</item>
+    </plurals>
+    <plurals name="gal_item_count">
+        <item quantity="one">%d वस्तु</item>
+        <item quantity="other">%d वस्तुएँ</item>
+    </plurals>
+    <plurals name="leave_days_count">
+        <item quantity="one">%d दिन</item>
+        <item quantity="other">%d दिन</item>
+    </plurals>
+    <plurals name="lib_pending_fines">
+        <item quantity="one">%d लंबित जुर्माना</item>
+        <item quantity="other">%d लंबित जुर्माने</item>
+    </plurals>
+
+    <string name="dash_attendance_dropping_fmt">उपस्थिति गिर रही है · -%1$s%%</string>
+    <string name="dash_tap_retry">पुनः प्रयास के लिए टैप करें</string>
+    <string name="fees_share_receipt_fmt">रसीद #%1$s साझा करें</string>
+    <string name="generic_unknown_error">अज्ञात त्रुटि</string>
+    <string name="hw_subject_filter_fmt">%1$s विषय फ़िल्टर</string>
+    <string name="rf_error_retry_fmt">%1$s  पुनः प्रयास के लिए टैप करें।</string>
+    <string name="tt_now_prefix">अभी: </string>
+    <plurals name="hw_tab_items">
+        <item quantity="one">%1$s, %2$d वस्तु</item>
+        <item quantity="other">%1$s, %2$d वस्तुएँ</item>
+    </plurals>
+
+    <plurals name="att_best_streak">
+        <item quantity="one">सर्वश्रेष्ठ: %1$d दिन</item>
+        <item quantity="other">सर्वश्रेष्ठ: %1$d दिन</item>
+    </plurals>
+    <plurals name="att_school_days">
+        <item quantity="one">इस माह %1$d विद्यालय दिवस</item>
+        <item quantity="other">इस माह %1$d विद्यालय दिवस</item>
+    </plurals>
+    <plurals name="dash_homework_pending_fmt">
+        <item quantity="one">गृहकार्य · %1$d शेष</item>
+        <item quantity="other">गृहकार्य · %1$d शेष</item>
+    </plurals>
+    <plurals name="dash_notices_new_fmt">
+        <item quantity="one">सूचनाएँ · %1$d नई</item>
+        <item quantity="other">सूचनाएँ · %1$d नई</item>
+    </plurals>
+    <plurals name="fees_paid_months">
+        <item quantity="one">भुगतान किया (%1$d माह)</item>
+        <item quantity="other">भुगतान किया (%1$d माह)</item>
+    </plurals>
+    <plurals name="fees_unpaid_months">
+        <item quantity="one">अवैतनिक (%1$d माह)</item>
+        <item quantity="other">अवैतनिक (%1$d माह)</item>
+    </plurals>
+    <plurals name="leave_max_days_fmt">
+        <item quantity="one">छुट्टी %1$d दिन से अधिक नहीं हो सकती</item>
+        <item quantity="other">छुट्टी %1$d दिन से अधिक नहीं हो सकती</item>
+    </plurals>
+    <plurals name="messages_unread_badge_format">
+        <item quantity="one">%d नया</item>
+        <item quantity="other">%d नए</item>
+    </plurals>
+
+</resources>

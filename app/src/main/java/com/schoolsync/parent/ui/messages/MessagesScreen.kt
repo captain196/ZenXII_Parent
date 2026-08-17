@@ -1,5 +1,6 @@
 package com.schoolsync.parent.ui.messages
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -81,6 +82,7 @@ import com.schoolsync.parent.ui.components.staggerIn
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
+import com.schoolsync.parent.util.DisplayFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -177,7 +179,7 @@ private fun InboxListView(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = stringResource(R.string.messages_unread_badge_format, totalUnread),
+                            text = pluralStringResource(R.plurals.messages_unread_badge_format, totalUnread, totalUnread),
                             style = MaterialTheme.typography.labelSmall,
                             color = c.accent,
                             fontWeight = FontWeight.SemiBold
@@ -435,7 +437,7 @@ private fun InboxItem(
                 onDismissRequest = { menuExpanded = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Delete chat", color = c.error) },
+                    text = { Text(stringResource(R.string.msg_delete_chat), color = c.error) },
                     leadingIcon = {
                         Icon(
                             Icons.Filled.DeleteOutline,
@@ -462,22 +464,22 @@ private fun DeleteConversationDialog(
     val c = LocalAppColors.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete chat", color = c.textPrimary) },
+        title = { Text(stringResource(R.string.msg_delete_chat), color = c.textPrimary) },
         text = {
             Text(
                 "Delete this conversation with ${otherName.ifBlank { "this contact" }}? " +
-                    "It will be removed from your inbox only — the other person will still see it.",
+                    stringResource(R.string.msg_delete_only_yours),
                 color = c.textSecondary
             )
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Delete", color = c.error, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.common_delete), color = c.error, fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = c.textSecondary)
+                Text(stringResource(R.string.common_cancel), color = c.textSecondary)
             }
         },
         containerColor = c.bgMid
@@ -605,7 +607,7 @@ private fun ChatView(
             ) {
                 Icon(
                     imageVector = Icons.Filled.DeleteOutline,
-                    contentDescription = "Delete chat",
+                    contentDescription = stringResource(R.string.msg_delete_chat),
                     tint = c.textSecondary
                 )
             }
@@ -847,7 +849,7 @@ private fun DateSeparator(label: String) {
 private fun clockTime(timestamp: Long): String {
     if (timestamp <= 0L) return ""
     return try {
-        SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(timestamp))
+        DisplayFormat.pattern(Date(timestamp), "hh:mm a")
     } catch (_: Exception) {
         ""
     }
@@ -877,10 +879,10 @@ private fun dayLabelLocalized(timestamp: Long): String {
         msg.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
             msg.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR) -> today
         diffDays in 0..1 -> yesterday
-        diffDays in 2..6 -> SimpleDateFormat("EEEE", Locale.getDefault()).format(Date(timestamp))
+        diffDays in 2..6 -> DisplayFormat.pattern(Date(timestamp), "EEEE")
         msg.get(Calendar.YEAR) == now.get(Calendar.YEAR) ->
-            SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
-        else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestamp))
+            DisplayFormat.pattern(Date(timestamp), "MMM d")
+        else -> DisplayFormat.pattern(Date(timestamp), "MMM d, yyyy")
     }
 }
 
@@ -895,10 +897,10 @@ private fun dayLabel(timestamp: Long): String {
         msg.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
             msg.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR) -> "Today"
         diffDays in 0..1 -> "Yesterday"
-        diffDays in 2..6 -> SimpleDateFormat("EEEE", Locale.getDefault()).format(Date(timestamp))
+        diffDays in 2..6 -> DisplayFormat.pattern(Date(timestamp), "EEEE")
         msg.get(Calendar.YEAR) == now.get(Calendar.YEAR) ->
-            SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
-        else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestamp))
+            DisplayFormat.pattern(Date(timestamp), "MMM d")
+        else -> DisplayFormat.pattern(Date(timestamp), "MMM d, yyyy")
     }
 }
 

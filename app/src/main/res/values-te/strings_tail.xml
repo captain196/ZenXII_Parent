@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- తెలుగు · Telugu
+     W6 — long tail. Leave-type labels here are the DISPLAY side of the
+     "CL"/"SL"/"EL" code map; the codes are the wire values and are
+     untouched. Timetable carry-item VALUES are display; the `when`
+     subject KEYS ("maths", "science") stay English. -->
+<resources>
+    <string name="events_detail_load_failed">కార్యక్రమ వివరాలు లోడ్ కాలేదు</string>
+    <string name="events_details">కార్యక్రమ వివరాలు</string>
+    <string name="events_photo">కార్యక్రమ ఫోటో</string>
+    <string name="events_view_photos">ఫోటోలు చూడండి</string>
+    <string name="exam_datesheet_soon">పాఠశాల ప్రచురించిన తర్వాత డేట్-షీట్ ఇక్కడ కనిపిస్తుంది.</string>
+    <string name="gal_album_load_failed_plain">ఆల్బమ్ లోడ్ కాలేదు</string>
+    <string name="gal_load_failed_plain">గ్యాలరీ లోడ్ కాలేదు</string>
+    <string name="gal_photo">గ్యాలరీ ఫోటో</string>
+    <string name="leave_cancel_application">దరఖాస్తు రద్దు చేయండి</string>
+    <string name="leave_select_date">తేదీ ఎంచుకోండి</string>
+    <string name="leave_type_casual">సాధారణ సెలవు</string>
+    <string name="leave_type_emergency">అత్యవసర సెలవు</string>
+    <string name="leave_type_sick">అనారోగ్య సెలవు</string>
+    <string name="lessons_load_failed">పాఠాలు లోడ్ కాలేదు</string>
+    <string name="lessons_next_day">తదుపరి రోజు</string>
+    <string name="lessons_prev_day">మునుపటి రోజు</string>
+    <string name="notices_refresh_failed_short">ప్రకటనలు రిఫ్రెష్ కాలేదు</string>
+    <string name="res_exams_load_failed">పరీక్షలు లోడ్ కాలేదు</string>
+    <string name="res_results_load_failed">ఫలితాలు లోడ్ కాలేదు</string>
+    <string name="res_withheld_notice">రుసుము చెల్లించే వరకు ఫలిత పత్రాలు నిలిపివేయబడవచ్చు</string>
+    <string name="rf_load_failed_retry">హెచ్చరికలు లోడ్ కాలేదు. మళ్లీ ప్రయత్నించడానికి ట్యాప్ చేయండి.</string>
+    <string name="rf_none_subtitle">మీ పిల్లలకు ఉపాధ్యాయులు ఎటువంటి రెడ్ ఫ్లాగ్ లేవనెత్తలేదు.</string>
+    <string name="rf_none_title">రెడ్ ఫ్లాగ్‌లు లేవు</string>
+    <string name="rf_permission_denied">ఈ హెచ్చరికలు ప్రస్తుతం అందుబాటులో లేవు. లాగ్ అవుట్ చేసి మళ్లీ లాగిన్ చేసి ప్రయత్నించండి.</string>
+    <string name="rf_temporarily_unavailable">హెచ్చరికలు తాత్కాలికంగా అందుబాటులో లేవు. దయచేసి కొద్దిసేపటిలో మళ్లీ ప్రయత్నించండి.</string>
+    <string name="search_hint_long">ఇంటి పని, ప్రకటనలు, కార్యక్రమాలు, ఉపాధ్యాయులు, ఫలితాలు వెతకండి లేదా ఏదైనా విభాగానికి వెళ్లండి.</string>
+    <string name="search_placeholder_any">దేనినైనా వెతకండి…</string>
+    <string name="search_try_different">ఒక సబ్జెక్టు, ఉపాధ్యాయుడు, ప్రకటన శీర్షిక లేదా విభాగం పేరు ప్రయత్నించండి.</string>
+    <string name="splash_get_started">ప్రారంభించండి</string>
+    <string name="story_react">ఈ స్టోరీకి స్పందించండి</string>
+    <string name="tch_load_failed">ఉపాధ్యాయులు లోడ్ కాలేదు</string>
+    <string name="tch_unknown">తెలియని ఉపాధ్యాయుడు</string>
+    <string name="tt_cant_load">సమయ పట్టిక లోడ్ చేయలేము</string>
+    <string name="tt_item_calculator">కాలిక్యులేటర్</string>
+    <string name="tt_item_drawing_book">డ్రాయింగ్ బుక్</string>
+    <string name="tt_item_geometry_box">జ్యామితి బాక్స్</string>
+    <string name="tt_item_lab_coat">ల్యాబ్ కోట్</string>
+    <string name="tt_item_notebook">నోట్‌బుక్</string>
+    <string name="tt_item_shoes">బూట్లు</string>
+    <string name="tt_item_sports_kit">క్రీడా కిట్</string>
+    <string name="tt_item_textbook">పాఠ్యపుస్తకం</string>
+    <string name="tt_item_usb">USB డ్రైవ్</string>
+    <string name="tt_item_water_bottle">నీటి బాటిల్</string>
+    <string name="tt_load_failed">సమయ పట్టిక లోడ్ కాలేదు</string>
+    <string name="tt_none">సమయ పట్టిక లేదు</string>
+    <string name="tt_not_available_yet">ఈ రోజు సమయ పట్టిక ఇంకా అందుబాటులో లేదు.</string>
+
+    <string name="tt_item_atlas">అట్లాస్</string>
+    <string name="tt_item_colors">రంగులు</string>
+    <string name="tt_item_dictionary">నిఘంటువు</string>
+    <string name="tt_item_eraser">ఎరేజర్</string>
+    <string name="tt_item_pencils">పెన్సిల్స్</string>
+
+    <string name="leave_generic">సెలవు</string>
+    <string name="story_hours_ago">%1$d గం క్రితం</string>
+    <string name="story_mins_ago">%1$d నిమి క్రితం</string>
+
+</resources>

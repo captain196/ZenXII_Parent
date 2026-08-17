@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.attendance
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -81,7 +84,8 @@ data class AttendanceUiState(
 
 @HiltViewModel
 class AttendanceViewModel @Inject constructor(
-    private val attendanceFirestoreRepo: AttendanceFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val attendanceFirestoreRepo: AttendanceFirestoreRepository,
     private val tokenManager: TokenManager,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -265,7 +269,7 @@ class AttendanceViewModel @Inject constructor(
                                 it.copy(
                                     isLoading = false,
                                     isEmptyMonth = false,
-                                    errorMessage = "Couldn't load attendance. Check your connection and try again."
+                                    errorMessage = appContext.getString(R.string.att_load_failed)
                                 )
                             }
                         }
@@ -273,7 +277,7 @@ class AttendanceViewModel @Inject constructor(
                 )
             } else {
                 _uiState.update {
-                    it.copy(isLoading = false, errorMessage = "Student info not available")
+                    it.copy(isLoading = false, errorMessage = appContext.getString(R.string.att_no_student_info))
                 }
             }
         }

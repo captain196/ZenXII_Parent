@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.splash
 
+import androidx.compose.ui.platform.LocalContext
+import com.schoolsync.parent.util.LocaleManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -28,12 +31,16 @@ private val ZenXiiGreen = Color(0xFF2DB87A)
 @Composable
 fun SplashScreen(
     onNavigateToWalkthrough: () -> Unit,
+    onNavigateToLanguageSetup: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToMain: () -> Unit,
     isLoggedIn: Boolean,
     hasSeenOnboarding: Boolean
 ) {
     val colors = LocalAppColors.current
+    // Hoisted: the routing decision below runs inside a LaunchedEffect, which is
+    // not a composable scope.
+    val context = LocalContext.current
     var phase by remember { mutableIntStateOf(0) }
     // Phase 0 = initial, 1 = logo appears, 2 = text appears, 3 = tagline appears
 
@@ -96,6 +103,20 @@ fun SplashScreen(
         phase = 3  // subtitle + tagline
         delay(1000)
         when {
+            // Language is checked BEFORE isLoggedIn, deliberately.
+            //
+            // Existing users are already logged in when they update. If the
+            // login branch ran first, every one of them would go straight to
+            // the dashboard and NEVER be shown the language chooser — the whole
+            // existing user base would miss the feature, and only fresh
+            // installs would see it. Since the choice is one-time and sticky,
+            // that first exposure is the entire opportunity.
+            //
+            // It fires only while no explicit choice exists, so it is shown
+            // exactly once per install and never again — not on logout, not on
+            // relaunch. After choosing, we route back through Splash so this
+            // routing decision lives in one place.
+            !LocaleManager.hasExplicitChoice(context) -> onNavigateToLanguageSetup()
             isLoggedIn -> onNavigateToMain()
             !hasSeenOnboarding -> onNavigateToWalkthrough()
             else -> onNavigateToLogin()
@@ -169,7 +190,7 @@ fun SplashScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "SCHOOL MANAGEMENT",
+                text = stringResource(R.string.splash_school_management),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.textSecondary,
@@ -181,7 +202,7 @@ fun SplashScreen(
 
             // ── Tagline ──
             Text(
-                text = "Parent Portal",
+                text = stringResource(R.string.auth_parent_portal),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = ZenXiiGreen,

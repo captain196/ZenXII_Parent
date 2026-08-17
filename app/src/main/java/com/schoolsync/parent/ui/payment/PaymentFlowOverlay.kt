@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.payment
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue

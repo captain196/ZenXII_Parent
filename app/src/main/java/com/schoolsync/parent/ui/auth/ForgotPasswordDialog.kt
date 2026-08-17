@@ -1,5 +1,6 @@
 package com.schoolsync.parent.ui.auth
 
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -93,22 +94,28 @@ fun ForgotPasswordDialog(onDismiss: () -> Unit) {
     var studentId by remember { mutableStateOf("") }
     var state by remember { mutableStateOf<LookupState>(LookupState.Idle) }
 
+    // Hoisted: lookup() is a local function, which is not a composable scope,
+    // and fetchRecoveryContact is a plain suspend fun that needs a Context.
+    val lookupCtx = LocalContext.current
+    val errEnterId = stringResource(R.string.auth_enter_id_first)
+    val errNotStudent = stringResource(R.string.auth_not_student_account)
+
     fun lookup() {
         val id = studentId.trim()
         if (id.isEmpty()) {
-            state = LookupState.Failure("Enter your Student ID first.")
+            state = LookupState.Failure(errEnterId)
             return
         }
         // This is the Parent app — only student (STU) accounts recover here.
         // Reject obvious non-student IDs (teacher / admin / super-admin) before
         // the lookup; the server also enforces this by role.
         if (Regex("^(STA|ADM|SSA|SUP)\\d+$").matches(id.uppercase())) {
-            state = LookupState.Failure("That's not a student account. Enter your child's Student ID (e.g. STU0001).")
+            state = LookupState.Failure(errNotStudent)
             return
         }
         state = LookupState.Loading
         scope.launch {
-            state = fetchRecoveryContact(id)
+            state = fetchRecoveryContact(lookupCtx, id)
         }
     }
 
@@ -116,7 +123,7 @@ fun ForgotPasswordDialog(onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Forgot password?",
+                text = stringResource(R.string.auth_action_forgot_password),
                 style = TextStyle(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -127,8 +134,7 @@ fun ForgotPasswordDialog(onDismiss: () -> Unit) {
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Passwords can only be reset by your school's admin. " +
-                        "Enter your Student ID to see who to contact.",
+                    text = stringResource(R.string.auth_forgot_help),
                     style = TextStyle(fontSize = 13.sp, color = c.textSecondary, lineHeight = 18.sp)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -141,8 +147,8 @@ fun ForgotPasswordDialog(onDismiss: () -> Unit) {
                             state = LookupState.Idle
                         }
                     },
-                    label = { Text("Student ID", style = TextStyle(fontSize = 13.sp)) },
-                    placeholder = { Text("e.g. STU0001", style = TextStyle(fontSize = 13.sp)) },
+                    label = { Text(stringResource(R.string.auth_student_id), style = TextStyle(fontSize = 13.sp)) },
+                    placeholder = { Text(stringResource(R.string.auth_hint_student_id_example), style = TextStyle(fontSize = 13.sp)) },
                     singleLine = true,
                     enabled = state !is LookupState.Loading,
                     keyboardOptions = KeyboardOptions(
@@ -167,7 +173,7 @@ fun ForgotPasswordDialog(onDismiss: () -> Unit) {
                             )
                             Spacer(modifier = Modifier.size(8.dp))
                             Text(
-                                "Looking up your school…",
+                                stringResource(R.string.auth_looking_up_school),
                                 style = TextStyle(fontSize = 12.sp, color = c.textSecondary)
                             )
                         }
@@ -188,16 +194,16 @@ fun ForgotPasswordDialog(onDismiss: () -> Unit) {
         },
         confirmButton = {
             if (state is LookupState.Success) {
-                TextButton(onClick = onDismiss) { Text("Done") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_done)) }
             } else {
                 Button(
                     onClick = { lookup() },
                     enabled = state !is LookupState.Loading
-                ) { Text("Look up") }
+                ) { Text(stringResource(R.string.auth_action_look_up)) }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
         }
     )
 }
@@ -224,7 +230,7 @@ private fun ContactCard(contact: RecoveryContact, loginId: String) {
             )
             Spacer(Modifier.size(ROW_GAP))
             Text(
-                text = contact.schoolName.ifBlank { "Your school" },
+                text = contact.schoolName.ifBlank { stringResource(R.string.auth_your_school) },
                 style = TextStyle(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -236,20 +242,20 @@ private fun ContactCard(contact: RecoveryContact, loginId: String) {
         HorizontalDivider(thickness = 1.dp, color = c.divider)
 
         if (contact.name.isNotBlank()) {
-            ContactRow(Icons.Filled.Person, "Admin", contact.name)
+            ContactRow(Icons.Filled.Person, stringResource(R.string.field_admin), contact.name)
         }
 
         if (contact.phone.isNotBlank()) {
-            ContactRow(Icons.Filled.Phone, "Phone", contact.phone) {
-                IconActionChip(Icons.Filled.Call, "Call") { dial(context, contact.phone) }
+            ContactRow(Icons.Filled.Phone, stringResource(R.string.field_phone), contact.phone) {
+                IconActionChip(Icons.Filled.Call, stringResource(R.string.common_call)) { dial(context, contact.phone) }
                 WhatsAppChip { openWhatsApp(context, contact.phone) }
                 CopyChip { copy(clipboard, context, contact.phone) }
             }
         }
 
         if (contact.email.isNotBlank()) {
-            ContactRow(Icons.Filled.Email, "Email", contact.email) {
-                IconActionChip(Icons.Filled.Email, "Email") { sendEmail(context, contact.email, parentSubject(loginId)) }
+            ContactRow(Icons.Filled.Email, stringResource(R.string.field_email), contact.email) {
+                IconActionChip(Icons.Filled.Email, stringResource(R.string.field_email)) { sendEmail(context, contact.email, parentSubject(loginId)) }
                 CopyChip { copy(clipboard, context, contact.email) }
             }
         }
@@ -333,7 +339,7 @@ private fun WhatsAppChip(onClick: () -> Unit) {
     ) {
         Icon(
             painter = painterResource(R.drawable.ic_whatsapp),
-            contentDescription = "WhatsApp",
+            contentDescription = stringResource(R.string.field_whatsapp),
             tint = Color.Unspecified,
             modifier = Modifier.size(20.dp),
         )
@@ -351,17 +357,20 @@ private fun CopyChip(onClick: () -> Unit) {
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Filled.ContentCopy, contentDescription = "Copy", tint = c.accent, modifier = Modifier.size(15.dp))
+        Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.common_copy), tint = c.accent, modifier = Modifier.size(15.dp))
     }
 }
 
+// Not localized, deliberately: this is the SUBJECT of an email the parent
+// sends TO the school office. School staff read it, and it carries the
+// brand. Outbound correspondence stays English, like the fee receipt.
 private fun parentSubject(loginId: String) =
     "Password reset request – ZenXii Parent" + if (loginId.isNotBlank()) " – $loginId" else ""
 
 private fun dial(context: Context, number: String) {
     runCatching {
         context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))
-    }.onFailure { Toast.makeText(context, "No dialer app found.", Toast.LENGTH_SHORT).show() }
+    }.onFailure { Toast.makeText(context, context.getString(R.string.auth_error_no_dialer), Toast.LENGTH_SHORT).show() }
 }
 
 private fun openWhatsApp(context: Context, number: String) {
@@ -369,7 +378,7 @@ private fun openWhatsApp(context: Context, number: String) {
     if (digits.isEmpty()) return
     runCatching {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits")))
-    }.onFailure { Toast.makeText(context, "Couldn't open WhatsApp.", Toast.LENGTH_SHORT).show() }
+    }.onFailure { Toast.makeText(context, context.getString(R.string.auth_error_whatsapp), Toast.LENGTH_SHORT).show() }
 }
 
 private fun sendEmail(context: Context, email: String, subject: String) {
@@ -378,7 +387,7 @@ private fun sendEmail(context: Context, email: String, subject: String) {
             putExtra(Intent.EXTRA_SUBJECT, subject)
         }
         context.startActivity(intent)
-    }.onFailure { Toast.makeText(context, "No email app found.", Toast.LENGTH_SHORT).show() }
+    }.onFailure { Toast.makeText(context, context.getString(R.string.auth_error_no_email), Toast.LENGTH_SHORT).show() }
 }
 
 private fun copy(
@@ -387,10 +396,10 @@ private fun copy(
     value: String,
 ) {
     clipboard.setText(AnnotatedString(value))
-    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+    Toast.makeText(context, context.getString(R.string.common_copied), Toast.LENGTH_SHORT).show()
 }
 
-private suspend fun fetchRecoveryContact(userId: String): LookupState {
+private suspend fun fetchRecoveryContact(ctx: Context, userId: String): LookupState {
     return try {
         val result = Firebase.functions
             .getHttpsCallable("getRecoveryContact")
@@ -416,7 +425,7 @@ private suspend fun fetchRecoveryContact(userId: String): LookupState {
         }
     } catch (e: Exception) {
         LookupState.Failure(
-            "Couldn't reach the server. Check your connection and try again."
+            ctx.getString(R.string.auth_server_unreachable)
         )
     }
 }

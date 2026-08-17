@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.redflags
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -83,14 +85,14 @@ fun RedFlagScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = c.textPrimary
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Red Flags",
+                        text = stringResource(R.string.rf_title),
                         style = MaterialTheme.typography.headlineMedium,
                         color = c.textPrimary,
                         fontWeight = FontWeight.Bold
@@ -131,7 +133,7 @@ fun RedFlagScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            val filters = listOf("all" to "All", "homework" to "Homework", "behavior" to "Behavior", "performance" to "Performance")
+            val filters = listOf("all" to stringResource(R.string.common_all), "homework" to "Homework", "behavior" to "Behavior", "performance" to "Performance")
             filters.forEach { (key, label) ->
                 FilterChip(
                     selected = uiState.selectedFilter == key,
@@ -203,7 +205,7 @@ fun RedFlagScreen(
                 if (uiState.activeFlags.isNotEmpty()) {
                     item {
                         SectionHeader(
-                            title = "Active",
+                            title = stringResource(R.string.filter_active),
                             count = uiState.activeFlags.size,
                             tint = c.error
                         )
@@ -218,7 +220,7 @@ fun RedFlagScreen(
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
                         SectionHeader(
-                            title = "Resolved",
+                            title = stringResource(R.string.filter_resolved),
                             count = uiState.resolvedFlags.size,
                             tint = c.textTertiary
                         )
@@ -319,7 +321,7 @@ private fun FlagCard(flag: StudentFlag) {
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (flag.status == "active") "Active" else "Resolved",
+                        text = if (flag.status == "active") stringResource(R.string.filter_active) else stringResource(R.string.filter_resolved),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (flag.status == "active") c.error else c.textTertiary,
                         fontWeight = FontWeight.SemiBold
@@ -404,11 +406,11 @@ private fun EmptyFlagsState(selectedFilter: String, hasAnyFlags: Boolean) {
     // old copy always said "no flags at all", which is false (and falsely
     // reassuring) when a type filter simply has no matches.
     val filtering = selectedFilter != "all" && hasAnyFlags
-    val title = if (filtering) "Nothing here" else "No Red Flags"
+    val title = if (filtering) stringResource(R.string.hw_nothing_here) else stringResource(R.string.rf_none_title)
     val body = if (filtering) {
         "No ${selectedFilter} flags for your child. Tap “All” to see every alert."
     } else {
-        "No red flags raised by teachers for your child."
+        stringResource(R.string.rf_none_subtitle)
     }
     Box(
         modifier = Modifier
@@ -458,7 +460,7 @@ private fun ErrorFlagsState(message: String, onRetry: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Couldn't load alerts",
+                text = stringResource(R.string.rf_load_failed),
                 style = MaterialTheme.typography.titleLarge,
                 color = c.textSecondary
             )
@@ -480,7 +482,7 @@ private fun ErrorFlagsState(message: String, onRetry: () -> Unit) {
             ) {
                 Icon(Icons.Filled.Refresh, contentDescription = null, tint = c.accent, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Retry", color = c.accent, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.action_retry), color = c.accent, fontWeight = FontWeight.Bold)
             }
         }
     }

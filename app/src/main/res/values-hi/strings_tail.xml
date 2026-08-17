@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- हिन्दी · Hindi
+     W6 — long tail. Leave-type labels here are the DISPLAY side of the
+     "CL"/"SL"/"EL" code map; the codes are the wire values and are
+     untouched. Timetable carry-item VALUES are display; the `when`
+     subject KEYS ("maths", "science") stay English. -->
+<resources>
+    <string name="events_detail_load_failed">कार्यक्रम विवरण लोड नहीं हो सका</string>
+    <string name="events_details">कार्यक्रम विवरण</string>
+    <string name="events_photo">कार्यक्रम की तस्वीर</string>
+    <string name="events_view_photos">तस्वीरें देखें</string>
+    <string name="exam_datesheet_soon">विद्यालय द्वारा प्रकाशित करने पर डेट-शीट यहाँ दिखाई देगी।</string>
+    <string name="gal_album_load_failed_plain">एल्बम लोड नहीं हो सका</string>
+    <string name="gal_load_failed_plain">गैलरी लोड नहीं हो सकी</string>
+    <string name="gal_photo">गैलरी की तस्वीर</string>
+    <string name="leave_cancel_application">आवेदन रद्द करें</string>
+    <string name="leave_select_date">तिथि चुनें</string>
+    <string name="leave_type_casual">आकस्मिक छुट्टी</string>
+    <string name="leave_type_emergency">आपातकालीन छुट्टी</string>
+    <string name="leave_type_sick">बीमारी की छुट्टी</string>
+    <string name="lessons_load_failed">पाठ लोड नहीं हो सके</string>
+    <string name="lessons_next_day">अगला दिन</string>
+    <string name="lessons_prev_day">पिछला दिन</string>
+    <string name="notices_refresh_failed_short">सूचनाएँ रिफ़्रेश नहीं हो सकीं</string>
+    <string name="res_exams_load_failed">परीक्षाएँ लोड नहीं हो सकीं</string>
+    <string name="res_results_load_failed">परिणाम लोड नहीं हो सके</string>
+    <string name="res_withheld_notice">शुल्क चुकाने तक परिणाम पत्र रोके जा सकते हैं</string>
+    <string name="rf_load_failed_retry">अलर्ट लोड नहीं हो सके। पुनः प्रयास के लिए टैप करें।</string>
+    <string name="rf_none_subtitle">आपके बच्चे के लिए शिक्षकों ने कोई रेड फ्लैग नहीं उठाया।</string>
+    <string name="rf_none_title">कोई रेड फ्लैग नहीं</string>
+    <string name="rf_permission_denied">ये अलर्ट अभी उपलब्ध नहीं हैं। लॉग आउट करके फिर लॉगिन करें, फिर पुनः प्रयास करें।</string>
+    <string name="rf_temporarily_unavailable">अलर्ट अस्थायी रूप से अनुपलब्ध हैं। कृपया थोड़ी देर में पुनः प्रयास करें।</string>
+    <string name="search_hint_long">गृहकार्य, सूचनाएँ, कार्यक्रम, शिक्षक, परिणाम खोजें, या किसी भी अनुभाग पर जाएँ।</string>
+    <string name="search_placeholder_any">कुछ भी खोजें…</string>
+    <string name="search_try_different">कोई विषय, शिक्षक, सूचना शीर्षक, या सेक्शन नाम आज़माएँ।</string>
+    <string name="splash_get_started">शुरू करें</string>
+    <string name="story_react">इस स्टोरी पर प्रतिक्रिया दें</string>
+    <string name="tch_load_failed">शिक्षक लोड नहीं हो सके</string>
+    <string name="tch_unknown">अज्ञात शिक्षक</string>
+    <string name="tt_cant_load">समय सारणी लोड नहीं कर सकते</string>
+    <string name="tt_item_calculator">कैलकुलेटर</string>
+    <string name="tt_item_drawing_book">ड्रॉइंग बुक</string>
+    <string name="tt_item_geometry_box">ज्यामिति बॉक्स</string>
+    <string name="tt_item_lab_coat">लैब कोट</string>
+    <string name="tt_item_notebook">कॉपी</string>
+    <string name="tt_item_shoes">जूते</string>
+    <string name="tt_item_sports_kit">खेल किट</string>
+    <string name="tt_item_textbook">पाठ्यपुस्तक</string>
+    <string name="tt_item_usb">USB ड्राइव</string>
+    <string name="tt_item_water_bottle">पानी की बोतल</string>
+    <string name="tt_load_failed">समय सारणी लोड नहीं हो सकी</string>
+    <string name="tt_none">कोई समय सारणी नहीं</string>
+    <string name="tt_not_available_yet">इस दिन की समय सारणी अभी उपलब्ध नहीं है।</string>
+
+    <string name="tt_item_atlas">एटलस</string>
+    <string name="tt_item_colors">रंग</string>
+    <string name="tt_item_dictionary">शब्दकोश</string>
+    <string name="tt_item_eraser">रबर</string>
+    <string name="tt_item_pencils">पेंसिल</string>
+
+    <string name="leave_generic">छुट्टी</string>
+    <string name="story_hours_ago">%1$d घं पहले</string>
+    <string name="story_mins_ago">%1$d मि पहले</string>
+
+</resources>

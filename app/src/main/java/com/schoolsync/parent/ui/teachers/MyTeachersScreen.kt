@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.teachers
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -85,7 +87,7 @@ fun MyTeachersScreen(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = c.textPrimary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -93,13 +95,13 @@ fun MyTeachersScreen(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "My Teachers",
+                    text = stringResource(R.string.tch_title),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = c.textPrimary,
                 )
                 Text(
-                    text = "Class teacher and subject teachers for your child",
+                    text = stringResource(R.string.tch_subtitle),
                     fontSize = 11.sp,
                     color = c.textSecondary,
                 )
@@ -241,7 +243,7 @@ private fun TeacherCard(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Chat,
-                            contentDescription = "Message ${row.name}",
+                            contentDescription = stringResource(R.string.tch_message_name, row.name),
                             tint = c.accent,
                             modifier = Modifier.size(20.dp),
                         )
@@ -266,7 +268,7 @@ private fun TeacherCard(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Call,
-                            contentDescription = "Call ${row.name}",
+                            contentDescription = stringResource(R.string.tch_call_name, row.name),
                             tint = c.success,
                             modifier = Modifier.size(20.dp),
                         )
@@ -319,7 +321,7 @@ private fun ClassTeacherBadge() {
             .padding(horizontal = 6.dp, vertical = 2.dp),
     ) {
         Text(
-            text = "Class Teacher",
+            text = stringResource(R.string.tch_class_teacher),
             color = c.success,
             fontSize = 9.sp,
             fontWeight = FontWeight.SemiBold,
@@ -343,14 +345,14 @@ private fun EmptyTeachersState() {
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            text = "No teachers assigned yet",
+            text = stringResource(R.string.tch_none),
             color = c.textSecondary,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "Once your school assigns teachers to your child's class, they'll appear here.",
+            text = stringResource(R.string.tch_none_subtitle),
             color = c.textTertiary,
             fontSize = 11.sp,
             textAlign = TextAlign.Center,

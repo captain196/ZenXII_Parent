@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.gallery
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -86,12 +88,12 @@ fun GalleryScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = c.textPrimary
                 )
             }
             Text(
-                text = "Gallery",
+                text = stringResource(R.string.drawer_gallery),
                 style = MaterialTheme.typography.headlineMedium,
                 color = c.textPrimary,
                 fontWeight = FontWeight.Bold
@@ -132,13 +134,13 @@ fun GalleryScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Couldn't load gallery",
+                                text = stringResource(R.string.gal_load_failed),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = c.textSecondary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Something went wrong loading photos. Please try again.",
+                                text = stringResource(R.string.gal_error_generic),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = c.textTertiary,
                                 textAlign = TextAlign.Center
@@ -160,7 +162,7 @@ fun GalleryScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Retry",
+                                    text = stringResource(R.string.action_retry),
                                     style = TextStyle(
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.SemiBold,
@@ -188,13 +190,13 @@ fun GalleryScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "No Photos Yet",
+                                text = stringResource(R.string.gal_empty_title),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = c.textSecondary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "School photos and event galleries will appear here.",
+                                text = stringResource(R.string.gal_empty_subtitle),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = c.textTertiary,
                                 textAlign = TextAlign.Center
@@ -404,7 +406,7 @@ private fun AlbumCard(
                         )
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = "Event",
+                            text = stringResource(R.string.filter_event),
                             style = TextStyle(
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.SemiBold,

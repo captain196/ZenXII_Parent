@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.lessons
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -79,11 +81,11 @@ fun MyLessonsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = c.textPrimary)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.cd_back), tint = c.textPrimary)
             }
             Spacer(Modifier.width(4.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("My Child's Lessons", color = c.textPrimary,
+                Text(stringResource(R.string.lessons_title), color = c.textPrimary,
                     fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                 if (state.className.isNotBlank()) {
                     Text("${state.className} · ${state.section}",
@@ -124,7 +126,7 @@ fun MyLessonsScreen(
                     Icon(Icons.Filled.EventNote, null, tint = c.textTertiary,
                         modifier = Modifier.size(40.dp))
                     Spacer(Modifier.height(8.dp))
-                    Text("No lessons recorded for this day yet",
+                    Text(stringResource(R.string.lessons_none),
                         color = c.textSecondary, fontSize = 13.sp)
                 }
             }
@@ -160,14 +162,14 @@ private fun DateScrubber(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onPrev) {
-            Icon(Icons.Filled.ChevronLeft, "Previous day", tint = c.textPrimary)
+            Icon(Icons.Filled.ChevronLeft, stringResource(R.string.lessons_prev_day), tint = c.textPrimary)
         }
         Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(dayLabel, color = c.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             Text(isoDate, color = c.textTertiary, fontSize = 10.sp)
         }
         IconButton(onClick = onNext) {
-            Icon(Icons.Filled.ChevronRight, "Next day", tint = c.textPrimary)
+            Icon(Icons.Filled.ChevronRight, stringResource(R.string.lessons_next_day), tint = c.textPrimary)
         }
     }
 }
@@ -258,7 +260,7 @@ private fun LessonCard(lesson: LessonPlanDoc) {
             color = c.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold
         )
         if (lesson.teacherName.isNotBlank()) {
-            Text("by ${lesson.teacherName}", color = c.textSecondary, fontSize = 12.sp)
+            Text(stringResource(R.string.lessons_by_teacher_fmt, lesson.teacherName), color = c.textSecondary, fontSize = 12.sp)
         }
         if (lesson.topicTitle.isNotBlank()) {
             Spacer(Modifier.height(8.dp))
@@ -272,7 +274,7 @@ private fun LessonCard(lesson: LessonPlanDoc) {
         }
         if (lesson.status == "rescheduled" && lesson.rescheduledTo.isNotBlank()) {
             Spacer(Modifier.height(6.dp))
-            Text("Rescheduled to ${formatRescheduleTarget(lesson.rescheduledTo)}",
+            Text(stringResource(R.string.lessons_rescheduled_fmt, formatRescheduleTarget(lesson.rescheduledTo)),
                 color = c.warning, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
     }

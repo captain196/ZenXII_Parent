@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English (source)
+     W7 — shared single-word UI labels (Back/Cancel/Retry/field names).
+     These were missed by an earlier heuristic that ignored single words;
+     several are reused on 20+ screens, hence common_*. -->
+<resources>
+    <string name="common_all">All</string>
+    <string name="common_call">Call</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_copied">Copied</string>
+    <string name="common_copy">Copy</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_dismiss">Dismiss</string>
+    <string name="common_done">Done</string>
+    <string name="common_download">Download</string>
+    <string name="common_keep">Keep</string>
+    <string name="common_message">Message</string>
+    <string name="common_ok">OK</string>
+    <string name="common_open">Open</string>
+    <string name="common_save">Save</string>
+    <string name="common_search">Search</string>
+    <string name="common_share">Share</string>
+    <string name="common_skip">Skip</string>
+    <string name="common_submit">Submit</string>
+    <string name="fees_module_hostel">Hostel</string>
+    <string name="fees_module_library">Library</string>
+    <string name="fees_module_transport">Transport</string>
+    <string name="fees_scholarship">Scholarship</string>
+    <string name="field_admin">Admin</string>
+    <string name="field_date">Date</string>
+    <string name="field_day">Day</string>
+    <string name="field_description">Description</string>
+    <string name="field_discount">Discount</string>
+    <string name="field_email">Email</string>
+    <string name="field_fine">Fine</string>
+    <string name="field_from">From</string>
+    <string name="field_gender">Gender</string>
+    <string name="field_grade">Grade</string>
+    <string name="field_location">Location</string>
+    <string name="field_marks">Marks</string>
+    <string name="field_media">Media</string>
+    <string name="field_organizer">Organizer</string>
+    <string name="field_password">Password</string>
+    <string name="field_percentage">Percentage</string>
+    <string name="field_phone">Phone</string>
+    <string name="field_rank">Rank</string>
+    <string name="field_reason">Reason</string>
+    <string name="field_remarks">Remarks</string>
+    <string name="field_room">Room</string>
+    <string name="field_school">School</string>
+    <string name="field_score">Score</string>
+    <string name="field_session">Session</string>
+    <string name="field_student_caps">STUDENT</string>
+    <string name="field_teacher">Teacher</string>
+    <string name="field_time">Time</string>
+    <string name="field_to">To</string>
+    <string name="field_whatsapp">WhatsApp</string>
+    <string name="filter_active">Active</string>
+    <string name="filter_event">Event</string>
+    <string name="filter_next">NEXT</string>
+    <string name="filter_past">Past</string>
+    <string name="filter_pending">Pending</string>
+    <string name="filter_resolved">Resolved</string>
+    <string name="filter_upcoming">Upcoming</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_stories">Stories</string>
+    <string name="section_about">About</string>
+    <string name="section_appearance">Appearance</string>
+    <string name="section_attendance_caps">ATTENDANCE</string>
+    <string name="section_highlights">Highlights</string>
+    <string name="section_instructions">INSTRUCTIONS</string>
+    <string name="section_notifications">Notifications</string>
+    <string name="section_overview">Overview</string>
+    <string name="section_submission">SUBMISSION</string>
+
+    <plurals name="fees_unreturned_books">
+        <item quantity="one">%d unreturned book</item>
+        <item quantity="other">%d unreturned books</item>
+    </plurals>
+
+    <string name="attendance_status_vacation">Vacation</string>
+    <string name="dash_today_status_fmt">Today: %1$s</string>
+
+    <string name="hw_tab_graded">Graded</string>
+    <string name="hw_tab_incomplete">Incomplete</string>
+    <string name="hw_tab_submitted">Submitted</string>
+
+    <string name="lang_setup_continue">Continue</string>
+    <string name="lang_setup_subtitle">You can change this anytime in Profile</string>
+    <string name="lang_setup_title">Choose your language</string>
+    <string name="lang_sheet_title">Language</string>
+
+    <!-- Shown UNDER the localized title on the first-run language screen.
+         Always Hindi, never translated: at that moment the app is still in
+         the device locale (usually English on Indian handsets), so this is
+         the second-chance line for a user who cannot read it. -->
+    <string name="lang_setup_title_alt" translatable="false">अपनी भाषा चुनें</string>
+</resources>

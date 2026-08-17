@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.redflags
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -36,7 +39,8 @@ data class RedFlagUiState(
 
 @HiltViewModel
 class RedFlagViewModel @Inject constructor(
-    private val redFlagRepository: RedFlagRepository,
+    
+    @ApplicationContext private val appContext: Context,private val redFlagRepository: RedFlagRepository,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
@@ -116,13 +120,13 @@ class RedFlagViewModel @Inject constructor(
         val msg = e.message ?: ""
         return when {
             msg.contains("PERMISSION_DENIED", ignoreCase = true) ->
-                "These alerts aren't available right now. Log out and back in, then try again."
+                appContext.getString(R.string.rf_permission_denied)
             msg.contains("FAILED_PRECONDITION", ignoreCase = true) ||
                 msg.contains("requires an index", ignoreCase = true) ->
-                "Alerts are temporarily unavailable. Please try again shortly."
+                appContext.getString(R.string.rf_temporarily_unavailable)
             msg.contains("UNAVAILABLE", ignoreCase = true) || msg.contains("network", ignoreCase = true) ->
-                "Network problem — check your connection and try again."
-            else -> "Couldn't load alerts. Tap to retry."
+                appContext.getString(R.string.hw_network_problem)
+            else -> appContext.getString(R.string.rf_load_failed_retry)
         }
     }
 

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- తెలుగు · Telugu
+     W2 — fees + payment. Terminology per tools/i18n/glossary.md.
+     "Razorpay" is a brand and is never translated.
+     NOT here, deliberately: "Yearly Fees" and the status values compared
+     in FeesViewModel/FeesScreen — those are wire values. Only their
+     rendered labels appear below. -->
+<resources>
+    <string name="fees_all_clear">అన్నీ క్లియర్</string>
+    <string name="fees_annual_fee">వార్షిక రుసుము</string>
+    <string name="fees_awarded_session">ప్రస్తుత విద్యా సంవత్సరానికి ఇవ్వబడింది</string>
+    <string name="fees_badge_full">పూర్తి చెల్లింపు</string>
+    <string name="fees_badge_partial">పాక్షిక చెల్లింపు</string>
+    <string name="fees_badge_refund">రీఫండ్ ప్రాసెస్ అయింది</string>
+    <string name="fees_blocked_warning">ఫలితాలు, TC మరియు హాల్-టికెట్ నిలిపివేయబడవచ్చు</string>
+    <string name="fees_breakdown_header">రుసుము వివరాలు</string>
+    <string name="fees_cancel_anytime">చెల్లింపు పూర్తి చేసే ముందు ఎప్పుడైనా రద్దు చేయవచ్చు.</string>
+    <string name="fees_cancelled_no_deduction">మీరు చెల్లింపును రద్దు చేశారు. ఎటువంటి మొత్తం తీసివేయబడలేదు.</string>
+    <string name="fees_clearance_unavailable">క్లియరెన్స్ స్థితి అందుబాటులో లేదు</string>
+    <string name="fees_cleared_this_receipt">ఈ రసీదులో క్లియర్ అయింది</string>
+    <string name="fees_create_order_failed">చెల్లింపు ఆర్డర్ సృష్టించడం విఫలమైంది.</string>
+    <string name="fees_creating_order">ఆర్డర్ సృష్టిస్తోంది…</string>
+    <string name="fees_discounts_header">తగ్గింపులు &amp; సర్దుబాట్లు</string>
+    <string name="fees_dues_pending">బకాయిలు పెండింగ్</string>
+    <string name="fees_enter_amount">మొత్తం నమోదు చేయండి</string>
+    <string name="fees_failed_no_deduction">చెల్లింపు ప్రాసెస్‌లో లోపం జరిగింది. ఎటువంటి మొత్తం తీసివేయబడలేదు.</string>
+    <string name="fees_fee_structure">రుసుము నిర్మాణం</string>
+    <string name="fees_load_failed_refresh">రుసుము వివరాలు లోడ్ కాలేదు. రిఫ్రెష్ చేయడానికి కిందకి లాగండి.</string>
+    <string name="fees_need_concession">రుసుము రాయితీ కావాలా?</string>
+    <string name="fees_no_discounts">తగ్గింపులు లేదా సర్దుబాట్లు లేవు</string>
+    <string name="fees_no_history">చెల్లింపు చరిత్ర కనుగొనబడలేదు</string>
+    <string name="fees_no_module_fees">మాడ్యూల్ రుసుము వర్తించదు</string>
+    <string name="fees_not_paid_this_receipt">ఈ రసీదులో చెల్లించలేదు</string>
+    <string name="fees_one_time_due">ఒకసారి · చెల్లించాలి</string>
+    <string name="fees_opening_checkout">చెక్అవుట్ తెరుస్తోంది…</string>
+    <string name="fees_paid_for">దేనికి చెల్లించారు</string>
+    <string name="fees_partial_applied">ఈ రసీదులో పాక్షికంగా వర్తింపజేయబడింది</string>
+    <string name="fees_partial_no_balance">ఈ రసీదులో పాక్షికంగా వర్తింపజేయబడింది — మిగులు లేదు</string>
+    <string name="fees_partially_paid">పాక్షికంగా చెల్లించారు</string>
+    <string name="fees_pay_custom">మీ మొత్తం చెల్లించండి</string>
+    <string name="fees_pay_full_year">పూర్తి సంవత్సరం చెల్లించండి</string>
+    <string name="fees_pay_full_year_q">పూర్తి సంవత్సరం చెల్లించాలా?</string>
+    <string name="fees_pay_selected">ఎంచుకున్నవి చెల్లించండి</string>
+    <string name="fees_paying_now">ఇప్పుడు చెల్లిస్తున్నారు</string>
+    <string name="fees_payment_cancelled">చెల్లింపు రద్దు</string>
+    <string name="fees_payment_failed">చెల్లింపు విఫలమైంది</string>
+    <string name="fees_pending_dues">పెండింగ్ బకాయిలు</string>
+    <string name="fees_processing">ప్రాసెస్ అవుతోంది</string>
+    <string name="fees_receipt_info">రసీదు సమాచారం</string>
+    <string name="fees_receipt_load_failed">రసీదు లోడ్ కాలేదు.</string>
+    <string name="fees_receipt_payment">చెల్లింపు రసీదు</string>
+    <string name="fees_receipt_refund">రీఫండ్ రసీదు</string>
+    <string name="fees_refund_load_failed">రీఫండ్ లోడ్ కాలేదు.</string>
+    <string name="fees_remaining_due">మిగిలిన బకాయి</string>
+    <string name="fees_reopening_checkout">చెక్అవుట్ మళ్లీ తెరుస్తోంది…</string>
+    <string name="fees_rolled_over">గత విద్యా సంవత్సరం నుండి బదిలీ అయిన బకాయి రుసుము</string>
+    <string name="fees_start_payment_failed">చెల్లింపు ప్రారంభించలేకపోయాము. దయచేసి కొద్దిసేపటిలో మళ్లీ ప్రయత్నించండి.</string>
+    <string name="fees_status_due">చెల్లించాలి</string>
+    <string name="fees_status_paid">చెల్లించారు</string>
+    <string name="fees_structure_unavailable">రుసుము నిర్మాణం అందుబాటులో లేదు</string>
+    <string name="fees_total_paid">మొత్తం చెల్లించినది</string>
+    <string name="fees_verified_by_school">పాఠశాల ద్వారా ధృవీకరించి నమోదు చేయబడింది</string>
+    <string name="fees_yes_pay_full_year">అవును, పూర్తి సంవత్సరం చెల్లించండి</string>
+    <string name="pay_already_paid">ఇప్పటికే చెల్లించారు</string>
+    <string name="pay_already_verified">ఈ చెల్లింపు ఇప్పటికే ధృవీకరించబడింది.</string>
+    <string name="pay_balance_remaining">కొంత బ్యాలెన్స్ ఇంకా మిగిలి ఉంది.</string>
+    <string name="pay_confirmed_razorpay">Razorpay ధృవీకరించింది</string>
+    <string name="pay_dont_close">దయచేసి యాప్ మూసివేయవద్దు</string>
+    <string name="pay_fees_cleared">రుసుము క్లియర్ అయింది</string>
+    <string name="pay_partial_received">పాక్షిక చెల్లింపు స్వీకరించబడింది</string>
+    <string name="pay_processing">మీ చెల్లింపు ప్రాసెస్ అవుతోంది</string>
+    <string name="pay_receipt_preparing">పాఠశాల రసీదు సిద్ధం చేస్తోంది. మీరు ఈ స్క్రీన్‌ను సురక్షితంగా మూసివేయవచ్చు.</string>
+    <string name="pay_recording_securely">మీ చెల్లింపు సురక్షితంగా నమోదు అవుతోంది</string>
+    <string name="pay_secured_by_razorpay">Razorpay ద్వారా భద్రపరచబడింది</string>
+    <string name="pay_securing">మీ లావాదేవీ భద్రపరుస్తోంది</string>
+    <string name="pay_still_working">నేపథ్యంలో ఇంకా పని జరుగుతోంది</string>
+    <string name="pay_successful">చెల్లింపు విజయవంతం</string>
+    <string name="pay_updating">రుసుము మరియు రసీదు నవీకరిస్తోంది</string>
+    <string name="pay_view_receipt">రసీదు చూడండి</string>
+
+    <plurals name="fees_overdue_days">
+        <item quantity="one">%d రోజు ఆలస్యం</item>
+        <item quantity="other">%d రోజుల ఆలస్యం</item>
+    </plurals>
+
+    <string name="fees_tab_discounts">తగ్గింపులు</string>
+    <string name="fees_tab_payments">చెల్లింపులు</string>
+
+</resources>

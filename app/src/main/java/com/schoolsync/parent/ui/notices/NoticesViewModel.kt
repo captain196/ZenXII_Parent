@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.notices
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -29,7 +32,8 @@ data class NoticesUiState(
 
 @HiltViewModel
 class NoticesViewModel @Inject constructor(
-    private val communicationFirestoreRepo: CommunicationFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val communicationFirestoreRepo: CommunicationFirestoreRepository,
     private val badgeBus: com.schoolsync.parent.util.BadgeBus,
 ) : ViewModel() {
 
@@ -73,7 +77,7 @@ class NoticesViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: "Couldn't refresh notices"
+                            errorMessage = e.message ?: appContext.getString(R.string.notices_refresh_failed_short)
                         )
                     }
                 }

@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.gallery
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.model.GalleryAlbum
@@ -39,7 +42,8 @@ data class AlbumDetailUiState(
 
 @HiltViewModel
 class GalleryViewModel @Inject constructor(
-    private val galleryRepository: GalleryFirestoreRepository
+    
+    @ApplicationContext private val appContext: Context,private val galleryRepository: GalleryFirestoreRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GalleryUiState())
@@ -73,7 +77,7 @@ class GalleryViewModel @Inject constructor(
                     onFailure = { e ->
                         android.util.Log.e("GalleryVM", "observeAlbums failed", e)
                         _uiState.update {
-                            it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load gallery")
+                            it.copy(isLoading = false, errorMessage = e.message ?: appContext.getString(R.string.gal_load_failed_plain))
                         }
                     }
                 )
@@ -98,7 +102,7 @@ class GalleryViewModel @Inject constructor(
                 onFailure = { e ->
                     android.util.Log.e("GalleryVM", "loadAlbumDetail failed", e)
                     _detailState.update {
-                        it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load album")
+                        it.copy(isLoading = false, errorMessage = e.message ?: appContext.getString(R.string.gal_album_load_failed_plain))
                     }
                 }
             )

@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.payment
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -151,7 +153,7 @@ fun PaymentVerifyScreen(
             Spacer(modifier = Modifier.height(36.dp))
 
             Text(
-                "Processing your payment",
+                stringResource(R.string.pay_processing),
                 style = MaterialTheme.typography.headlineSmall,
                 color = c.textPrimary,
                 fontWeight = FontWeight.SemiBold,
@@ -159,7 +161,7 @@ fun PaymentVerifyScreen(
             )
             Spacer(modifier = Modifier.height(6.dp))
             val monthsLabel = when {
-                months.isEmpty() -> "Securely recording your payment"
+                months.isEmpty() -> stringResource(R.string.pay_recording_securely)
                 months.size == 1 -> "${months.first()} fee"
                 else -> months.joinToString(", ") + " fees"
             }
@@ -185,22 +187,22 @@ fun PaymentVerifyScreen(
                     .padding(horizontal = 18.dp, vertical = 14.dp)
             ) {
                 StepRow(
-                    title = "Payment captured",
-                    subtitle = "Confirmed by Razorpay",
+                    title = stringResource(R.string.pay_captured),
+                    subtitle = stringResource(R.string.pay_confirmed_razorpay),
                     state = step1,
                     showConnector = true,
                     connectorActive = true
                 )
                 StepRow(
-                    title = "Verifying with school server",
-                    subtitle = "Securing your transaction",
+                    title = stringResource(R.string.pay_verifying),
+                    subtitle = stringResource(R.string.pay_securing),
                     state = step2,
                     showConnector = true,
                     connectorActive = step2 == StepState.Done
                 )
                 StepRow(
-                    title = "Recording in school records",
-                    subtitle = "Updating fees and receipt",
+                    title = stringResource(R.string.pay_recording_securely),
+                    subtitle = stringResource(R.string.pay_updating),
                     state = step3,
                     showConnector = false
                 )
@@ -219,7 +221,7 @@ fun PaymentVerifyScreen(
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        "Please don't close the app",
+                        stringResource(R.string.pay_dont_close),
                         style = MaterialTheme.typography.labelMedium,
                         color = c.warning,
                         fontWeight = FontWeight.Medium
@@ -232,7 +234,7 @@ fun PaymentVerifyScreen(
                 // 10s, that back actually works.
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        "Still working in the background",
+                        stringResource(R.string.pay_still_working),
                         style = MaterialTheme.typography.labelLarge,
                         color = c.textPrimary,
                         fontWeight = FontWeight.SemiBold
@@ -265,7 +267,7 @@ fun PaymentVerifyScreen(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    "Secured by Razorpay",
+                    stringResource(R.string.pay_secured_by_razorpay),
                     style = MaterialTheme.typography.labelSmall,
                     color = c.textTertiary
                 )

@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.exams
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,13 +65,13 @@ fun ExamScheduleScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = TextPrimary
                 )
             }
             Column {
                 Text(
-                    text = "Exam Schedule",
+                    text = stringResource(R.string.exam_schedule_title),
                     style = MaterialTheme.typography.headlineMedium,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
@@ -100,15 +102,15 @@ fun ExamScheduleScreen(
 
                 uiState.errorMessage != null -> {
                     EmptyScheduleState(
-                        title = "Couldn't load schedule",
+                        title = stringResource(R.string.exam_schedule_load_failed),
                         subtitle = uiState.errorMessage ?: ""
                     )
                 }
 
                 uiState.noExam || uiState.subjects.isEmpty() -> {
                     EmptyScheduleState(
-                        title = "No Exam Schedule",
-                        subtitle = "The date-sheet will appear here once the school publishes it."
+                        title = stringResource(R.string.exam_schedule_empty),
+                        subtitle = stringResource(R.string.exam_datesheet_soon)
                     )
                 }
 
@@ -150,7 +152,7 @@ private fun ExamSubjectRow(subject: ExamSubjectScheduleDoc) {
             )
             if (subject.maxTotal > 0) {
                 Text(
-                    text = "Max ${subject.maxTotal.toInt()}",
+                    text = stringResource(R.string.exam_max_fmt, subject.maxTotal.toInt()),
                     style = MaterialTheme.typography.labelMedium,
                     color = TextSecondary
                 )
@@ -176,7 +178,7 @@ private fun ExamSubjectRow(subject: ExamSubjectScheduleDoc) {
         // Room
         if (subject.room.isNotBlank()) {
             Spacer(modifier = Modifier.height(4.dp))
-            ScheduleMetaRow(icon = Icons.Filled.MeetingRoom, text = "Room ${subject.room}")
+            ScheduleMetaRow(icon = Icons.Filled.MeetingRoom, text = stringResource(R.string.exam_room_fmt, subject.room))
         }
     }
 }

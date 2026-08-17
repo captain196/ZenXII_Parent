@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- తెలుగు · Telugu
+     W7 — shared single-word UI labels (Back/Cancel/Retry/field names).
+     These were missed by an earlier heuristic that ignored single words;
+     several are reused on 20+ screens, hence common_*. -->
+<resources>
+    <string name="common_all">అన్నీ</string>
+    <string name="common_call">కాల్</string>
+    <string name="common_cancel">రద్దు</string>
+    <string name="common_copied">కాపీ చేయబడింది</string>
+    <string name="common_copy">కాపీ చేయండి</string>
+    <string name="common_delete">తొలగించండి</string>
+    <string name="common_dismiss">తీసివేయండి</string>
+    <string name="common_done">పూర్తయింది</string>
+    <string name="common_download">డౌన్‌లోడ్</string>
+    <string name="common_keep">ఉంచండి</string>
+    <string name="common_message">సందేశం</string>
+    <string name="common_ok">సరే</string>
+    <string name="common_open">తెరవండి</string>
+    <string name="common_save">సేవ్ చేయండి</string>
+    <string name="common_search">వెతకండి</string>
+    <string name="common_share">షేర్ చేయండి</string>
+    <string name="common_skip">దాటవేయండి</string>
+    <string name="common_submit">సమర్పించండి</string>
+    <string name="fees_module_hostel">వసతి గృహం</string>
+    <string name="fees_module_library">గ్రంథాలయం</string>
+    <string name="fees_module_transport">రవాణా</string>
+    <string name="fees_scholarship">స్కాలర్‌షిప్</string>
+    <string name="field_admin">నిర్వాహకుడు</string>
+    <string name="field_date">తేదీ</string>
+    <string name="field_day">రోజు</string>
+    <string name="field_description">వివరణ</string>
+    <string name="field_discount">తగ్గింపు</string>
+    <string name="field_email">ఇమెయిల్</string>
+    <string name="field_fine">జరిమానా</string>
+    <string name="field_from">నుండి</string>
+    <string name="field_gender">లింగం</string>
+    <string name="field_grade">గ్రేడ్</string>
+    <string name="field_location">ప్రదేశం</string>
+    <string name="field_marks">మార్కులు</string>
+    <string name="field_media">మీడియా</string>
+    <string name="field_organizer">నిర్వాహకుడు</string>
+    <string name="field_password">పాస్‌వర్డ్</string>
+    <string name="field_percentage">శాతం</string>
+    <string name="field_phone">ఫోన్</string>
+    <string name="field_rank">ర్యాంక్</string>
+    <string name="field_reason">కారణం</string>
+    <string name="field_remarks">వ్యాఖ్యలు</string>
+    <string name="field_room">గది</string>
+    <string name="field_school">పాఠశాల</string>
+    <string name="field_score">స్కోర్</string>
+    <string name="field_session">విద్యా సంవత్సరం</string>
+    <string name="field_student_caps">విద్యార్థి</string>
+    <string name="field_teacher">ఉపాధ్యాయుడు</string>
+    <string name="field_time">సమయం</string>
+    <string name="field_to">వరకు</string>
+    <string name="field_whatsapp">WhatsApp</string>
+    <string name="filter_active">క్రియాశీల</string>
+    <string name="filter_event">కార్యక్రమం</string>
+    <string name="filter_next">తదుపరి</string>
+    <string name="filter_past">గతం</string>
+    <string name="filter_pending">పెండింగ్</string>
+    <string name="filter_resolved">పరిష్కరించబడింది</string>
+    <string name="filter_upcoming">రాబోయే</string>
+    <string name="nav_home">హోమ్</string>
+    <string name="nav_stories">స్టోరీ</string>
+    <string name="section_about">గురించి</string>
+    <string name="section_appearance">రూపం</string>
+    <string name="section_attendance_caps">హాజరు</string>
+    <string name="section_highlights">ముఖ్యాంశాలు</string>
+    <string name="section_instructions">సూచనలు</string>
+    <string name="section_notifications">నోటిఫికేషన్‌లు</string>
+    <string name="section_overview">అవలోకనం</string>
+    <string name="section_submission">సమర్పణ</string>
+
+    <plurals name="fees_unreturned_books">
+        <item quantity="one">%d పుస్తకం తిరిగి రాలేదు</item>
+        <item quantity="other">%d పుస్తకాలు తిరిగి రాలేదు</item>
+    </plurals>
+
+    <string name="attendance_status_vacation">సెలవు</string>
+    <string name="dash_today_status_fmt">ఈరోజు: %1$s</string>
+
+    <string name="hw_tab_graded">మూల్యాంకనం చేయబడింది</string>
+    <string name="hw_tab_incomplete">అసంపూర్ణం</string>
+    <string name="hw_tab_submitted">సమర్పించారు</string>
+
+    <string name="lang_setup_continue">కొనసాగించండి</string>
+    <string name="lang_setup_subtitle">దీన్ని ప్రొఫైల్‌లో ఎప్పుడైనా మార్చవచ్చు</string>
+    <string name="lang_setup_title">మీ భాషను ఎంచుకోండి</string>
+    <string name="lang_sheet_title">భాష</string>
+
+</resources>

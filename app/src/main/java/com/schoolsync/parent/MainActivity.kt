@@ -1,6 +1,9 @@
 package com.schoolsync.parent
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
@@ -28,6 +31,7 @@ import com.schoolsync.parent.ui.navigation.AppNavGraph
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.SchoolSyncTheme
 import com.schoolsync.parent.util.DeepLinkBridge
+import com.schoolsync.parent.util.LocaleManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -41,6 +45,15 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
     @Inject
     lateinit var schoolFirestoreRepository: SchoolFirestoreRepository
+
+    /**
+     * Apply the user's chosen language before any view or composable is built.
+     * Changing the language calls `recreate()`, which re-runs this with the new
+     * stored tag — that is the whole switching mechanism.
+     */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleManager.wrap(newBase))
+    }
 
     /** Android 13+ runtime permission request for push notifications. */
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -201,7 +214,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         PaymentBridge.emit(
             PaymentBridge.Event.Failure(
                 code = code,
-                description = description ?: "Payment failed"
+                description = description ?: getString(R.string.fees_payment_failed)
             )
         )
     }

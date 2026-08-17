@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.profile
 
+import com.schoolsync.parent.R
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.local.TokenManager
@@ -55,12 +58,19 @@ data class ProfileUiState(
     // Appearance inline toggle
     val showAppearance: Boolean = false,
 
+    // Language inline toggle. The selected language itself is NOT held here —
+    // LocaleManager (device-local SharedPreferences) is the authority, and the
+    // screen reads it directly. Keeping a copy in UI state would let the two
+    // drift after recreate().
+    val showLanguage: Boolean = false,
+
     // General
     val errorMessage: String? = null
 )
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val studentRepository: StudentRepository,
     private val authRepository: AuthRepository,
     private val attendanceRepository: AttendanceRepository,
@@ -231,6 +241,25 @@ class ProfileViewModel @Inject constructor(
         _uiState.update { it.copy(showAppearance = !it.showAppearance) }
     }
 
+    // ── Language ────────────────────────────────────────────────────────────
+
+    fun toggleLanguage() {
+        _uiState.update { it.copy(showLanguage = !it.showLanguage) }
+    }
+
+    /**
+     * Mirror the chosen language to Firestore so push can be composed in it and
+     * a reinstall can restore it. Deliberately fire-and-forget: the screen has
+     * already persisted the choice locally and is about to call recreate(), and
+     * the UI must never wait on the network to change language.
+     */
+    fun mirrorLanguage(tag: String) {
+        viewModelScope.launch {
+            val deviceId = tokenManager.deviceId.firstOrNull()
+            authRepository.mirrorPreferredLanguage(tag, deviceId)
+        }
+    }
+
     // ── Change password ─────────────────────────────────────────────────────
 
     fun toggleChangePassword() {
@@ -262,15 +291,15 @@ class ProfileViewModel @Inject constructor(
         val state = _uiState.value
 
         if (state.currentPassword.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Enter current password") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.profile_error_enter_current_password)) }
             return
         }
         if (state.newPassword.length < 6) {
-            _uiState.update { it.copy(errorMessage = "New password must be at least 6 characters") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.profile_error_password_min_length)) }
             return
         }
         if (state.newPassword != state.confirmPassword) {
-            _uiState.update { it.copy(errorMessage = "Passwords do not match") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.profile_error_passwords_no_match)) }
             return
         }
 

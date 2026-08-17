@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.ptm
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -60,7 +63,8 @@ data class PtmDetailUiState(
 
 @HiltViewModel
 class PtmDetailViewModel @Inject constructor(
-    private val ptmRepo: PtmFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val ptmRepo: PtmFirestoreRepository,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
@@ -88,7 +92,7 @@ class PtmDetailViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = "PTM not found or no longer scheduled."
+                            errorMessage = appContext.getString(R.string.ptm_not_found)
                         )
                     }
                     return@launch
@@ -122,7 +126,7 @@ class PtmDetailViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e("PtmDetailVM", "load failed", e)
-                _state.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load.") }
+                _state.update { it.copy(isLoading = false, errorMessage = e.message ?: appContext.getString(R.string.ptm_load_failed_dot)) }
             }
         }
     }
@@ -140,15 +144,15 @@ class PtmDetailViewModel @Inject constructor(
         val cur = _state.value
         val ptm = cur.ptm ?: return
         if (cur.assignment == null || cur.assignment.classTeacherId.isBlank()) {
-            _state.update { it.copy(errorMessage = "No class teacher assigned for your section. Ask the school office to set one.") }
+            _state.update { it.copy(errorMessage = appContext.getString(R.string.ptm_no_class_teacher)) }
             return
         }
         if (cur.isApplied) {
-            _state.update { it.copy(errorMessage = "You've already applied.") }
+            _state.update { it.copy(errorMessage = appContext.getString(R.string.ptm_already_applied)) }
             return
         }
         if (cur.isDelivered) {
-            _state.update { it.copy(errorMessage = "Your meeting has already been marked delivered by the teacher.") }
+            _state.update { it.copy(errorMessage = appContext.getString(R.string.ptm_already_delivered_teacher)) }
             return
         }
 
@@ -157,7 +161,7 @@ class PtmDetailViewModel @Inject constructor(
             try {
                 val user = tokenManager.user.firstOrNull()
                 if (user == null || user.userId.isBlank()) {
-                    _state.update { it.copy(isSubmitting = false, errorMessage = "Not signed in.") }
+                    _state.update { it.copy(isSubmitting = false, errorMessage = appContext.getString(R.string.ptm_not_signed_in)) }
                     return@launch
                 }
                 val parentName = listOf(user.fatherName, user.motherName)
@@ -190,7 +194,7 @@ class PtmDetailViewModel @Inject constructor(
                         Log.w("PtmDetailVM", "apply failed", err)
                         val msg = if (err is PtmRsvpException) {
                             when (err.code) {
-                                "DUPLICATE_APPLY"           -> "You've already applied — refresh to see your queue number."
+                                "DUPLICATE_APPLY"           -> appContext.getString(R.string.ptm_already_applied_refresh)
                                 "ALREADY_DELIVERED"         -> err.message
                                 "ALREADY_NO_SHOW"           -> err.message
                                 "NO_CLASS_TEACHER"          -> err.message
@@ -201,7 +205,7 @@ class PtmDetailViewModel @Inject constructor(
                         _state.update {
                             it.copy(
                                 isSubmitting = false,
-                                errorMessage = msg ?: "Failed to apply."
+                                errorMessage = msg ?: appContext.getString(R.string.ptm_apply_failed)
                             )
                         }
                     }
@@ -222,7 +226,7 @@ class PtmDetailViewModel @Inject constructor(
         val cur = _state.value
         val ptm = cur.ptm ?: return
         if (cur.isDelivered) {
-            _state.update { it.copy(errorMessage = "Your meeting has already been marked delivered.") }
+            _state.update { it.copy(errorMessage = appContext.getString(R.string.ptm_already_delivered)) }
             return
         }
 
@@ -231,7 +235,7 @@ class PtmDetailViewModel @Inject constructor(
             try {
                 val user = tokenManager.user.firstOrNull()
                 if (user == null || user.userId.isBlank()) {
-                    _state.update { it.copy(isSubmitting = false, errorMessage = "Not signed in.") }
+                    _state.update { it.copy(isSubmitting = false, errorMessage = appContext.getString(R.string.ptm_not_signed_in)) }
                     return@launch
                 }
                 val parentName = listOf(user.fatherName, user.motherName)
@@ -255,7 +259,7 @@ class PtmDetailViewModel @Inject constructor(
                             it.copy(
                                 isSubmitting    = false,
                                 rsvpStatus      = "declined",
-                                successMessage  = "Thanks for letting us know."
+                                successMessage  = appContext.getString(R.string.ptm_thanks_letting_know)
                             )
                         }
                     },
@@ -264,7 +268,7 @@ class PtmDetailViewModel @Inject constructor(
                         _state.update {
                             it.copy(
                                 isSubmitting = false,
-                                errorMessage = err.message ?: "Failed to decline."
+                                errorMessage = err.message ?: appContext.getString(R.string.ptm_decline_failed)
                             )
                         }
                     }

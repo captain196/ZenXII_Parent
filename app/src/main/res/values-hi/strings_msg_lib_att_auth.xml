@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- हिन्दी · Hindi
+     W5 — messages, library, attendance, auth.
+     Attendance banner lines are DISPLAY of the canonical statuses; the
+     stored codes (P/A/L/H/T) and month keys are untouched. -->
+<resources>
+    <string name="att_absent_today">आज अनुपस्थित</string>
+    <string name="att_approved_leave">स्वीकृत छुट्टी</string>
+    <string name="att_catch_up">छूटा हुआ काम अवश्य पूरा करें</string>
+    <string name="att_enjoy_day_off">अपनी छुट्टी का आनंद लें</string>
+    <string name="att_holiday_today">आज अवकाश</string>
+    <string name="att_keep_it_up">इसी तरह अच्छा काम जारी रखें!</string>
+    <string name="att_late_today">आज विलंब से पहुँचे</string>
+    <string name="att_leave_today">आज छुट्टी पर</string>
+    <string name="att_no_status_yet">अभी कोई स्थिति नहीं</string>
+    <string name="att_on_time">समय पर</string>
+    <string name="att_present_today">आज उपस्थित</string>
+    <string name="att_status_soon">स्थिति जल्द अपडेट होगी</string>
+    <string name="auth_enter_id_first">पहले अपनी विद्यार्थी आईडी दर्ज करें।</string>
+    <string name="auth_looking_up_school">आपका विद्यालय खोजा जा रहा है…</string>
+    <string name="auth_not_student_account">यह विद्यार्थी खाता नहीं है। अपने बच्चे की विद्यार्थी आईडी दर्ज करें (उदा. STU0001)।</string>
+    <string name="auth_pw_changed_ok">पासवर्ड सफलतापूर्वक बदला गया</string>
+    <string name="auth_pw_different">कृपया आपको भेजे गए पासवर्ड से अलग पासवर्ड चुनें।</string>
+    <string name="auth_pw_digit">इसमें एक अंक होना चाहिए।</string>
+    <string name="auth_pw_len">पासवर्ड 8–72 अक्षरों का होना चाहिए।</string>
+    <string name="auth_pw_lower">इसमें एक छोटा अक्षर होना चाहिए।</string>
+    <string name="auth_pw_mismatch">पासवर्ड मेल नहीं खाते।</string>
+    <string name="auth_pw_upper">इसमें एक बड़ा अक्षर होना चाहिए।</string>
+    <string name="auth_server_unreachable">सर्वर तक नहीं पहुँच सके। अपना कनेक्शन जाँचें और पुनः प्रयास करें।</string>
+    <string name="auth_your_school">आपका विद्यालय</string>
+    <string name="generic_just_now">अभी-अभी</string>
+    <string name="lib_all_clear_msg">आप पूरी तरह मुक्त हैं! पुस्तकें समय पर लौटाते रहें</string>
+    <string name="lib_history_here">आपका उधार इतिहास यहाँ दिखाई देगा</string>
+    <string name="lib_library_fine">पुस्तकालय जुर्माना</string>
+    <string name="lib_my_books">मेरी पुस्तकें</string>
+    <string name="lib_no_student_id">विद्यार्थी आईडी उपलब्ध नहीं</string>
+    <string name="lib_try_different_term">कोई दूसरा खोज शब्द आज़माएँ</string>
+    <string name="lib_type_2_chars">खोजने के लिए कम से कम 2 अक्षर लिखें</string>
+    <string name="lib_unknown_author">अज्ञात लेखक</string>
+    <string name="lib_untitled_book">शीर्षकहीन पुस्तक</string>
+    <string name="lib_visit_to_borrow">पुस्तकें उधार लेने के लिए विद्यालय पुस्तकालय जाएँ</string>
+    <string name="msg_delete_conv_failed">बातचीत नहीं हटाई जा सकी</string>
+    <string name="msg_delete_msg_failed">संदेश नहीं हटाया जा सका</string>
+    <string name="msg_delete_only_yours">यह केवल आपके इनबॉक्स से हटेगा — दूसरे व्यक्ति को यह फिर भी दिखेगा।</string>
+    <string name="msg_load_chat_failed">चैट लोड नहीं हो सकी</string>
+    <string name="msg_load_failed">संदेश लोड नहीं हो सके</string>
+    <string name="msg_lost_connection">रीयल-टाइम कनेक्शन टूटा</string>
+    <string name="msg_observe_inbox_failed">इनबॉक्स लोड नहीं हो सका</string>
+    <string name="msg_open_chat_failed">चैट नहीं खुल सकी</string>
+    <string name="msg_react_failed">प्रतिक्रिया नहीं दी जा सकी</string>
+    <string name="msg_realtime_unavailable">रीयल-टाइम अपडेट अनुपलब्ध</string>
+    <string name="msg_send_failed">संदेश नहीं भेजा जा सका</string>
+    <string name="msg_send_media_failed">मीडिया नहीं भेजा जा सका</string>
+    <string name="msg_upload_failed">अपलोड विफल</string>
+
+    <string name="lib_due_on_date">%1$s को देय</string>
+    <plurals name="lib_days_overdue">
+        <item quantity="one">%d दिन विलंबित</item>
+        <item quantity="other">%d दिन विलंबित</item>
+    </plurals>
+    <plurals name="lib_due_in_days">
+        <item quantity="one">%d दिन में देय</item>
+        <item quantity="other">%d दिन में देय</item>
+    </plurals>
+
+    <string name="lib_tab_catalog">सूची</string>
+    <string name="lib_tab_fines">जुर्माने</string>
+    <string name="lib_tab_history">इतिहास</string>
+
+</resources>

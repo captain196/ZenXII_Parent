@@ -1,5 +1,8 @@
 package com.schoolsync.parent.data.repository
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.net.Uri
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
@@ -34,7 +37,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class MessageRepository @Inject constructor(
-    private val firebaseService: FirebaseService,
+    
+    @ApplicationContext private val appContext: Context,private val firebaseService: FirebaseService,
     private val firestoreService: FirestoreService,
     private val tokenManager: TokenManager
 ) {
@@ -318,7 +322,7 @@ class MessageRepository @Inject constructor(
      * conversation. The shared `Conversations/{id}` doc and the chat
      * history under `Chat/{id}` are left intact so the other participant
      * (teacher / admin) still sees the conversation. Mirrors WhatsApp's
-     * "Delete chat" behaviour.
+     * appContext.getString(R.string.msg_delete_chat) behaviour.
      *
      * Best-effort: never throws if the entry was already gone.
      */

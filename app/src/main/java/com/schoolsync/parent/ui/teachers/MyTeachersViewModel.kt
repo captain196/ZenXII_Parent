@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.teachers
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.repository.firestore.MyTeachersFirestoreRepository
@@ -39,7 +42,8 @@ data class MyTeachersUiState(
 
 @HiltViewModel
 class MyTeachersViewModel @Inject constructor(
-    private val repo: MyTeachersFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val repo: MyTeachersFirestoreRepository,
     private val chatLauncher: ChatLauncher,
 ) : ViewModel() {
 
@@ -63,7 +67,7 @@ class MyTeachersViewModel @Inject constructor(
                     },
                     onFailure = { e ->
                         android.util.Log.w("MyTeachersVM", "pullRefresh failed", e)
-                        _uiState.update { it.copy(error = e.message ?: "Failed to load teachers") }
+                        _uiState.update { it.copy(error = e.message ?: appContext.getString(R.string.tch_load_failed)) }
                     }
                 )
             } catch (e: Exception) {
@@ -108,7 +112,7 @@ class MyTeachersViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = e.message ?: "Failed to load teachers",
+                            error = e.message ?: appContext.getString(R.string.tch_load_failed),
                         )
                     }
                 }
@@ -133,7 +137,7 @@ class MyTeachersViewModel @Inject constructor(
             TeacherRow(
                 teacherId = first.assignment.teacherId,
                 name = staff?.name?.takeIf { it.isNotBlank() }
-                    ?: first.assignment.teacherName.ifBlank { "Unknown teacher" },
+                    ?: first.assignment.teacherName.ifBlank { appContext.getString(R.string.tch_unknown) },
                 phone = staff?.phone.orEmpty(),
                 email = staff?.email.orEmpty(),
                 profilePic = staff?.profilePic.orEmpty(),

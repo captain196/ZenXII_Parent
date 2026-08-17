@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.auth
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.repository.AuthRepository
@@ -39,7 +42,8 @@ data class ForceChangePasswordUiState(
 
 @HiltViewModel
 class ForceChangePasswordViewModel @Inject constructor(
-    private val authRepository: AuthRepository,
+    
+    @ApplicationContext private val appContext: Context,private val authRepository: AuthRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ForceChangePasswordUiState())
@@ -82,16 +86,16 @@ class ForceChangePasswordViewModel @Inject constructor(
     private fun validate(new: String, confirm: String): String? {
         // Mirrors the server-side policy in Auth_api::clear_must_change.
         if (new.length < 8 || new.length > 72) {
-            return "Password must be 8–72 characters."
+            return appContext.getString(R.string.auth_pw_len)
         }
-        if (!new.any { it.isUpperCase() }) return "Must include an uppercase letter."
-        if (!new.any { it.isLowerCase() }) return "Must include a lowercase letter."
-        if (!new.any { it.isDigit() })     return "Must include a digit."
-        if (new != confirm)                return "Passwords do not match."
+        if (!new.any { it.isUpperCase() }) return appContext.getString(R.string.auth_pw_upper)
+        if (!new.any { it.isLowerCase() }) return appContext.getString(R.string.auth_pw_lower)
+        if (!new.any { it.isDigit() })     return appContext.getString(R.string.auth_pw_digit)
+        if (new != confirm)                return appContext.getString(R.string.auth_pw_mismatch)
         // Block the auto-generated password format (e.g. "Sum1504@") from
         // being reused — the entire point of this screen is to replace it.
         if (Regex("^[A-Z][a-z]{2}\\d{4}@$").matches(new)) {
-            return "Please choose a different password from the one sent to you."
+            return appContext.getString(R.string.auth_pw_different)
         }
         return null
     }

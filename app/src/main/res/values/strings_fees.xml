@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English (source)
+     W2 — fees + payment. Terminology per tools/i18n/glossary.md.
+     "Razorpay" is a brand and is never translated.
+     NOT here, deliberately: "Yearly Fees" and the status values compared
+     in FeesViewModel/FeesScreen — those are wire values. Only their
+     rendered labels appear below. -->
+<resources>
+    <string name="fees_all_clear">All Clear</string>
+    <string name="fees_annual_fee">Annual Fee</string>
+    <string name="fees_awarded_session">Awarded for the current session</string>
+    <string name="fees_badge_full">FULL PAYMENT</string>
+    <string name="fees_badge_partial">PARTIAL PAYMENT</string>
+    <string name="fees_badge_refund">REFUND PROCESSED</string>
+    <string name="fees_blocked_warning">Results, TC and hall-ticket may be withheld</string>
+    <string name="fees_breakdown_header">FEE BREAKDOWN</string>
+    <string name="fees_cancel_anytime">You can cancel anytime before completing the payment.</string>
+    <string name="fees_cancelled_no_deduction">You cancelled the payment. No money was deducted.</string>
+    <string name="fees_clearance_unavailable">Clearance status not available</string>
+    <string name="fees_cleared_this_receipt">Cleared in this receipt</string>
+    <string name="fees_create_order_failed">Failed to create payment order.</string>
+    <string name="fees_creating_order">Creating order…</string>
+    <string name="fees_discounts_header">DISCOUNTS &amp; ADJUSTMENTS</string>
+    <string name="fees_dues_pending">Dues Pending</string>
+    <string name="fees_enter_amount">Enter amount</string>
+    <string name="fees_failed_no_deduction">Something went wrong while processing the payment. No money was deducted.</string>
+    <string name="fees_fee_structure">Fee Structure</string>
+    <string name="fees_load_failed_refresh">Couldn\'t load fee details. Please pull to refresh.</string>
+    <string name="fees_need_concession">Need a fee concession?</string>
+    <string name="fees_no_discounts">No discounts or adjustments</string>
+    <string name="fees_no_history">No payment history found</string>
+    <string name="fees_no_module_fees">No module fees applicable</string>
+    <string name="fees_not_paid_this_receipt">Not paid in this receipt</string>
+    <string name="fees_one_time_due">One-time · Due</string>
+    <string name="fees_opening_checkout">Opening checkout…</string>
+    <string name="fees_paid_for">PAID FOR</string>
+    <string name="fees_partial_applied">Partially applied this receipt</string>
+    <string name="fees_partial_no_balance">Partially applied this receipt — no balance remaining</string>
+    <string name="fees_partially_paid">Partially Paid</string>
+    <string name="fees_pay_custom">Pay a custom amount</string>
+    <string name="fees_pay_full_year">Pay Full Year</string>
+    <string name="fees_pay_full_year_q">Pay full year?</string>
+    <string name="fees_pay_selected">Pay Selected</string>
+    <string name="fees_paying_now">Paying now</string>
+    <string name="fees_payment_cancelled">Payment cancelled</string>
+    <string name="fees_payment_failed">Payment failed</string>
+    <string name="fees_pending_dues">Pending Dues</string>
+    <string name="fees_processing">Processing</string>
+    <string name="fees_receipt_info">RECEIPT INFO</string>
+    <string name="fees_receipt_load_failed">Failed to load receipt.</string>
+    <string name="fees_receipt_payment">Payment Receipt</string>
+    <string name="fees_receipt_refund">Refund Receipt</string>
+    <string name="fees_refund_load_failed">Failed to load refund.</string>
+    <string name="fees_remaining_due">Remaining due</string>
+    <string name="fees_reopening_checkout">Reopening checkout…</string>
+    <string name="fees_rolled_over">Outstanding fees rolled over from last session</string>
+    <string name="fees_start_payment_failed">Couldn\'t start the payment. Please try again in a moment.</string>
+    <string name="fees_status_due">Due</string>
+    <string name="fees_status_paid">Paid</string>
+    <string name="fees_structure_unavailable">Fee structure not available</string>
+    <string name="fees_total_paid">Total Paid</string>
+    <string name="fees_verified_by_school">Verified and recorded by the school</string>
+    <string name="fees_yes_pay_full_year">Yes, pay full year</string>
+    <string name="pay_already_paid">Already paid</string>
+    <string name="pay_already_verified">This payment was already verified earlier.</string>
+    <string name="pay_balance_remaining">Some balance still remaining.</string>
+    <string name="pay_confirmed_razorpay">Confirmed by Razorpay</string>
+    <string name="pay_dont_close">Please don\'t close the app</string>
+    <string name="pay_fees_cleared">Fees cleared</string>
+    <string name="pay_partial_received">Partial payment received</string>
+    <string name="pay_processing">Processing your payment</string>
+    <string name="pay_receipt_preparing">Receipt is being prepared by the school. You can safely close this screen.</string>
+    <string name="pay_recording_securely">Securely recording your payment</string>
+    <string name="pay_secured_by_razorpay">Secured by Razorpay</string>
+    <string name="pay_securing">Securing your transaction</string>
+    <string name="pay_still_working">Still working in the background</string>
+    <string name="pay_successful">Payment successful</string>
+    <string name="pay_updating">Updating fees and receipt</string>
+    <string name="pay_view_receipt">View Receipt</string>
+
+    <plurals name="fees_overdue_days">
+        <item quantity="one">Overdue · %dd</item>
+        <item quantity="other">Overdue · %dd</item>
+    </plurals>
+
+    <string name="fees_tab_discounts">Discounts</string>
+    <string name="fees_tab_payments">Payments</string>
+
+</resources>

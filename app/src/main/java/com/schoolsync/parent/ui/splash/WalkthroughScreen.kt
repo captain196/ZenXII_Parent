@@ -2,6 +2,9 @@
 
 package com.schoolsync.parent.ui.splash
 
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -36,7 +39,13 @@ import kotlinx.coroutines.launch
 data class WalkthroughPage(
     val icon: ImageVector,
     val iconBgBuilder: (AppColors) -> List<Color>,
-    val title: String,
+    /**
+     * A @StringRes id, not a String. This list is a top-level `val`, evaluated
+     * once at class-init outside any composition, so it cannot call
+     * stringResource() — and a String captured there would freeze whichever
+     * language the process happened to start in and survive recreate().
+     */
+    @StringRes val titleRes: Int,
     val description: String
 )
 
@@ -44,19 +53,19 @@ val parentPages = listOf(
     WalkthroughPage(
         icon = Icons.Filled.TrendingUp,
         iconBgBuilder = { c -> listOf(c.success, Color(0xFF16A34A)) },
-        title = "Track Progress",
+        titleRes = R.string.splash_track_progress,
         description = "Monitor your child's attendance, grades,\nand academic performance in real-time."
     ),
     WalkthroughPage(
         icon = Icons.Filled.Notifications,
         iconBgBuilder = { c -> listOf(c.accent, c.accentSecondary) },
-        title = "Stay Informed",
+        titleRes = R.string.splash_stay_informed,
         description = "Receive instant notifications about notices,\nhomework, and school events."
     ),
     WalkthroughPage(
         icon = Icons.Filled.AccountBalanceWallet,
         iconBgBuilder = { c -> listOf(c.purple, Color(0xFF7C3AED)) },
-        title = "Manage Fees",
+        titleRes = R.string.splash_manage_fees,
         description = "View fee details, track payments,\nand never miss a deadline."
     )
 )
@@ -133,7 +142,7 @@ fun WalkthroughScreen(
             ) {
                 TextButton(onClick = onFinished) {
                     Text(
-                        text = "Skip",
+                        text = stringResource(R.string.common_skip),
                         color = colors.textSecondary,
                         fontSize = 15.sp
                     )
@@ -157,7 +166,7 @@ fun WalkthroughScreen(
                     contentPadding = PaddingValues(horizontal = 28.dp, vertical = 14.dp)
                 ) {
                     Text(
-                        text = if (isLastPage) "Get Started" else "Next",
+                        text = if (isLastPage) stringResource(R.string.splash_get_started) else "Next",
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp
                     )
@@ -213,7 +222,7 @@ private fun WalkthroughPageContent(page: WalkthroughPage, colors: AppColors) {
         Spacer(modifier = Modifier.height(40.dp))
 
         Text(
-            text = page.title,
+            text = stringResource(page.titleRes),
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = colors.textPrimary,

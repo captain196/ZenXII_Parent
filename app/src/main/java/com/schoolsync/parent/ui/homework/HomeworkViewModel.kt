@@ -1,5 +1,10 @@
 package com.schoolsync.parent.ui.homework
 
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -103,7 +108,8 @@ data class HomeworkUiState(
 
 @HiltViewModel
 class HomeworkViewModel @Inject constructor(
-    private val homeworkFirestoreRepo: HomeworkFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val homeworkFirestoreRepo: HomeworkFirestoreRepository,
     private val tokenManager: TokenManager,
     private val badgeBus: com.schoolsync.parent.util.BadgeBus,
 ) : ViewModel() {
@@ -178,14 +184,14 @@ class HomeworkViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: "Failed to load homework"
+                            errorMessage = e.message ?: appContext.getString(R.string.hw_load_failed_plain)
                         )
                     }
                 }
                 .collect { keyed ->
                     if (keyed == null) {
                         _uiState.update {
-                            it.copy(isLoading = false, errorMessage = "Class/section not available")
+                            it.copy(isLoading = false, errorMessage = appContext.getString(R.string.hw_no_class_section))
                         }
                         return@collect
                     }
@@ -350,7 +356,7 @@ class HomeworkViewModel @Inject constructor(
                     // error so the submit dialog can be dismissed (dismissal is
                     // gated on !isSubmitting).
                     _uiState.update {
-                        it.copy(markingDone = false, submitError = "Cannot submit — your account has no school linked. Log out and back in.")
+                        it.copy(markingDone = false, submitError = appContext.getString(R.string.hw_no_school_linked))
                     }
                 }
             } catch (e: Exception) {
@@ -373,9 +379,9 @@ class HomeworkViewModel @Inject constructor(
         val msg = e.message ?: ""
         return when {
             msg.contains("PERMISSION_DENIED", true) ->
-                "Submission blocked by permissions. Log out and back in, then retry."
+                appContext.getString(R.string.hw_permission_blocked)
             msg.contains("UNAVAILABLE", true) || msg.contains("network", true) ->
-                "Network problem — check your connection and try again."
+                appContext.getString(R.string.hw_network_problem)
             else -> "Couldn't submit: ${msg.ifBlank { "unknown error" }}"
         }
     }
@@ -614,15 +620,32 @@ class HomeworkViewModel @Inject constructor(
             }
         }
 
-        fun dueDateLabel(homework: Homework): String {
+        /**
+         * Companion-object helper, so it takes the Context explicitly — there is
+         * no injected appContext in this scope and the label is user-facing.
+         */
+        /**
+         * Whole IST days from today until the homework is due, or null when the
+         * date is blank/unparseable.
+         *
+         * Split out from [dueDateLabel] so the branch logic stays testable on the
+         * JVM: the label itself now needs a Context (its text lives in resources),
+         * but the date arithmetic does not, and that is the part worth testing.
+         */
+        fun dueDateOffsetDays(homework: Homework): Long? {
+            val due = parseDueDate(homework.dueDate) ?: return null
+            return istDay(due) - istDay(Date())
+        }
+
+        fun dueDateLabel(ctx: android.content.Context, homework: Homework): String {
             val due = parseDueDate(homework.dueDate) ?: return homework.dueDate
             val diffDays = istDay(due) - istDay(Date())
             val timeFmt  = SimpleDateFormat("h:mm a", Locale.US).apply { timeZone = IST_TZ }
             val dateFmt  = SimpleDateFormat("dd MMM", Locale.US).apply { timeZone = IST_TZ }
             return when (diffDays) {
-                0L   -> "Due today (${timeFmt.format(due)})"
-                1L   -> "Due tomorrow"
-                else -> "Due on ${dateFmt.format(due)}"
+                0L   -> ctx.getString(R.string.hw_due_today_at, timeFmt.format(due))
+                1L   -> ctx.getString(R.string.dash_due_tomorrow)
+                else -> ctx.getString(R.string.hw_due_on, dateFmt.format(due))
             }
         }
 
@@ -642,23 +665,33 @@ class HomeworkViewModel @Inject constructor(
             return "${out.format(due)} IST"
         }
 
-        /** Subject-specific study tip */
-        fun subjectTip(subject: String): String {
+        /**
+         * Subject-specific study tip, as a @StringRes id.
+         *
+         * This lives in a companion object: no Context, no composition. Returning
+         * a String here would also have to be resolved somewhere, so the id is
+         * returned and the single render site resolves it.
+         *
+         * The `when` SUBJECTS below stay English — they are matched against
+         * server-provided subject names and are wire values, not copy.
+         */
+        @StringRes
+        fun subjectTip(subject: String): Int {
             return when (subject.lowercase().trim()) {
                 "mathematics", "maths", "math" ->
-                    "Show all working steps clearly -- partial marks are given for method even if the final answer is wrong."
+                    R.string.hw_tip_maths
                 "science", "physics", "chemistry", "biology", "evs" ->
-                    "Draw labelled diagrams wherever possible. They often carry separate marks."
+                    R.string.hw_tip_science
                 "english" ->
-                    "Underline key vocabulary and proofread for grammar before submission."
+                    R.string.hw_tip_english
                 "hindi" ->
-                    "Practice writing neatly and check for matra errors before submitting."
+                    R.string.hw_tip_hindi
                 "history" ->
-                    "Use dates and names of key people to strengthen your answers."
+                    R.string.hw_tip_history
                 "geography", "social science", "sst" ->
-                    "Reference maps and data wherever the question allows it."
+                    R.string.hw_tip_geography
                 else ->
-                    "Read the instructions carefully and manage your time well."
+                    R.string.hw_tip_generic
             }
         }
     }

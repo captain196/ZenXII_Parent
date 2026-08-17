@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.results
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -77,12 +79,12 @@ fun ResultsScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = TextPrimary
                 )
             }
             Text(
-                text = "Results",
+                text = stringResource(R.string.drawer_results),
                 style = MaterialTheme.typography.headlineMedium,
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
@@ -96,7 +98,7 @@ fun ResultsScreen(
             Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                 com.schoolsync.parent.ui.fees.FeeBlockedBanner(
                     dueAmount = uiState.pendingFees,
-                    scope = "Result cards may be withheld until fees are cleared",
+                    scope = stringResource(R.string.res_withheld_notice),
                     onPayClick = onPayFees
                 )
             }
@@ -108,7 +110,7 @@ fun ResultsScreen(
                 val selectedName = uiState.selectedExam
                     ?.let { it.examName.ifBlank { it.id } }
                     ?: uiState.examResult?.examName
-                    ?: "Select Exam"
+                    ?: stringResource(R.string.res_select_exam)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -125,7 +127,7 @@ fun ResultsScreen(
                     )
                     Icon(
                         imageVector = Icons.Filled.ArrowDropDown,
-                        contentDescription = "Select Exam",
+                        contentDescription = stringResource(R.string.res_select_exam),
                         tint = TextSecondary
                     )
                 }
@@ -181,7 +183,7 @@ fun ResultsScreen(
                         // Subject Results Header
                         item {
                             Text(
-                                text = "Subject-wise Marks",
+                                text = stringResource(R.string.res_subject_marks),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = TextPrimary,
                                 fontWeight = FontWeight.SemiBold,
@@ -230,7 +232,7 @@ private fun OverallResultCard(result: ExamResult) {
     // LOW-8: don't convey status by icon+colour alone — give the icon a real
     // content description and label the whole card for screen readers.
     val statusLabel = when (status) {
-        ResultStatus.ABSENT -> "Absent"
+        ResultStatus.ABSENT -> stringResource(R.string.attendance_status_absent)
         ResultStatus.PASS -> "Passed"
         ResultStatus.FAIL -> "Failed"
     }
@@ -254,7 +256,7 @@ private fun OverallResultCard(result: ExamResult) {
                 ResultStatus.PASS -> Icons.Filled.CheckCircle
                 ResultStatus.FAIL -> Icons.Filled.Cancel
             },
-            contentDescription = "Result: $statusLabel",
+            contentDescription = stringResource(R.string.res_result_status_fmt, statusLabel),
             tint = statusColor,
             modifier = Modifier.size(40.dp)
         )
@@ -276,7 +278,7 @@ private fun OverallResultCard(result: ExamResult) {
         ) {
             val pct = result.percentage
             ResultStatColumn(
-                label = "Percentage",
+                label = stringResource(R.string.field_percentage),
                 // MED-3: show "—" for an absentee instead of a fabricated 0.0%.
                 value = formatOverallPercentage(pct),
                 color = when {
@@ -288,13 +290,13 @@ private fun OverallResultCard(result: ExamResult) {
             )
             if (result.grade.isNotBlank()) {
                 ResultStatColumn(
-                    label = "Grade",
+                    label = stringResource(R.string.field_grade),
                     value = result.grade,
                     color = Teal
                 )
             }
             ResultStatColumn(
-                label = "Marks",
+                label = stringResource(R.string.field_marks),
                 value = "${result.totalMarks.toInt()}/${result.maxMarks.toInt()}",
                 color = TextPrimary
             )
@@ -308,13 +310,13 @@ private fun OverallResultCard(result: ExamResult) {
             ) {
                 Icon(
                     imageVector = Icons.Filled.EmojiEvents,
-                    contentDescription = "Rank ${result.rank}",
+                    contentDescription = stringResource(R.string.res_rank_fmt, result.rank.toString()),
                     tint = WarningAmber,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Rank: ${result.rank}",
+                    text = stringResource(R.string.res_rank_colon_fmt, result.rank.toString()),
                     style = MaterialTheme.typography.titleMedium,
                     color = WarningAmber,
                     fontWeight = FontWeight.SemiBold
@@ -369,7 +371,7 @@ private fun SubjectResultCard(subject: SubjectResult) {
     // LOW-8: describe the whole row + the progress bar for screen readers.
     val marksText = formatSubjectMarks(marks, subject.maxMarks, subject.absent)
     val subjectStateDesc = when {
-        isAbsent -> "Absent"
+        isAbsent -> stringResource(R.string.attendance_status_absent)
         else -> "${marks?.toInt() ?: 0} out of ${subject.maxMarks.toInt()} marks"
     }
 
@@ -456,14 +458,14 @@ private fun EmptyResultsState() {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "No Results Available",
+                text = stringResource(R.string.res_none_title),
                 style = MaterialTheme.typography.titleLarge,
                 color = TextSecondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Results will appear here once exams are completed and graded.",
+                text = stringResource(R.string.res_none_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextTertiary,
                 textAlign = TextAlign.Center

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- தமிழ் · Tamil
+     W7 — shared single-word UI labels (Back/Cancel/Retry/field names).
+     These were missed by an earlier heuristic that ignored single words;
+     several are reused on 20+ screens, hence common_*. -->
+<resources>
+    <string name="common_all">அனைத்தும்</string>
+    <string name="common_call">அழை</string>
+    <string name="common_cancel">ரத்து</string>
+    <string name="common_copied">நகலெடுக்கப்பட்டது</string>
+    <string name="common_copy">நகலெடு</string>
+    <string name="common_delete">நீக்கு</string>
+    <string name="common_dismiss">நிராகரி</string>
+    <string name="common_done">முடிந்தது</string>
+    <string name="common_download">பதிவிறக்கு</string>
+    <string name="common_keep">வைத்திரு</string>
+    <string name="common_message">செய்தி</string>
+    <string name="common_ok">சரி</string>
+    <string name="common_open">திற</string>
+    <string name="common_save">சேமி</string>
+    <string name="common_search">தேடு</string>
+    <string name="common_share">பகிர்</string>
+    <string name="common_skip">தவிர்</string>
+    <string name="common_submit">சமர்ப்பி</string>
+    <string name="fees_module_hostel">விடுதி</string>
+    <string name="fees_module_library">நூலகம்</string>
+    <string name="fees_module_transport">போக்குவரத்து</string>
+    <string name="fees_scholarship">உதவித்தொகை</string>
+    <string name="field_admin">நிர்வாகி</string>
+    <string name="field_date">தேதி</string>
+    <string name="field_day">நாள்</string>
+    <string name="field_description">விவரம்</string>
+    <string name="field_discount">தள்ளுபடி</string>
+    <string name="field_email">மின்னஞ்சல்</string>
+    <string name="field_fine">அபராதம்</string>
+    <string name="field_from">இருந்து</string>
+    <string name="field_gender">பாலினம்</string>
+    <string name="field_grade">தரம்</string>
+    <string name="field_location">இடம்</string>
+    <string name="field_marks">மதிப்பெண்கள்</string>
+    <string name="field_media">ஊடகம்</string>
+    <string name="field_organizer">ஏற்பாட்டாளர்</string>
+    <string name="field_password">கடவுச்சொல்</string>
+    <string name="field_percentage">சதவீதம்</string>
+    <string name="field_phone">தொலைபேசி</string>
+    <string name="field_rank">தரவரிசை</string>
+    <string name="field_reason">காரணம்</string>
+    <string name="field_remarks">கருத்துகள்</string>
+    <string name="field_room">அறை</string>
+    <string name="field_school">பள்ளி</string>
+    <string name="field_score">மதிப்பெண்</string>
+    <string name="field_session">கல்வியாண்டு</string>
+    <string name="field_student_caps">மாணவர்</string>
+    <string name="field_teacher">ஆசிரியர்</string>
+    <string name="field_time">நேரம்</string>
+    <string name="field_to">வரை</string>
+    <string name="field_whatsapp">WhatsApp</string>
+    <string name="filter_active">செயலில்</string>
+    <string name="filter_event">நிகழ்வு</string>
+    <string name="filter_next">அடுத்து</string>
+    <string name="filter_past">கடந்தவை</string>
+    <string name="filter_pending">நிலுவை</string>
+    <string name="filter_resolved">தீர்க்கப்பட்டது</string>
+    <string name="filter_upcoming">வரவிருக்கும்</string>
+    <string name="nav_home">முகப்பு</string>
+    <string name="nav_stories">ஸ்டோரி</string>
+    <string name="section_about">பற்றி</string>
+    <string name="section_appearance">தோற்றம்</string>
+    <string name="section_attendance_caps">வருகை</string>
+    <string name="section_highlights">முக்கிய அம்சங்கள்</string>
+    <string name="section_instructions">அறிவுறுத்தல்கள்</string>
+    <string name="section_notifications">அறிவிப்புகள்</string>
+    <string name="section_overview">மேலோட்டம்</string>
+    <string name="section_submission">சமர்ப்பிப்பு</string>
+
+    <plurals name="fees_unreturned_books">
+        <item quantity="one">%d புத்தகம் திரும்பவில்லை</item>
+        <item quantity="other">%d புத்தகங்கள் திரும்பவில்லை</item>
+    </plurals>
+
+    <string name="attendance_status_vacation">விடுமுறை</string>
+    <string name="dash_today_status_fmt">இன்று: %1$s</string>
+
+    <string name="hw_tab_graded">மதிப்பிடப்பட்டது</string>
+    <string name="hw_tab_incomplete">முழுமையடையாதது</string>
+    <string name="hw_tab_submitted">சமர்ப்பிக்கப்பட்டது</string>
+
+    <string name="lang_setup_continue">தொடரவும்</string>
+    <string name="lang_setup_subtitle">இதைச் சுயவிவரத்தில் எப்போது வேண்டுமானாலும் மாற்றலாம்</string>
+    <string name="lang_setup_title">உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்</string>
+    <string name="lang_sheet_title">மொழி</string>
+
+</resources>

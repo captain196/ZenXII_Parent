@@ -166,13 +166,14 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAuthRepository(
+        @ApplicationContext context: Context,
         tokenManager: TokenManager,
         firebaseAuthManager: FirebaseAuthManager,
         firebaseService: FirebaseService,
         firestoreService: FirestoreService,
         authApi: AuthApi
     ): AuthRepository {
-        return AuthRepository(tokenManager, firebaseAuthManager, firebaseService, firestoreService, authApi)
+        return AuthRepository(context, tokenManager, firebaseAuthManager, firebaseService, firestoreService, authApi)
     }
 
     @Provides
@@ -197,11 +198,12 @@ object AppModule {
     @Provides
     @Singleton
     fun provideMessageRepository(
+        @ApplicationContext context: Context,
         firebaseService: FirebaseService,
         firestoreService: FirestoreService,
         tokenManager: TokenManager
     ): MessageRepository {
-        return MessageRepository(firebaseService, firestoreService, tokenManager)
+        return MessageRepository(context, firebaseService, firestoreService, tokenManager)
     }
 
     // RedFlagRepository: resolved via its @Inject constructor (FirestoreService,
@@ -379,10 +381,11 @@ object AppModule {
     @Provides
     @Singleton
     fun provideMyTeachersFirestoreRepository(
+        @ApplicationContext context: Context,
         firestoreService: FirestoreService,
         tokenManager: TokenManager
     ): MyTeachersFirestoreRepository =
-        MyTeachersFirestoreRepository(firestoreService, tokenManager)
+        MyTeachersFirestoreRepository(context, firestoreService, tokenManager)
 
     // ── Utility ───────────────────────────────────────────────────────────
 

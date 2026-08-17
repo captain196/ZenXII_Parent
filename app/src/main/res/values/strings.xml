@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ZenXii</string>
+    <!-- Brand. Never translated, never transliterated — glossary rule 1. -->
+    <string name="app_name" translatable="false">ZenXii</string>
 
     <!-- ─── Common ─────────────────────────────────────────────────── -->
     <string name="cd_back">Back</string>
@@ -75,7 +76,6 @@
     <!-- ─── Messages ───────────────────────────────────────────────── -->
     <string name="messages_title">Messages</string>
     <string name="messages_search_placeholder">Search conversations…</string>
-    <string name="messages_unread_badge_format">%d new</string>
     <string name="messages_empty_title">No messages yet</string>
     <string name="messages_empty_subtitle">Conversations with your child\'s teachers will appear here.</string>
     <string name="messages_search_empty_title">No matches</string>
@@ -112,4 +112,45 @@
     <string name="notices_category_general">GENERAL</string>
     <string name="notices_category_recruitment">RECRUITMENT</string>
     <string name="notices_category_policy">POLICY</string>
+
+    <!-- ── Settings ─────────────────────────────────────────────────────────
+         Note: the language NAMES themselves are deliberately not resources.
+         Each is shown as its own endonym (हिन्दी, தமிழ், …) and is identical
+         in every locale — see LocaleManager.SUPPORTED. -->
+    <string name="settings_language">Language</string>
+
+    <!-- ── Canonical labels ─────────────────────────────────────────────────
+         DISPLAY ONLY. The English strings these translate ("Monday",
+         "January", "Present") are ALSO Firestore field values, RTDB node keys
+         and document-id components. Never write a translated form back to the
+         server. These resources are read exclusively at render sites, via
+         CanonicalLabels / StatusLabels — never in a repository. -->
+
+    <string name="day_monday">Monday</string>
+    <string name="day_tuesday">Tuesday</string>
+    <string name="day_wednesday">Wednesday</string>
+    <string name="day_thursday">Thursday</string>
+    <string name="day_friday">Friday</string>
+    <string name="day_saturday">Saturday</string>
+    <string name="day_sunday">Sunday</string>
+
+    <string name="month_january">January</string>
+    <string name="month_february">February</string>
+    <string name="month_march">March</string>
+    <string name="month_april">April</string>
+    <string name="month_may">May</string>
+    <string name="month_june">June</string>
+    <string name="month_july">July</string>
+    <string name="month_august">August</string>
+    <string name="month_september">September</string>
+    <string name="month_october">October</string>
+    <string name="month_november">November</string>
+    <string name="month_december">December</string>
+
+    <string name="attendance_status_present">Present</string>
+    <string name="attendance_status_absent">Absent</string>
+    <string name="attendance_status_leave">Leave</string>
+    <string name="attendance_status_holiday">Holiday</string>
+    <string name="attendance_status_tardy">Tardy</string>
+    <string name="attendance_status_not_recorded">Not recorded</string>
 </resources>

@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    తెలుగు · Telugu
+
+    Core catalogue. Terminology per tools/i18n/glossary.md — read it before
+    editing so the pinned terms do not drift between waves.
+
+    Format arguments (%1$s, %2$d, %%) are preserved EXACTLY, including index
+    order. Word order differs from English in this language, so arguments are
+    reordered inside the sentence rather than renumbered. Lint fails the build
+    on any mismatch.
+-->
+<resources>
+    <string name="academics_attendance_subtitle">రోజువారీ మరియు నెలవారీ హాజరు రికార్డులు చూడండి</string>
+    <string name="academics_events_subtitle">రాబోయే పాఠశాల కార్యక్రమాలు మరియు సెలవులు</string>
+    <string name="academics_gallery_subtitle">పాఠశాల ఫోటోలు మరియు కార్యక్రమ గ్యాలరీలు</string>
+    <string name="academics_homework_subtitle">అధ్యయన సామగ్రి మరియు ఇంటి పని చూడండి</string>
+    <string name="academics_library_subtitle">తీసుకున్న పుస్తకాలు, జరిమానాలు మరియు జాబితా</string>
+    <string name="academics_results_subtitle">పరీక్ష ఫలితాలు మరియు రిపోర్ట్ కార్డులు చూడండి</string>
+    <string name="academics_timetable_subtitle">తరగతి సమయ పట్టిక చూడండి</string>
+    <string name="academics_title">వర్గాలు</string>
+    <string name="action_retry">మళ్లీ ప్రయత్నించండి</string>
+    <string name="action_view_all">అన్నీ చూడండి</string>
+    <string name="cd_back">వెనుకకు</string>
+    <string name="cd_clear">క్లియర్</string>
+    <string name="cd_close">మూసివేయండి</string>
+    <string name="cd_collapse">కుదించండి</string>
+    <string name="cd_expand">విస్తరించండి</string>
+    <string name="cd_grid">గ్రిడ్ వీక్షణ</string>
+    <string name="cd_menu">మెనూ</string>
+    <string name="cd_notifications">నోటిఫికేషన్లు</string>
+    <string name="cd_send">పంపండి</string>
+    <string name="cd_view_alerts">హెచ్చరికలు చూడండి</string>
+    <string name="chat_day_today">ఈరోజు</string>
+    <string name="chat_day_yesterday">నిన్న</string>
+    <string name="chat_default_title">సంభాషణ</string>
+    <string name="chat_empty_subtitle">సంభాషణ ప్రారంభించడానికి హాయ్ చెప్పండి</string>
+    <string name="chat_input_placeholder">సందేశం టైప్ చేయండి…</string>
+    <string name="chat_status_read">చదివారు</string>
+    <string name="chat_status_sent">పంపబడింది</string>
+    <string name="dashboard_attendance_change_format">ఈ నెల %1$s%2$.1f%%</string>
+    <string name="dashboard_attendance_this_month">ఈ నెల</string>
+    <string name="dashboard_class_rank_top">టాప్ %1$d%%</string>
+    <string name="dashboard_current_class_default">గణితం</string>
+    <string name="dashboard_current_class_room">గది 204</string>
+    <string name="dashboard_default_student_name">విద్యార్థి</string>
+    <string name="dashboard_greeting_afternoon">శుభ మధ్యాహ్నం</string>
+    <string name="dashboard_greeting_evening">శుభ సాయంత్రం</string>
+    <string name="dashboard_greeting_morning">శుభోదయం</string>
+    <string name="dashboard_label_attendance">హాజరు</string>
+    <string name="dashboard_label_class_rank">తరగతి ర్యాంక్</string>
+    <string name="dashboard_label_now">ఇప్పుడు</string>
+    <string name="dashboard_next_class_format">తదుపరి: %1$s · %2$s</string>
+    <string name="dashboard_no_upcoming_events">రాబోయే కార్యక్రమాలు లేవు</string>
+    <string name="dashboard_search_placeholder">వెతకండి…</string>
+    <string name="dashboard_section_highlights">ముఖ్యాంశాలు</string>
+    <string name="dashboard_section_overview">అవలోకనం</string>
+    <string name="dashboard_section_quick_actions">త్వరిత చర్యలు</string>
+    <string name="dashboard_section_subjects">సబ్జెక్టులు</string>
+    <string name="drawer_alerts">రెడ్ ఫ్లాగ్</string>
+    <string name="drawer_attendance">హాజరు</string>
+    <string name="drawer_events">కార్యక్రమాలు</string>
+    <string name="drawer_fees">రుసుము</string>
+    <string name="drawer_gallery">గ్యాలరీ</string>
+    <string name="drawer_homework">ఇంటి పని</string>
+    <string name="drawer_library">గ్రంథాలయం</string>
+    <string name="drawer_my_teachers">నా ఉపాధ్యాయులు</string>
+    <string name="drawer_notices">ప్రకటనలు</string>
+    <string name="drawer_profile">ప్రొఫైల్</string>
+    <string name="drawer_results">ఫలితాలు</string>
+    <string name="drawer_timetable">సమయ పట్టిక</string>
+    <string name="generic_unknown">తెలియదు</string>
+    <string name="messages_empty_subtitle">మీ పిల్లల ఉపాధ్యాయులతో సంభాషణలు ఇక్కడ కనిపిస్తాయి.</string>
+    <string name="messages_empty_title">ఇంకా సందేశాలు లేవు</string>
+    <string name="messages_re_format">Re: %1$s</string>
+    <string name="messages_re_with_class_format">Re: %1$s · %2$s</string>
+    <string name="messages_search_empty_subtitle">వేరే పేరు లేదా కీవర్డ్ ప్రయత్నించండి.</string>
+    <string name="messages_search_empty_title">సరిపోలికలు లేవు</string>
+    <string name="messages_search_placeholder">సంభాషణలు వెతకండి…</string>
+    <string name="messages_tap_to_chat">చాట్ ప్రారంభించడానికి ట్యాప్ చేయండి</string>
+    <string name="messages_title">సందేశాలు</string>
+    <string name="notices_attachment_invalid">జోడింపు లింక్ చెల్లదు</string>
+    <string name="notices_attachment_no_app">ఈ జోడింపును తెరవగల యాప్ లేదు</string>
+    <string name="notices_attachment_open">📎 జోడింపు తెరవండి</string>
+    <string name="notices_author_format">— %1$s</string>
+    <string name="notices_category_academic">విద్యా</string>
+    <string name="notices_category_event">కార్యక్రమం</string>
+    <string name="notices_category_exam">పరీక్ష</string>
+    <string name="notices_category_fee">రుసుము</string>
+    <string name="notices_category_general">సాధారణ</string>
+    <string name="notices_category_holiday">సెలవు దినం</string>
+    <string name="notices_category_important">ముఖ్యమైనది</string>
+    <string name="notices_category_payment">చెల్లింపు</string>
+    <string name="notices_category_policy">విధానం</string>
+    <string name="notices_category_recruitment">నియామకం</string>
+    <string name="notices_category_urgent">అత్యవసరం</string>
+    <string name="notices_empty_subtitle">ప్రస్తుతం ప్రకటనలు లేవు.\nరిఫ్రెష్ చేయడానికి కిందకి లాగండి.</string>
+    <string name="notices_empty_title">ప్రకటనలు లేవు</string>
+    <string name="notices_refresh_failed">ప్రకటనలు రిఫ్రెష్ చేయలేకపోయాము. మీ కనెక్షన్ తనిఖీ చేయండి.</string>
+    <string name="notices_title">ప్రకటనలు</string>
+    <string name="notices_unread">చదవనివి</string>
+    <string name="quick_action_homework">ఇంటి పని</string>
+    <string name="quick_action_pay_fees">రుసుము చెల్లించండి</string>
+    <string name="quick_action_results">ఫలితాలు</string>
+    <string name="quick_action_timetable">సమయ పట్టిక</string>
+
+    <plurals name="dashboard_red_flag_alerts">
+        <item quantity="one">మీ పిల్లలకు %d క్రియాశీల హెచ్చరిక</item>
+        <item quantity="other">మీ పిల్లలకు %d క్రియాశీల హెచ్చరికలు</item>
+    </plurals>
+
+</resources>

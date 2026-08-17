@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English (source)
+     W6 — long tail. Leave-type labels here are the DISPLAY side of the
+     "CL"/"SL"/"EL" code map; the codes are the wire values and are
+     untouched. Timetable carry-item VALUES are display; the `when`
+     subject KEYS ("maths", "science") stay English. -->
+<resources>
+    <string name="events_detail_load_failed">Failed to load event details</string>
+    <string name="events_details">Event Details</string>
+    <string name="events_photo">Event photo</string>
+    <string name="events_view_photos">View Photos</string>
+    <string name="exam_datesheet_soon">The date-sheet will appear here once the school publishes it.</string>
+    <string name="gal_album_load_failed_plain">Failed to load album</string>
+    <string name="gal_load_failed_plain">Failed to load gallery</string>
+    <string name="gal_photo">Gallery photo</string>
+    <string name="leave_cancel_application">Cancel Application</string>
+    <string name="leave_select_date">Select date</string>
+    <string name="leave_type_casual">Casual Leave</string>
+    <string name="leave_type_emergency">Emergency Leave</string>
+    <string name="leave_type_sick">Sick Leave</string>
+    <string name="lessons_load_failed">Failed to load lessons</string>
+    <string name="lessons_next_day">Next day</string>
+    <string name="lessons_prev_day">Previous day</string>
+    <string name="notices_refresh_failed_short">Couldn\'t refresh notices</string>
+    <string name="res_exams_load_failed">Failed to load exams</string>
+    <string name="res_results_load_failed">Failed to load results</string>
+    <string name="res_withheld_notice">Result cards may be withheld until fees are cleared</string>
+    <string name="rf_load_failed_retry">Couldn\'t load alerts. Tap to retry.</string>
+    <string name="rf_none_subtitle">No red flags raised by teachers for your child.</string>
+    <string name="rf_none_title">No Red Flags</string>
+    <string name="rf_permission_denied">These alerts aren\'t available right now. Log out and back in, then try again.</string>
+    <string name="rf_temporarily_unavailable">Alerts are temporarily unavailable. Please try again shortly.</string>
+    <string name="search_hint_long">Search homework, notices, events, teachers, results, or jump to any section.</string>
+    <string name="search_placeholder_any">Search anything…</string>
+    <string name="search_try_different">Try a subject, teacher, notice title, or a section name.</string>
+    <string name="splash_get_started">Get Started</string>
+    <string name="story_react">React to this story</string>
+    <string name="tch_load_failed">Failed to load teachers</string>
+    <string name="tch_unknown">Unknown teacher</string>
+    <string name="tt_cant_load">Can\'t load timetable</string>
+    <string name="tt_item_calculator">Calculator</string>
+    <string name="tt_item_drawing_book">Drawing Book</string>
+    <string name="tt_item_geometry_box">Geometry Box</string>
+    <string name="tt_item_lab_coat">Lab Coat</string>
+    <string name="tt_item_notebook">Notebook</string>
+    <string name="tt_item_shoes">Shoes</string>
+    <string name="tt_item_sports_kit">Sports Kit</string>
+    <string name="tt_item_textbook">Textbook</string>
+    <string name="tt_item_usb">USB Drive</string>
+    <string name="tt_item_water_bottle">Water Bottle</string>
+    <string name="tt_load_failed">Failed to load timetable</string>
+    <string name="tt_none">No Timetable</string>
+    <string name="tt_not_available_yet">Timetable for this day is not available yet.</string>
+
+    <string name="tt_item_atlas">Atlas</string>
+    <string name="tt_item_colors">Colors</string>
+    <string name="tt_item_dictionary">Dictionary</string>
+    <string name="tt_item_eraser">Eraser</string>
+    <string name="tt_item_pencils">Pencils</string>
+
+    <string name="leave_generic">Leave</string>
+    <string name="story_hours_ago">%1$dh ago</string>
+    <string name="story_mins_ago">%1$dm ago</string>
+
+</resources>

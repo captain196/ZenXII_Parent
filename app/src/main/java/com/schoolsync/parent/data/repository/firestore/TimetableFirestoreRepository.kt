@@ -9,6 +9,7 @@ import com.schoolsync.parent.data.model.TimetableSlot
 import com.schoolsync.parent.data.model.firestore.StaffDoc
 import com.schoolsync.parent.data.model.firestore.TimetableDoc
 import com.schoolsync.parent.util.Constants
+import com.schoolsync.parent.util.getTodayName
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -142,10 +143,15 @@ class TimetableFirestoreRepository @Inject constructor(
 
             // Overlay substitute teachers for today
             try {
-                val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                // machine keys — do not localize. `todayStr` is matched against the
+                // Firestore `date` field and `todayDay` against `TimetableDoc.day`,
+                // which is also a doc-id component ({schoolId}_{session}_{sectionKey}_{day}).
+                // Locale.getDefault() here previously meant any non-English device
+                // locale silently lost the substitute-teacher overlay: "EEEE" renders
+                // "सोमवार", which never equals the stored "Monday".
+                val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT)
                     .format(java.util.Date())
-                val todayDay = java.text.SimpleDateFormat("EEEE", java.util.Locale.getDefault())
-                    .format(java.util.Date())
+                val todayDay = getTodayName()
 
                 // Stage 0 FZ-3 (2026-05-24) — added schoolId predicate to prevent
                 // cross-tenant substitute leakage. Composite index (schoolId, date)

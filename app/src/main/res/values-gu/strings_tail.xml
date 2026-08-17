@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ગુજરાતી · Gujarati
+     W6 — long tail. Leave-type labels here are the DISPLAY side of the
+     "CL"/"SL"/"EL" code map; the codes are the wire values and are
+     untouched. Timetable carry-item VALUES are display; the `when`
+     subject KEYS ("maths", "science") stay English. -->
+<resources>
+    <string name="events_detail_load_failed">કાર્યક્રમ વિગત લોડ થઈ શકી નથી</string>
+    <string name="events_details">કાર્યક્રમ વિગત</string>
+    <string name="events_photo">કાર્યક્રમનો ફોટો</string>
+    <string name="events_view_photos">ફોટા જુઓ</string>
+    <string name="exam_datesheet_soon">શાળા પ્રકાશિત કરશે ત્યારે ડેટ-શીટ અહીં દેખાશે.</string>
+    <string name="gal_album_load_failed_plain">આલ્બમ લોડ થઈ શક્યું નથી</string>
+    <string name="gal_load_failed_plain">ગેલેરી લોડ થઈ શકી નથી</string>
+    <string name="gal_photo">ગેલેરીનો ફોટો</string>
+    <string name="leave_cancel_application">અરજી રદ કરો</string>
+    <string name="leave_select_date">તારીખ પસંદ કરો</string>
+    <string name="leave_type_casual">કેઝ્યુઅલ રજા</string>
+    <string name="leave_type_emergency">કટોકટીની રજા</string>
+    <string name="leave_type_sick">બીમારીની રજા</string>
+    <string name="lessons_load_failed">પાઠ લોડ થઈ શક્યા નથી</string>
+    <string name="lessons_next_day">આગલો દિવસ</string>
+    <string name="lessons_prev_day">પાછલો દિવસ</string>
+    <string name="notices_refresh_failed_short">સૂચનાઓ રિફ્રેશ થઈ શકી નથી</string>
+    <string name="res_exams_load_failed">પરીક્ષાઓ લોડ થઈ શકી નથી</string>
+    <string name="res_results_load_failed">પરિણામ લોડ થઈ શક્યા નથી</string>
+    <string name="res_withheld_notice">ફી ભરાય ત્યાં સુધી પરિણામ પત્રક રોકી શકાય છે</string>
+    <string name="rf_load_failed_retry">અલર્ટ લોડ થઈ શક્યા નથી. ફરી પ્રયાસ માટે ટૅપ કરો.</string>
+    <string name="rf_none_subtitle">તમારા બાળક માટે શિક્ષકોએ કોઈ રેડ ફ્લેગ ઉઠાવ્યો નથી.</string>
+    <string name="rf_none_title">કોઈ રેડ ફ્લેગ નથી</string>
+    <string name="rf_permission_denied">આ અલર્ટ અત્યારે ઉપલબ્ધ નથી. લૉગ આઉટ કરીને ફરી લૉગિન કરો, પછી ફરી પ્રયાસ કરો.</string>
+    <string name="rf_temporarily_unavailable">અલર્ટ અસ્થાયી રૂપે અનુપલબ્ધ છે. કૃપા કરીને થોડી વારમાં ફરી પ્રયાસ કરો.</string>
+    <string name="search_hint_long">ગૃહકાર્ય, સૂચનાઓ, કાર્યક્રમો, શિક્ષકો, પરિણામ શોધો અથવા કોઈપણ વિભાગમાં જાઓ.</string>
+    <string name="search_placeholder_any">કંઈપણ શોધો…</string>
+    <string name="search_try_different">કોઈ વિષય, શિક્ષક, સૂચના શીર્ષક અથવા વિભાગનું નામ અજમાવો.</string>
+    <string name="splash_get_started">શરૂ કરો</string>
+    <string name="story_react">આ સ્ટોરી પર પ્રતિક્રિયા આપો</string>
+    <string name="tch_load_failed">શિક્ષકો લોડ થઈ શક્યા નથી</string>
+    <string name="tch_unknown">અજ્ઞાત શિક્ષક</string>
+    <string name="tt_cant_load">સમયપત્રક લોડ કરી શકાતું નથી</string>
+    <string name="tt_item_calculator">કેલ્ક્યુલેટર</string>
+    <string name="tt_item_drawing_book">ડ્રોઇંગ બુક</string>
+    <string name="tt_item_geometry_box">ભૂમિતિ બોક્સ</string>
+    <string name="tt_item_lab_coat">લેબ કોટ</string>
+    <string name="tt_item_notebook">નોટબુક</string>
+    <string name="tt_item_shoes">જૂતા</string>
+    <string name="tt_item_sports_kit">સ્પોર્ટ્સ કિટ</string>
+    <string name="tt_item_textbook">પાઠ્યપુસ્તક</string>
+    <string name="tt_item_usb">USB ડ્રાઇવ</string>
+    <string name="tt_item_water_bottle">પાણીની બોટલ</string>
+    <string name="tt_load_failed">સમયપત્રક લોડ થઈ શક્યું નથી</string>
+    <string name="tt_none">કોઈ સમયપત્રક નથી</string>
+    <string name="tt_not_available_yet">આ દિવસનું સમયપત્રક હજી ઉપલબ્ધ નથી.</string>
+
+    <string name="tt_item_atlas">એટલાસ</string>
+    <string name="tt_item_colors">રંગ</string>
+    <string name="tt_item_dictionary">શબ્દકોશ</string>
+    <string name="tt_item_eraser">રબર</string>
+    <string name="tt_item_pencils">પેન્સિલ</string>
+
+    <string name="leave_generic">રજા</string>
+    <string name="story_hours_ago">%1$d ક પહેલા</string>
+    <string name="story_mins_ago">%1$d મિ પહેલા</string>
+
+</resources>

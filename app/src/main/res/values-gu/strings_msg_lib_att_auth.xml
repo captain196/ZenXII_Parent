@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ગુજરાતી · Gujarati
+     W5 — messages, library, attendance, auth.
+     Attendance banner lines are DISPLAY of the canonical statuses; the
+     stored codes (P/A/L/H/T) and month keys are untouched. -->
+<resources>
+    <string name="att_absent_today">આજે ગેરહાજર</string>
+    <string name="att_approved_leave">મંજૂર રજા</string>
+    <string name="att_catch_up">ચૂકેલું કામ જરૂર પૂરું કરો</string>
+    <string name="att_enjoy_day_off">તમારી રજાનો આનંદ માણો</string>
+    <string name="att_holiday_today">આજે જાહેર રજા</string>
+    <string name="att_keep_it_up">આવું જ સારું કામ ચાલુ રાખો!</string>
+    <string name="att_late_today">આજે મોડું આગમન</string>
+    <string name="att_leave_today">આજે રજા પર</string>
+    <string name="att_no_status_yet">હજી કોઈ સ્થિતિ નથી</string>
+    <string name="att_on_time">સમયસર</string>
+    <string name="att_present_today">આજે હાજર</string>
+    <string name="att_status_soon">સ્થિતિ ટૂંક સમયમાં અપડેટ થશે</string>
+    <string name="auth_enter_id_first">પહેલા તમારો વિદ્યાર્થી ID દાખલ કરો.</string>
+    <string name="auth_looking_up_school">તમારી શાળા શોધી રહ્યા છીએ…</string>
+    <string name="auth_not_student_account">આ વિદ્યાર્થી ખાતું નથી. તમારા બાળકનો વિદ્યાર્થી ID દાખલ કરો (દા.ત. STU0001).</string>
+    <string name="auth_pw_changed_ok">પાસવર્ડ સફળતાપૂર્વક બદલાયો</string>
+    <string name="auth_pw_different">કૃપા કરીને તમને મોકલેલા પાસવર્ડથી અલગ પાસવર્ડ પસંદ કરો.</string>
+    <string name="auth_pw_digit">તેમાં એક અંક હોવો જોઈએ.</string>
+    <string name="auth_pw_len">પાસવર્ડ 8–72 અક્ષરનો હોવો જોઈએ.</string>
+    <string name="auth_pw_lower">તેમાં એક નાનો અક્ષર હોવો જોઈએ.</string>
+    <string name="auth_pw_mismatch">પાસવર્ડ મેળ ખાતા નથી.</string>
+    <string name="auth_pw_upper">તેમાં એક મોટો અક્ષર હોવો જોઈએ.</string>
+    <string name="auth_server_unreachable">સર્વર સુધી પહોંચી શકાયું નથી. તમારું કનેક્શન તપાસો અને ફરી પ્રયાસ કરો.</string>
+    <string name="auth_your_school">તમારી શાળા</string>
+    <string name="generic_just_now">હમણાં જ</string>
+    <string name="lib_all_clear_msg">તમે સંપૂર્ણ મુક્ત છો! પુસ્તકો સમયસર પરત કરતા રહો</string>
+    <string name="lib_history_here">તમારો ઉધાર ઇતિહાસ અહીં દેખાશે</string>
+    <string name="lib_library_fine">પુસ્તકાલય દંડ</string>
+    <string name="lib_my_books">મારા પુસ્તકો</string>
+    <string name="lib_no_student_id">વિદ્યાર્થી ID ઉપલબ્ધ નથી</string>
+    <string name="lib_try_different_term">બીજો શોધ શબ્દ અજમાવો</string>
+    <string name="lib_type_2_chars">શોધવા ઓછામાં ઓછા 2 અક્ષર લખો</string>
+    <string name="lib_unknown_author">અજ્ઞાત લેખક</string>
+    <string name="lib_untitled_book">શીર્ષક વગરનું પુસ્તક</string>
+    <string name="lib_visit_to_borrow">પુસ્તકો ઉધાર લેવા શાળાના પુસ્તકાલયમાં જાઓ</string>
+    <string name="msg_delete_conv_failed">વાતચીત કાઢી શકાઈ નથી</string>
+    <string name="msg_delete_msg_failed">સંદેશ કાઢી શકાયો નથી</string>
+    <string name="msg_delete_only_yours">તે ફક્ત તમારા ઇનબૉક્સમાંથી દૂર થશે — બીજી વ્યક્તિને તે હજી દેખાશે.</string>
+    <string name="msg_load_chat_failed">ચેટ લોડ થઈ શકી નથી</string>
+    <string name="msg_load_failed">સંદેશા લોડ થઈ શક્યા નથી</string>
+    <string name="msg_lost_connection">રિયલ-ટાઇમ કનેક્શન તૂટ્યું</string>
+    <string name="msg_observe_inbox_failed">ઇનબૉક્સ લોડ થઈ શક્યું નથી</string>
+    <string name="msg_open_chat_failed">ચેટ ખૂલી શકી નથી</string>
+    <string name="msg_react_failed">પ્રતિક્રિયા આપી શકાઈ નથી</string>
+    <string name="msg_realtime_unavailable">રિયલ-ટાઇમ અપડેટ અનુપલબ્ધ</string>
+    <string name="msg_send_failed">સંદેશ મોકલી શકાયો નથી</string>
+    <string name="msg_send_media_failed">મીડિયા મોકલી શકાયું નથી</string>
+    <string name="msg_upload_failed">અપલોડ નિષ્ફળ</string>
+
+    <string name="lib_due_on_date">%1$s ના રોજ બાકી</string>
+    <plurals name="lib_days_overdue">
+        <item quantity="one">%d દિવસ મોડું</item>
+        <item quantity="other">%d દિવસ મોડું</item>
+    </plurals>
+    <plurals name="lib_due_in_days">
+        <item quantity="one">%d દિવસમાં બાકી</item>
+        <item quantity="other">%d દિવસમાં બાકી</item>
+    </plurals>
+
+    <string name="lib_tab_catalog">સૂચિ</string>
+    <string name="lib_tab_fines">દંડ</string>
+    <string name="lib_tab_history">ઇતિહાસ</string>
+
+</resources>

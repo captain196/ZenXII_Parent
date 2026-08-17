@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.leave
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -54,7 +57,8 @@ private const val KEY_SHOW = "leave_draft_show"
 
 @HiltViewModel
 class LeaveViewModel @Inject constructor(
-    private val leaveRepository: LeaveFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val leaveRepository: LeaveFirestoreRepository,
     private val tokenManager: TokenManager,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -201,37 +205,39 @@ class LeaveViewModel @Inject constructor(
         if (state.isSubmitting) return
 
         val start = state.startDate ?: run {
-            _uiState.update { it.copy(errorMessage = "Please select start date") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_select_start)) }
             return
         }
         val end = state.endDate ?: run {
-            _uiState.update { it.copy(errorMessage = "Please select end date") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_select_end)) }
             return
         }
         // Phase 9b: date validation
         val today = LocalDate.now()
         if (start.isBefore(today)) {
-            _uiState.update { it.copy(errorMessage = "Start date cannot be in the past") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_start_in_past)) }
             return
         }
         if (end.isBefore(start)) {
-            _uiState.update { it.copy(errorMessage = "End date must be on or after start date") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_end_before_start)) }
             return
         }
         // Fix (validation): cap span at 60 inclusive days (spec §4, student).
         val spanDays = ChronoUnit.DAYS.between(start, end) + 1
         if (spanDays > MAX_STUDENT_LEAVE_DAYS) {
-            _uiState.update { it.copy(errorMessage = "Leave cannot exceed $MAX_STUDENT_LEAVE_DAYS days") }
+            _uiState.update { it.copy(errorMessage = appContext.resources.getQuantityString(
+                R.plurals.leave_max_days_fmt,
+                MAX_STUDENT_LEAVE_DAYS.toInt(), MAX_STUDENT_LEAVE_DAYS.toInt())) }
             return
         }
         val reason = state.reason.trim()
         if (reason.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Please enter a reason") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_enter_reason)) }
             return
         }
         // Fix (validation): overlap guard against existing pending/approved leaves.
         if (overlapsExisting(state.leaveHistory, start, end)) {
-            _uiState.update { it.copy(errorMessage = "This range overlaps an existing leave application") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_overlap)) }
             return
         }
 

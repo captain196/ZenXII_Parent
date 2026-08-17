@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.timetable
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
@@ -231,14 +233,14 @@ private fun TimetableListPage(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = c.textPrimary,
                     modifier = Modifier.size(18.dp)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Timetable",
+                text = stringResource(R.string.drawer_timetable),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = c.textPrimary
@@ -398,7 +400,7 @@ private fun ViewModeToggle(
     ) {
         TimetableViewMode.entries.forEach { mode ->
             val isActive = mode == currentMode
-            val label = if (mode == TimetableViewMode.DAY) "Day" else "Week"
+            val label = if (mode == TimetableViewMode.DAY) stringResource(R.string.field_day) else "Week"
 
             Box(
                 modifier = Modifier
@@ -527,7 +529,7 @@ private fun NowIndicator(slot: TimetableSlot) {
         )
         Spacer(modifier = Modifier.width(10.dp))
         Text(
-            text = "Now: ",
+            text = stringResource(R.string.tt_now_prefix),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             color = c.success
@@ -735,7 +737,7 @@ private fun SlotRow(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "NEXT",
+                            text = stringResource(R.string.filter_next),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                             color = c.accent,
@@ -765,7 +767,7 @@ private fun SlotRow(
         if (isDone) {
             Icon(
                 imageVector = Icons.Filled.Check,
-                contentDescription = "Done",
+                contentDescription = stringResource(R.string.common_done),
                 tint = c.success,
                 modifier = Modifier.size(16.dp)
             )
@@ -1107,7 +1109,7 @@ private fun TimetableDetailPage(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = c.textPrimary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -1176,7 +1178,7 @@ private fun TimetableDetailPage(
 
         // Chapter/topic (placeholder since data doesn't have it)
         Text(
-            text = "Period ${slot.periodKey}",
+            text = stringResource(R.string.tt_period_fmt, slot.periodKey),
             fontSize = 13.sp,
             color = c.textSecondary,
             modifier = Modifier.padding(start = 38.dp, top = 4.dp)
@@ -1194,7 +1196,7 @@ private fun TimetableDetailPage(
         ) {
             DetailInfoRow(
                 icon = Icons.Filled.AccessTime,
-                label = "Time",
+                label = stringResource(R.string.field_time),
                 value = slot.time,
                 iconTint = c.accent
             )
@@ -1204,7 +1206,7 @@ private fun TimetableDetailPage(
             )
             DetailInfoRow(
                 icon = Icons.Filled.Person,
-                label = "Teacher",
+                label = stringResource(R.string.field_teacher),
                 value = slot.teacher.ifBlank { "--" },
                 iconTint = c.accent
             )
@@ -1214,7 +1216,7 @@ private fun TimetableDetailPage(
             )
             DetailInfoRow(
                 icon = Icons.Filled.LocationOn,
-                label = "Room",
+                label = stringResource(R.string.field_room),
                 value = slot.room.ifBlank { "--" },
                 iconTint = c.accent
             )
@@ -1224,7 +1226,7 @@ private fun TimetableDetailPage(
             )
             DetailInfoRow(
                 icon = Icons.Filled.Today,
-                label = "Day",
+                label = stringResource(R.string.field_day),
                 value = dayName,
                 iconTint = c.accent
             )
@@ -1236,7 +1238,7 @@ private fun TimetableDetailPage(
         val carryItems = remember(slot.subject) { getCarryItems(slot.subject) }
         if (carryItems.isNotEmpty()) {
             Text(
-                text = "Things to carry",
+                text = stringResource(R.string.tt_things_to_carry),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = c.textSecondary,
@@ -1249,7 +1251,7 @@ private fun TimetableDetailPage(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                carryItems.forEach { item ->
+                carryItems.forEach { itemRes ->
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
@@ -1258,7 +1260,7 @@ private fun TimetableDetailPage(
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = item,
+                            text = stringResource(itemRes),
                             fontSize = 12.sp,
                             color = c.textPrimary
                         )
@@ -1322,9 +1324,9 @@ private fun DetailInfoRow(
 private fun EmptyState(errorMessage: String? = null) {
     com.schoolsync.parent.ui.components.EmptyStatePro(
         icon = Icons.Filled.Schedule,
-        title = if (errorMessage.isNullOrBlank()) "No Timetable" else "Can't load timetable",
+        title = if (errorMessage.isNullOrBlank()) stringResource(R.string.tt_none) else stringResource(R.string.tt_cant_load),
         description = errorMessage?.takeIf { it.isNotBlank() }
-            ?: "Timetable for this day is not available yet.",
+            ?: stringResource(R.string.tt_not_available_yet),
     )
 }
 
@@ -1347,16 +1349,23 @@ private fun rememberPulseAlpha(): Float {
     return alpha
 }
 
-private fun getCarryItems(subject: String): List<String> {
+/**
+ * Things to carry for a subject, as @StringRes ids.
+ *
+ * The `when` SUBJECTS below stay English — they are matched against
+ * server-provided subject names and are wire values, not copy. Only the
+ * returned item labels are translated, at the render site.
+ */
+private fun getCarryItems(subject: String): List<Int> {
     return when (subject.lowercase().trim()) {
-        "maths", "mathematics", "math" -> listOf("Textbook", "Notebook", "Geometry Box", "Calculator")
-        "science", "physics", "chemistry", "biology" -> listOf("Textbook", "Lab Coat", "Notebook")
-        "english" -> listOf("Textbook", "Notebook", "Dictionary")
-        "hindi", "sanskrit" -> listOf("Textbook", "Notebook")
-        "computer", "computers", "computer science", "it" -> listOf("Notebook", "USB Drive")
-        "pt", "physical education", "sports" -> listOf("Sports Kit", "Water Bottle", "Shoes")
-        "art", "drawing", "craft" -> listOf("Drawing Book", "Colors", "Pencils", "Eraser")
-        "geography", "history", "social science", "sst" -> listOf("Textbook", "Notebook", "Atlas")
-        else -> listOf("Textbook", "Notebook")
+        "maths", "mathematics", "math" -> listOf(R.string.tt_item_textbook, R.string.tt_item_notebook, R.string.tt_item_geometry_box, R.string.tt_item_calculator)
+        "science", "physics", "chemistry", "biology" -> listOf(R.string.tt_item_textbook, R.string.tt_item_lab_coat, R.string.tt_item_notebook)
+        "english" -> listOf(R.string.tt_item_textbook, R.string.tt_item_notebook, R.string.tt_item_dictionary)
+        "hindi", "sanskrit" -> listOf(R.string.tt_item_textbook, R.string.tt_item_notebook)
+        "computer", "computers", "computer science", "it" -> listOf(R.string.tt_item_notebook, R.string.tt_item_usb)
+        "pt", "physical education", "sports" -> listOf(R.string.tt_item_sports_kit, R.string.tt_item_water_bottle, R.string.tt_item_shoes)
+        "art", "drawing", "craft" -> listOf(R.string.tt_item_drawing_book, R.string.tt_item_colors, R.string.tt_item_pencils, R.string.tt_item_eraser)
+        "geography", "history", "social science", "sst" -> listOf(R.string.tt_item_textbook, R.string.tt_item_notebook, R.string.tt_item_atlas)
+        else -> listOf(R.string.tt_item_textbook, R.string.tt_item_notebook)
     }
 }

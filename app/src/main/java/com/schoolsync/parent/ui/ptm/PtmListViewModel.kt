@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.ptm
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -46,7 +49,8 @@ data class PtmListUiState(
 
 @HiltViewModel
 class PtmListViewModel @Inject constructor(
-    private val ptmRepo: PtmFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val ptmRepo: PtmFirestoreRepository,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
@@ -65,7 +69,7 @@ class PtmListViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = "Class or section missing on profile."
+                            errorMessage = appContext.getString(R.string.ptm_no_class_section)
                         )
                     }
                     return@launch
@@ -111,7 +115,7 @@ class PtmListViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.message ?: "Failed to load PTMs."
+                        errorMessage = e.message ?: appContext.getString(R.string.ptm_load_failed_plural)
                     )
                 }
             }

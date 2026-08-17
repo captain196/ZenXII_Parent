@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.lessons
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.local.TokenManager
@@ -32,7 +35,8 @@ data class MyLessonsUiState(
 
 @HiltViewModel
 class MyLessonsViewModel @Inject constructor(
-    private val repo: LessonPlanParentRepository,
+    
+    @ApplicationContext private val appContext: Context,private val repo: LessonPlanParentRepository,
     private val tokenManager: TokenManager,
 ) : ViewModel() {
 
@@ -60,7 +64,7 @@ class MyLessonsViewModel @Inject constructor(
                 onFailure = { e ->
                     _ui.update { it.copy(
                         lessons = emptyList(), isLoadingLessons = false,
-                        error = e.message ?: "Failed to load lessons"
+                        error = e.message ?: appContext.getString(R.string.lessons_load_failed)
                     ) }
                 }
             )

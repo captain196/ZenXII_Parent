@@ -76,11 +76,30 @@ class StoryFirestoreRepository @Inject constructor(
                     // The rule authorises a read only when story.schoolId ==
                     // the caller's `school_id` claim; resolve that exact value
                     // (fall back to the stored school only when offline).
-                    val claimSchool = runCatching {
-                        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-                            ?.getIdToken(false)?.await()?.claims?.get("school_id")?.toString()
+                    val fbUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                    var claimSchool = runCatching {
+                        fbUser?.getIdToken(false)?.await()?.claims?.get("school_id")?.toString()
                     }.getOrNull()?.takeIf { it.isNotBlank() }
+                    // A CACHED token can predate the custom claims (first login
+                    // after an admin password reset, or claims set server-side
+                    // after the auth user existed). Force ONE refresh before
+                    // giving up — otherwise the parent silently sees no stories
+                    // and there is nothing on screen to explain why.
+                    if (claimSchool == null && fbUser != null) {
+                        claimSchool = runCatching {
+                            fbUser.getIdToken(true).await()?.claims?.get("school_id")?.toString()
+                        }.getOrNull()?.takeIf { it.isNotBlank() }
+                    }
                     val schoolForQuery = claimSchool ?: storedSchool
+                    // Distinguishes the three ways this goes silent: not signed
+                    // in to Firebase at all (fbUser null → every Firestore read
+                    // fails, not just stories), claims missing from the token,
+                    // or no stored school. Without it, all three look identical:
+                    // an empty row.
+                    com.schoolsync.parent.util.debugLog(
+                        "Story.query fbUid=${fbUser?.uid} claimSchool=$claimSchool " +
+                        "storedSchool=$storedSchool resolved=$schoolForQuery"
+                    )
                     if (schoolForQuery.isBlank()) {
                         emit(emptyList())
                     } else {
@@ -105,6 +124,9 @@ class StoryFirestoreRepository @Inject constructor(
                                     ref.whereEqualTo("schoolId", schoolForQuery)
                                         .whereArrayContainsAny("audienceClassKeys", audienceFilter)
                                 }.map { snap ->
+                                    com.schoolsync.parent.util.debugLog(
+                                        "Story.query filter=$audienceFilter docs=${snap.documents.size}"
+                                    )
                                     val nowMs = System.currentTimeMillis()
                                     snap.documents
                                         // Per-doc runCatching: one malformed
@@ -209,10 +231,27 @@ class StoryFirestoreRepository @Inject constructor(
         // Denormalise the viewer's name so the teacher/admin "who saw this"
         // list can show a real name without a per-viewer parent-doc lookup.
         val userName = user.name.orEmpty()
+        // Denormalised avatar, same rationale as userName: the teacher's "who
+        // viewed" list renders a real face without an N-per-row profile
+        // lookup. Blank is fine — the row falls back to initials.
+        val userPic = resolveUserPic(user)
         // C2: stamp the caller's own schoolId so the engagement rule can
         // tenant-bind the write (must equal the token's school_id claim).
-        val schoolId = resolveWriteSchoolId(user?.schoolId, user?.schoolCode)
-        if (schoolId.isBlank()) return Result.failure(Exception("School not available"))
+        val schoolId = resolveWriteSchoolId(user?.schoolId)
+        // Blank means we could resolve NOTHING the engagement rule would
+        // accept. Fail loudly rather than write a value guaranteed to be
+        // denied — see resolveWriteSchoolId for why schoolCode isn't valid here.
+        if (schoolId.isBlank()) {
+            com.schoolsync.parent.util.debugLog(
+                "Story.markAsViewed ABORT story=$storyId — no usable schoolId (claim + stored both blank)"
+            )
+            return Result.failure(Exception("School not available — please re-login"))
+        }
+        // The exact payload the rule will be evaluated against. If a write is
+        // being denied, this line and the rule side-by-side show why.
+        com.schoolsync.parent.util.debugLog(
+            "Story.markAsViewed story=$storyId docId=$userId userId=$userId schoolId=$schoolId"
+        )
         return try {
             val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             val storyRef  = firestore.collection(COLLECTION).document(storyId)
@@ -227,8 +266,16 @@ class StoryFirestoreRepository @Inject constructor(
                     // teacher's "who saw this" list can show a real name.
                     // Also stamp schoolId (legacy docs predate it) so the
                     // update satisfies the tenant-bound engagement rule.
+                    val patch = mutableMapOf<String, Any?>()
                     if (existing.getString("userName").isNullOrBlank() && userName.isNotBlank()) {
-                        tx.update(viewerRef, mapOf("userName" to userName, "schoolId" to schoolId))
+                        patch["userName"] = userName
+                    }
+                    if (existing.getString("userPic").isNullOrBlank() && userPic.isNotBlank()) {
+                        patch["userPic"] = userPic
+                    }
+                    if (patch.isNotEmpty()) {
+                        patch["schoolId"] = schoolId
+                        tx.update(viewerRef, patch)
                     }
                     return@runTransaction null
                 }
@@ -238,6 +285,7 @@ class StoryFirestoreRepository @Inject constructor(
                     "viewedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
                     "userId"   to userId,
                     "userName" to userName,
+                    "userPic"  to userPic,
                     "schoolId" to schoolId
                 ))
                 null
@@ -278,12 +326,87 @@ class StoryFirestoreRepository @Inject constructor(
      * write the LIVE claim value — the exact thing the rule compares against —
      * falling back to the stored school only if the token can't be read.
      */
-    private suspend fun resolveWriteSchoolId(storedSchoolId: String?, storedSchoolCode: String?): String {
+    /**
+     * Record that this parent watched a story ALL THE WAY THROUGH.
+     *
+     * Mirrors the Teacher app's markAsCompleted. A "view" is recorded after a
+     * 500 ms dwell, which means opened — not watched. Without this, "50 views"
+     * can't be told apart from "50 people swiped past it". Written when an
+     * image's timer runs out or a video reaches its last frame; tapping to the
+     * next story does NOT count.
+     *
+     * Idempotent, and writes the FULL marker when no viewer doc exists yet — a
+     * completion implies a view, and the tenant-bound engagement rule requires
+     * userId + schoolId on the resulting document.
+     *
+     * Failures are logged by the caller, not queued for retry like views are:
+     * a missing view corrupts the teacher's "who viewed" list, a missing
+     * completion only softens an analytics number.
+     */
+    suspend fun markAsCompleted(storyId: String): Result<Unit> {
+        val user = tokenManager.user.firstOrNull()
+        val userId = user?.userId?.takeIf { it.isNotBlank() }
+            ?: return Result.failure(Exception("User ID not available"))
+        val userName = user.name.orEmpty()
+        val userPic = resolveUserPic(user)
+        val schoolId = resolveWriteSchoolId(user.schoolId)
+        if (schoolId.isBlank()) return Result.failure(Exception("School not available"))
+        return try {
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val viewerRef = firestore.collection(COLLECTION).document(storyId)
+                .collection(VIEWERS_SUBCOLLECTION).document(userId)
+            firestore.runTransaction { tx ->
+                val existing = tx.get(viewerRef)
+                if (existing.exists()) {
+                    if (existing.getBoolean("completed") == true) return@runTransaction null
+                    tx.update(viewerRef, mapOf(
+                        "completed"   to true,
+                        "completedAt" to FieldValue.serverTimestamp(),
+                        "userId"      to userId,
+                        "schoolId"    to schoolId
+                    ))
+                } else {
+                    tx.set(viewerRef, hashMapOf<String, Any?>(
+                        "viewedAt"    to FieldValue.serverTimestamp(),
+                        "completedAt" to FieldValue.serverTimestamp(),
+                        "completed"   to true,
+                        "userId"      to userId,
+                        "userName"    to userName,
+                        "userPic"     to userPic,
+                        "schoolId"    to schoolId
+                    ))
+                }
+                null
+            }.await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Avatar to denormalise onto an engagement marker. Blank is a perfectly
+     * good answer — the teacher's viewer row falls back to initials.
+     */
+    private fun resolveUserPic(user: com.schoolsync.parent.data.model.User?): String =
+        user?.profilePic.orEmpty().trim()
+
+    private suspend fun resolveWriteSchoolId(storedSchoolId: String?): String {
         val claim = runCatching {
             com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
                 ?.getIdToken(false)?.await()?.claims?.get("school_id")?.toString()
         }.getOrNull()?.takeIf { it.isNotBlank() }
-        return claim ?: storedSchoolId?.takeIf { it.isNotBlank() } ?: storedSchoolCode.orEmpty()
+        // storedSchoolId holds the SAME SCH_… value as the claim, so it is a
+        // safe offline fallback.
+        //
+        // storedSchoolCode is NOT, and used to be the last resort here: it is
+        // the login code (e.g. "DPS123"), which can never equal the `school_id`
+        // claim the engagement rule compares against. Writing it produced a
+        // guaranteed PERMISSION_DENIED that the caller swallowed into a retry
+        // queue — a parent's view silently lost forever, with the retry
+        // re-sending the same doomed value. Returning blank instead makes the
+        // caller fail loudly: we cannot form a write that could be accepted.
+        return claim ?: storedSchoolId?.takeIf { it.isNotBlank() } ?: ""
     }
 
     /**
@@ -306,8 +429,9 @@ class StoryFirestoreRepository @Inject constructor(
         val userId = user?.userId?.takeIf { it.isNotBlank() }
             ?: return Result.failure(Exception("User ID not available"))
         val userName = user.name.orEmpty()
+        val userPic = resolveUserPic(user)
         // C2: tenant-bind the reaction write to the caller's own school.
-        val schoolId = resolveWriteSchoolId(user?.schoolId, user?.schoolCode)
+        val schoolId = resolveWriteSchoolId(user?.schoolId)
         if (schoolId.isBlank()) return Result.failure(Exception("School not available"))
         return try {
             val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
@@ -329,6 +453,7 @@ class StoryFirestoreRepository @Inject constructor(
                             "emoji"     to emoji,
                             "userId"    to userId,
                             "userName"  to userName,
+                            "userPic"   to userPic,
                             "schoolId"  to schoolId,
                             "reactedAt" to FieldValue.serverTimestamp()
                         ))
@@ -343,6 +468,7 @@ class StoryFirestoreRepository @Inject constructor(
                             "emoji"     to emoji,
                             "userId"    to userId,
                             "userName"  to userName,
+                            "userPic"   to userPic,
                             "schoolId"  to schoolId,
                             "reactedAt" to FieldValue.serverTimestamp()
                         ))

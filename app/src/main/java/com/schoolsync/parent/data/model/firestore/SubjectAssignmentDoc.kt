@@ -1,5 +1,7 @@
 package com.schoolsync.parent.data.model.firestore
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.PropertyName
 

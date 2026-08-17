@@ -1,5 +1,8 @@
 package com.schoolsync.parent.data.payment
 
+import com.schoolsync.parent.R
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -62,6 +65,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class PaymentSession @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val feesApi: FeesApi,
     private val tokenManager: TokenManager
 ) {
@@ -189,7 +193,7 @@ class PaymentSession @Inject constructor(
             }
             if (idToken.isNullOrBlank()) {
                 _state.value = State.Failure(
-                    "Session expired during verification — please re-login and check the fees list.",
+                    appContext.getString(R.string.pay_session_expired_verify),
                     System.currentTimeMillis()
                 )
                 return@launch
@@ -214,11 +218,12 @@ class PaymentSession @Inject constructor(
                 // the transport-layer exception class; we prepend the
                 // "Razorpay captured" reassurance.
                 val friendly = friendlyErrorMessage(
+                    appContext,
                     e,
-                    fallback = "We couldn't reach the school server to record this payment."
+                    fallback = appContext.getString(R.string.pay_cannot_record)
                 )
                 _state.value = State.Failure(
-                    "Payment received by Razorpay. $friendly The receipt will appear in your Fees list once the school server responds.",
+                    appContext.getString(R.string.pay_captured_pending_fmt, friendly),
                     System.currentTimeMillis()
                 )
                 return@launch
@@ -236,7 +241,7 @@ class PaymentSession @Inject constructor(
                 }
                 !response.success -> {
                     _state.value = State.Failure(
-                        message = response.error ?: "Verification failed.",
+                        message = response.error ?: appContext.getString(R.string.pay_verification_failed),
                         completedAt = System.currentTimeMillis()
                     )
                 }

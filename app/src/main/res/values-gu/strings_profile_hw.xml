@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ગુજરાતી · Gujarati
+     W4 — profile + homework. FAQ answers are single resources, joined
+     from concatenated Kotlin fragments: adjacent literals cannot be
+     reordered and word order differs in every language here.
+     Subject-tip KEYS ("mathematics", "science", …) stay English —
+     they are matched against server subject names. -->
+<resources>
+    <string name="faq_a_attendance">હાજરી શિક્ષકો નોંધે છે અને સામાન્યપણે તે જ દિવસે બપોરે 2 પછી દેખાય છે. કોઈ દિવસ ખૂટતો લાગે તો હાજરી સ્ક્રીન રિફ્રેશ કરવા નીચે ખેંચો — તો પણ ખાલી હોય તો વર્ગ શિક્ષકનો સંપર્ક કરો.</string>
+    <string name="faq_a_fees">નીચેની પટ્ટીમાંથી ફી ટૅબ ખોલો, કોઈપણ બાકી ફી બાબત પર ટૅપ કરો અને Razorpay સુરક્ષિત ચેકઆઉટ માટે ભરો પસંદ કરો. ચુકવણી સફળ થતાં જ રસીદ ભરેલી ફી હેઠળ દેખાય છે.</string>
+    <string name="faq_a_homework">નીચેની પટ્ટીમાં શ્રેણીઓ ટૅબ પર ટૅપ કરો — ગૃહકાર્ય, પરિણામ, સમયપત્રક અને પરીક્ષા સમયપત્રક બધું ત્યાં જ છે.</string>
+    <string name="faq_a_password">આ પ્રોફાઇલ ટૅબમાં ઉપર જાઓ, \"પાસવર્ડ બદલો\" ખોલો, તમારો વર્તમાન પાસવર્ડ અને 6+ અક્ષરનો નવો પાસવર્ડ દાખલ કરો, પછી અપડેટ પર ટૅપ કરો.</string>
+    <string name="faq_a_push">સેટિંગ્સ → નોટિફિકેશનમાં નોટિફિકેશન ચાલુ છે તેની ખાતરી કરો. પુશ ચૂકી જાય તો પણ શાળાની સૂચનાઓ સૂચનાઓ ટૅબમાં દેખાય છે.</string>
+    <string name="faq_q_attendance">મારા બાળકની હાજરી કેમ અપડેટ થતી નથી?</string>
+    <string name="faq_q_fees">શાળા ફી કેવી રીતે ભરવી?</string>
+    <string name="faq_q_homework">ગૃહકાર્ય અને પરિણામ ક્યાં જોવા?</string>
+    <string name="faq_q_password">હું મારો પાસવર્ડ કેવી રીતે બદલું?</string>
+    <string name="faq_q_push">મને એક સૂચના માટે પુશ નોટિફિકેશન મળ્યું નથી.</string>
+    <string name="hw_describe_optional">તમે શું પૂર્ણ કર્યું તે જણાવો (વૈકલ્પિક):</string>
+    <string name="hw_due_soon">ટૂંક સમયમાં બાકી</string>
+    <string name="hw_load_failed_plain">ગૃહકાર્ય લોડ થઈ શક્યું નથી</string>
+    <string name="hw_network_problem">નેટવર્ક સમસ્યા — તમારું કનેક્શન તપાસો અને ફરી પ્રયાસ કરો.</string>
+    <string name="hw_no_school_linked">સબમિટ કરી શકાતું નથી — તમારા ખાતા સાથે શાળા જોડાયેલ નથી. લૉગ આઉટ કરીને ફરી લૉગિન કરો.</string>
+    <string name="hw_not_found">ગૃહકાર્ય મળ્યું નથી — તે કાઢી નાખ્યું હોઈ શકે છે.</string>
+    <string name="hw_permission_blocked">પરવાનગીઓને કારણે સબમિશન અવરોધિત. લૉગ આઉટ કરીને ફરી લૉગિન કરો, પછી ફરી પ્રયાસ કરો.</string>
+    <string name="hw_state_not_started">હજી શરૂ નથી</string>
+    <string name="hw_state_ready">પૂર્ણ, સબમિટ કરવા તૈયાર</string>
+    <string name="hw_state_reviewed">શિક્ષક દ્વારા સમીક્ષિત</string>
+    <string name="hw_state_started">કામ શરૂ પણ પૂર્ણ નથી</string>
+    <string name="hw_state_submitted">સબમિટ કર્યું - સમીક્ષા બાકી</string>
+    <string name="hw_submit">ગૃહકાર્ય સબમિટ કરો</string>
+    <string name="hw_tip_english">મુખ્ય શબ્દભંડોળ અન્ડરલાઇન કરો અને સબમિટ કરતા પહેલા વ્યાકરણ તપાસો.</string>
+    <string name="hw_tip_generic">સૂચનાઓ ધ્યાનથી વાંચો અને તમારો સમય સારી રીતે સંભાળો.</string>
+    <string name="hw_tip_geography">પ્રશ્ન પરવાનગી આપે ત્યાં નકશા અને ડેટાનો સંદર્ભ આપો.</string>
+    <string name="hw_tip_hindi">સુઘડ લખવાની પ્રેક્ટિસ કરો અને સબમિટ કરતા પહેલા માત્રાની ભૂલો તપાસો.</string>
+    <string name="hw_tip_history">તમારા જવાબ મજબૂત કરવા તારીખો અને મુખ્ય વ્યક્તિઓના નામ વાપરો.</string>
+    <string name="hw_tip_maths">બધા ઉકેલના પગલાં સ્પષ્ટ લખો — અંતિમ જવાબ ખોટો હોય તો પણ પદ્ધતિ માટે આંશિક ગુણ મળે છે.</string>
+    <string name="hw_tip_science">શક્ય હોય ત્યાં નામાંકિત આકૃતિ દોરો. તેમના માટે સામાન્યપણે અલગ ગુણ હોય છે.</string>
+    <string name="hw_under_review">સમીક્ષા હેઠળ</string>
+    <string name="profile_about_notices">સૂચનાઓ, કાર્યક્રમો અને જન્મદિવસની શુભેચ્છા</string>
+    <string name="profile_about_payments">Razorpay દ્વારા સુરક્ષિત ફી ચુકવણી</string>
+    <string name="profile_about_privacy">Firebase પ્રોજેક્ટ, ત્રીજા પક્ષ સાથે ક્યારેય શેર નહીં</string>
+    <string name="profile_about_realtime">રિયલ-ટાઇમ હાજરી, પરિણામ અને ગૃહકાર્ય</string>
+    <string name="profile_all_done">બધું પૂર્ણ</string>
+    <string name="profile_call_or_email">કૉલ અથવા ઈમેલ કરો</string>
+    <string name="profile_common_questions">સામાન્ય પ્રશ્નો</string>
+    <string name="profile_loading_contact">સંપર્ક વિગત લોડ થઈ રહી છે…</string>
+    <string name="profile_manage_alerts">અલર્ટ મેનેજ કરો</string>
+    <string name="profile_no_contact">સંપર્ક વિગત નોંધાયેલ નથી. કૃપા કરીને શાળા કાર્યાલયમાં જાતે જાઓ અથવા શાળાની વેબસાઇટ દ્વારા સંપર્ક કરો.</string>
+    <string name="profile_update_credentials">ક્રેડેન્શિયલ અપડેટ કરો</string>
+    <string name="profile_update_password">પાસવર્ડ અપડેટ કરો</string>
+
+    <string name="hw_due_on">%1$s ના રોજ બાકી</string>
+    <string name="hw_due_today_at">આજે બાકી (%1$s)</string>
+
+</resources>

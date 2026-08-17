@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.messages
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,6 +17,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.schoolsync.parent.util.DisplayFormat
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -41,7 +45,8 @@ data class MessagesUiState(
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
-    private val messageRepository: MessageRepository,
+    
+    @ApplicationContext private val appContext: Context,private val messageRepository: MessageRepository,
     private val tokenManager: TokenManager,
     private val chatLauncher: ChatLauncher,
     private val badgeBus: com.schoolsync.parent.util.BadgeBus,
@@ -140,7 +145,7 @@ class MessagesViewModel @Inject constructor(
                     messageRepository.observeInbox(user.schoolId, user.parentDbKey)
                         .catch { e ->
                             _uiState.update {
-                                it.copy(errorMessage = e.message ?: "Failed to observe inbox")
+                                it.copy(errorMessage = e.message ?: appContext.getString(R.string.msg_observe_inbox_failed))
                             }
                         }
                         .collect { messages ->
@@ -158,7 +163,7 @@ class MessagesViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.message ?: "Failed to load messages"
+                        errorMessage = e.message ?: appContext.getString(R.string.msg_load_failed)
                     )
                 }
             }
@@ -211,7 +216,7 @@ class MessagesViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: "Failed to open chat",
+                            errorMessage = e.message ?: appContext.getString(R.string.msg_open_chat_failed),
                         )
                     }
                 }
@@ -257,7 +262,7 @@ class MessagesViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.message ?: "Failed to load chat"
+                        errorMessage = e.message ?: appContext.getString(R.string.msg_load_chat_failed)
                     )
                 }
             }
@@ -270,7 +275,7 @@ class MessagesViewModel @Inject constructor(
                     messageRepository.observeChat(user.schoolId, message.conversationId)
                         .catch { e ->
                             _uiState.update {
-                                it.copy(errorMessage = e.message ?: "Lost real-time connection")
+                                it.copy(errorMessage = e.message ?: appContext.getString(R.string.msg_lost_connection))
                             }
                         }
                         .collect { messages ->
@@ -278,7 +283,7 @@ class MessagesViewModel @Inject constructor(
                         }
                 } catch (e: Exception) {
                     _uiState.update {
-                        it.copy(errorMessage = e.message ?: "Real-time updates unavailable")
+                        it.copy(errorMessage = e.message ?: appContext.getString(R.string.msg_realtime_unavailable))
                     }
                 }
             }
@@ -362,7 +367,7 @@ class MessagesViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isSending = false,
-                            errorMessage = e.message ?: "Failed to send message"
+                            errorMessage = e.message ?: appContext.getString(R.string.msg_send_failed)
                         )
                     }
                 }
@@ -401,7 +406,7 @@ class MessagesViewModel @Inject constructor(
                             isSending = false,
                             isUploading = false,
                             uploadProgress = 0f,
-                            errorMessage = e.message ?: "Upload failed"
+                            errorMessage = e.message ?: appContext.getString(R.string.msg_upload_failed)
                         )
                     }
                     return@launch
@@ -437,7 +442,7 @@ class MessagesViewModel @Inject constructor(
                                 isSending = false,
                                 isUploading = false,
                                 uploadProgress = 0f,
-                                errorMessage = e.message ?: "Failed to send media"
+                                errorMessage = e.message ?: appContext.getString(R.string.msg_send_media_failed)
                             )
                         }
                     }
@@ -448,7 +453,7 @@ class MessagesViewModel @Inject constructor(
                         isSending = false,
                         isUploading = false,
                         uploadProgress = 0f,
-                        errorMessage = e.message ?: "Failed to send media"
+                        errorMessage = e.message ?: appContext.getString(R.string.msg_send_media_failed)
                     )
                 }
             }
@@ -482,7 +487,7 @@ class MessagesViewModel @Inject constructor(
 
             result.onFailure { e ->
                 _uiState.update {
-                    it.copy(errorMessage = e.message ?: "Failed to react")
+                    it.copy(errorMessage = e.message ?: appContext.getString(R.string.msg_react_failed))
                 }
             }
         }
@@ -496,7 +501,7 @@ class MessagesViewModel @Inject constructor(
 
         // Only allow deleting own messages.
         if (message.senderId != userId) {
-            _uiState.update { it.copy(errorMessage = "You can only delete your own messages") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.msg_only_own)) }
             return
         }
 
@@ -508,7 +513,7 @@ class MessagesViewModel @Inject constructor(
 
             result.onFailure { e ->
                 _uiState.update {
-                    it.copy(errorMessage = e.message ?: "Failed to delete message")
+                    it.copy(errorMessage = e.message ?: appContext.getString(R.string.msg_delete_msg_failed))
                 }
             }
         }
@@ -545,7 +550,7 @@ class MessagesViewModel @Inject constructor(
     // ── Delete conversation (per-user) ───────────────────────────────────
 
     /**
-     * "Delete chat" — removes only this parent's inbox stub. The shared
+     * appContext.getString(R.string.msg_delete_chat) — removes only this parent's inbox stub. The shared
      * Conversations doc + chat history stay intact for the other side.
      * If the deleted conversation is currently open, exits the chat view.
      */
@@ -570,7 +575,7 @@ class MessagesViewModel @Inject constructor(
                 if (!_uiState.value.isInChatView) loadInbox()
             }.onFailure { e ->
                 _uiState.update {
-                    it.copy(errorMessage = e.message ?: "Failed to delete conversation")
+                    it.copy(errorMessage = e.message ?: appContext.getString(R.string.msg_delete_conv_failed))
                 }
             }
         }
@@ -600,22 +605,24 @@ class MessagesViewModel @Inject constructor(
         val hours = minutes / 60
 
         return when {
-            seconds < 60 -> "Just now"
+            seconds < 60 -> appContext.getString(R.string.generic_just_now)
             minutes < 60 -> "${minutes}m ago"
             hours < 24 -> "${hours}h ago"
             hours < 48 -> "Yesterday"
             hours < 168 -> {
-                // Within 7 days -- show day name (e.g. "Tuesday").
-                val sdf = SimpleDateFormat("EEEE", Locale.getDefault())
-                sdf.format(Date(timestamp))
+                // Within 7 days -- show day name (e.g. "Tuesday"). This one IS
+                // display text, so the weekday name should translate; routed
+                // through DisplayFormat so the name localizes but any digits
+                // stay Latin.
+                DisplayFormat.pattern(Date(timestamp), "EEEE")
             }
             else -> {
                 val msgCal = Calendar.getInstance().apply { timeInMillis = timestamp }
                 val nowCal = Calendar.getInstance()
                 if (msgCal.get(Calendar.YEAR) == nowCal.get(Calendar.YEAR)) {
-                    SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
+                    DisplayFormat.pattern(Date(timestamp), "MMM d")
                 } else {
-                    SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestamp))
+                    DisplayFormat.pattern(Date(timestamp), "MMM d, yyyy")
                 }
             }
         }

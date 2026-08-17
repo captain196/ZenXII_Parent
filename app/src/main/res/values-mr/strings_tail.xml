@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- मराठी · Marathi
+     W6 — long tail. Leave-type labels here are the DISPLAY side of the
+     "CL"/"SL"/"EL" code map; the codes are the wire values and are
+     untouched. Timetable carry-item VALUES are display; the `when`
+     subject KEYS ("maths", "science") stay English. -->
+<resources>
+    <string name="events_detail_load_failed">कार्यक्रम तपशील लोड होऊ शकला नाही</string>
+    <string name="events_details">कार्यक्रम तपशील</string>
+    <string name="events_photo">कार्यक्रमाचा फोटो</string>
+    <string name="events_view_photos">फोटो पहा</string>
+    <string name="exam_datesheet_soon">शाळेने प्रकाशित केल्यावर वेळापत्रक येथे दिसेल.</string>
+    <string name="gal_album_load_failed_plain">अल्बम लोड होऊ शकला नाही</string>
+    <string name="gal_load_failed_plain">गॅलरी लोड होऊ शकली नाही</string>
+    <string name="gal_photo">गॅलरीचा फोटो</string>
+    <string name="leave_cancel_application">अर्ज रद्द करा</string>
+    <string name="leave_select_date">तारीख निवडा</string>
+    <string name="leave_type_casual">नैमित्तिक रजा</string>
+    <string name="leave_type_emergency">आणीबाणी रजा</string>
+    <string name="leave_type_sick">आजारपणाची रजा</string>
+    <string name="lessons_load_failed">धडे लोड होऊ शकले नाहीत</string>
+    <string name="lessons_next_day">पुढील दिवस</string>
+    <string name="lessons_prev_day">मागील दिवस</string>
+    <string name="notices_refresh_failed_short">सूचना रिफ्रेश होऊ शकल्या नाहीत</string>
+    <string name="res_exams_load_failed">परीक्षा लोड होऊ शकल्या नाहीत</string>
+    <string name="res_results_load_failed">निकाल लोड होऊ शकले नाहीत</string>
+    <string name="res_withheld_notice">शुल्क भरेपर्यंत निकाल पत्रक रोखले जाऊ शकते</string>
+    <string name="rf_load_failed_retry">अलर्ट लोड होऊ शकले नाहीत. पुन्हा प्रयत्नासाठी टॅप करा.</string>
+    <string name="rf_none_subtitle">तुमच्या मुलासाठी शिक्षकांनी कोणताही रेड फ्लॅग उपस्थित केलेला नाही.</string>
+    <string name="rf_none_title">रेड फ्लॅग नाहीत</string>
+    <string name="rf_permission_denied">हे अलर्ट सध्या उपलब्ध नाहीत. लॉग आउट करून पुन्हा लॉगिन करा, नंतर पुन्हा प्रयत्न करा.</string>
+    <string name="rf_temporarily_unavailable">अलर्ट तात्पुरते अनुपलब्ध आहेत. कृपया थोड्या वेळाने पुन्हा प्रयत्न करा.</string>
+    <string name="search_hint_long">गृहपाठ, सूचना, कार्यक्रम, शिक्षक, निकाल शोधा किंवा कोणत्याही विभागात जा.</string>
+    <string name="search_placeholder_any">काहीही शोधा…</string>
+    <string name="search_try_different">एखादा विषय, शिक्षक, सूचना शीर्षक किंवा तुकडीचे नाव वापरून पहा.</string>
+    <string name="splash_get_started">सुरू करा</string>
+    <string name="story_react">या स्टोरीवर प्रतिक्रिया द्या</string>
+    <string name="tch_load_failed">शिक्षक लोड होऊ शकले नाहीत</string>
+    <string name="tch_unknown">अज्ञात शिक्षक</string>
+    <string name="tt_cant_load">वेळापत्रक लोड करता येत नाही</string>
+    <string name="tt_item_calculator">कॅल्क्युलेटर</string>
+    <string name="tt_item_drawing_book">रेखाचित्र वही</string>
+    <string name="tt_item_geometry_box">भूमिती पेटी</string>
+    <string name="tt_item_lab_coat">लॅब कोट</string>
+    <string name="tt_item_notebook">वही</string>
+    <string name="tt_item_shoes">बूट</string>
+    <string name="tt_item_sports_kit">क्रीडा किट</string>
+    <string name="tt_item_textbook">पाठ्यपुस्तक</string>
+    <string name="tt_item_usb">USB ड्राइव्ह</string>
+    <string name="tt_item_water_bottle">पाण्याची बाटली</string>
+    <string name="tt_load_failed">वेळापत्रक लोड होऊ शकले नाही</string>
+    <string name="tt_none">वेळापत्रक नाही</string>
+    <string name="tt_not_available_yet">या दिवसाचे वेळापत्रक अद्याप उपलब्ध नाही.</string>
+
+    <string name="tt_item_atlas">नकाशासंग्रह</string>
+    <string name="tt_item_colors">रंग</string>
+    <string name="tt_item_dictionary">शब्दकोश</string>
+    <string name="tt_item_eraser">खोडरबर</string>
+    <string name="tt_item_pencils">पेन्सिल</string>
+
+    <string name="leave_generic">रजा</string>
+    <string name="story_hours_ago">%1$d ता पूर्वी</string>
+    <string name="story_mins_ago">%1$d मि पूर्वी</string>
+
+</resources>

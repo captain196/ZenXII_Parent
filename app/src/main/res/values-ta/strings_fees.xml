@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- தமிழ் · Tamil
+     W2 — fees + payment. Terminology per tools/i18n/glossary.md.
+     "Razorpay" is a brand and is never translated.
+     NOT here, deliberately: "Yearly Fees" and the status values compared
+     in FeesViewModel/FeesScreen — those are wire values. Only their
+     rendered labels appear below. -->
+<resources>
+    <string name="fees_all_clear">அனைத்தும் தெளிவு</string>
+    <string name="fees_annual_fee">ஆண்டுக் கட்டணம்</string>
+    <string name="fees_awarded_session">நடப்பு கல்வியாண்டுக்கு வழங்கப்பட்டது</string>
+    <string name="fees_badge_full">முழுக் கட்டணம்</string>
+    <string name="fees_badge_partial">பகுதிக் கட்டணம்</string>
+    <string name="fees_badge_refund">திருப்பிச் செலுத்தப்பட்டது</string>
+    <string name="fees_blocked_warning">முடிவுகள், TC மற்றும் நுழைவுச்சீட்டு தடுக்கப்படலாம்</string>
+    <string name="fees_breakdown_header">கட்டண விவரம்</string>
+    <string name="fees_cancel_anytime">கட்டணம் முடிக்கும் முன் எப்போது வேண்டுமானாலும் ரத்து செய்யலாம்.</string>
+    <string name="fees_cancelled_no_deduction">நீங்கள் கட்டணத்தை ரத்து செய்தீர்கள். எந்தத் தொகையும் கழிக்கப்படவில்லை.</string>
+    <string name="fees_clearance_unavailable">அனுமதி நிலை இல்லை</string>
+    <string name="fees_cleared_this_receipt">இந்த ரசீதில் தீர்க்கப்பட்டது</string>
+    <string name="fees_create_order_failed">கட்டண ஆர்டரை உருவாக்க முடியவில்லை.</string>
+    <string name="fees_creating_order">ஆர்டர் உருவாக்கப்படுகிறது…</string>
+    <string name="fees_discounts_header">தள்ளுபடி &amp; சரிசெய்தல்</string>
+    <string name="fees_dues_pending">நிலுவை உள்ளது</string>
+    <string name="fees_enter_amount">தொகையை உள்ளிடவும்</string>
+    <string name="fees_failed_no_deduction">கட்டணம் செலுத்துவதில் பிழை ஏற்பட்டது. எந்தத் தொகையும் கழிக்கப்படவில்லை.</string>
+    <string name="fees_fee_structure">கட்டண அமைப்பு</string>
+    <string name="fees_load_failed_refresh">கட்டண விவரங்களை ஏற்ற முடியவில்லை. புதுப்பிக்க கீழே இழுக்கவும்.</string>
+    <string name="fees_need_concession">கட்டணச் சலுகை தேவையா?</string>
+    <string name="fees_no_discounts">தள்ளுபடி அல்லது சரிசெய்தல் இல்லை</string>
+    <string name="fees_no_history">கட்டண வரலாறு இல்லை</string>
+    <string name="fees_no_module_fees">தொகுதிக் கட்டணம் இல்லை</string>
+    <string name="fees_not_paid_this_receipt">இந்த ரசீதில் செலுத்தப்படவில்லை</string>
+    <string name="fees_one_time_due">ஒருமுறை · நிலுவை</string>
+    <string name="fees_opening_checkout">செக்அவுட் திறக்கிறது…</string>
+    <string name="fees_paid_for">எதற்குச் செலுத்தப்பட்டது</string>
+    <string name="fees_partial_applied">இந்த ரசீதில் பகுதியாகப் பயன்படுத்தப்பட்டது</string>
+    <string name="fees_partial_no_balance">இந்த ரசீதில் பகுதியாகப் பயன்படுத்தப்பட்டது — மீதி இல்லை</string>
+    <string name="fees_partially_paid">பகுதியாகச் செலுத்தப்பட்டது</string>
+    <string name="fees_pay_custom">விருப்பத் தொகையைச் செலுத்து</string>
+    <string name="fees_pay_full_year">முழு ஆண்டையும் செலுத்து</string>
+    <string name="fees_pay_full_year_q">முழு ஆண்டையும் செலுத்தவா?</string>
+    <string name="fees_pay_selected">தேர்ந்தெடுத்ததைச் செலுத்து</string>
+    <string name="fees_paying_now">இப்போது செலுத்துகிறீர்கள்</string>
+    <string name="fees_payment_cancelled">கட்டணம் ரத்து</string>
+    <string name="fees_payment_failed">கட்டணம் தோல்வி</string>
+    <string name="fees_pending_dues">நிலுவைத் தொகை</string>
+    <string name="fees_processing">செயலாக்கம்</string>
+    <string name="fees_receipt_info">ரசீது தகவல்</string>
+    <string name="fees_receipt_load_failed">ரசீதை ஏற்ற முடியவில்லை.</string>
+    <string name="fees_receipt_payment">கட்டண ரசீது</string>
+    <string name="fees_receipt_refund">திருப்பிச் செலுத்தல் ரசீது</string>
+    <string name="fees_refund_load_failed">திருப்பிச் செலுத்தலை ஏற்ற முடியவில்லை.</string>
+    <string name="fees_remaining_due">மீதி நிலுவை</string>
+    <string name="fees_reopening_checkout">செக்அவுட் மீண்டும் திறக்கிறது…</string>
+    <string name="fees_rolled_over">கடந்த கல்வியாண்டிலிருந்து கொண்டுவரப்பட்ட நிலுவைக் கட்டணம்</string>
+    <string name="fees_start_payment_failed">கட்டணத்தைத் தொடங்க முடியவில்லை. சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="fees_status_due">நிலுவை</string>
+    <string name="fees_status_paid">செலுத்தப்பட்டது</string>
+    <string name="fees_structure_unavailable">கட்டண அமைப்பு இல்லை</string>
+    <string name="fees_total_paid">மொத்தம் செலுத்தியது</string>
+    <string name="fees_verified_by_school">பள்ளியால் சரிபார்க்கப்பட்டு பதிவு செய்யப்பட்டது</string>
+    <string name="fees_yes_pay_full_year">ஆம், முழு ஆண்டையும் செலுத்து</string>
+    <string name="pay_already_paid">ஏற்கனவே செலுத்தப்பட்டது</string>
+    <string name="pay_already_verified">இந்தக் கட்டணம் ஏற்கனவே சரிபார்க்கப்பட்டது.</string>
+    <string name="pay_balance_remaining">சில நிலுவைத் தொகை இன்னும் உள்ளது.</string>
+    <string name="pay_confirmed_razorpay">Razorpay உறுதிப்படுத்தியது</string>
+    <string name="pay_dont_close">செயலியை மூட வேண்டாம்</string>
+    <string name="pay_fees_cleared">கட்டணம் தீர்க்கப்பட்டது</string>
+    <string name="pay_partial_received">பகுதிக் கட்டணம் பெறப்பட்டது</string>
+    <string name="pay_processing">உங்கள் கட்டணம் செயலாக்கப்படுகிறது</string>
+    <string name="pay_receipt_preparing">பள்ளி ரசீதைத் தயாரிக்கிறது. இந்தத் திரையைப் பாதுகாப்பாக மூடலாம்.</string>
+    <string name="pay_recording_securely">உங்கள் கட்டணம் பாதுகாப்பாகப் பதிவு செய்யப்படுகிறது</string>
+    <string name="pay_secured_by_razorpay">Razorpay மூலம் பாதுகாக்கப்பட்டது</string>
+    <string name="pay_securing">உங்கள் பரிவர்த்தனை பாதுகாக்கப்படுகிறது</string>
+    <string name="pay_still_working">பின்னணியில் இன்னும் வேலை நடக்கிறது</string>
+    <string name="pay_successful">கட்டணம் வெற்றி</string>
+    <string name="pay_updating">கட்டணம் மற்றும் ரசீது புதுப்பிக்கப்படுகிறது</string>
+    <string name="pay_view_receipt">ரசீதைக் காண்க</string>
+
+    <plurals name="fees_overdue_days">
+        <item quantity="one">%d நாள் தாமதம்</item>
+        <item quantity="other">%d நாட்கள் தாமதம்</item>
+    </plurals>
+
+    <string name="fees_tab_discounts">தள்ளுபடிகள்</string>
+    <string name="fees_tab_payments">கட்டணங்கள்</string>
+
+</resources>

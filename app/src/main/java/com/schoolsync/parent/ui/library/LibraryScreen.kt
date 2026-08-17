@@ -1,5 +1,10 @@
 package com.schoolsync.parent.ui.library
 
+import androidx.annotation.StringRes
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -96,14 +101,14 @@ fun LibraryScreen(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = c.textPrimary,
                     modifier = Modifier.size(18.dp)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Library",
+                text = stringResource(R.string.drawer_library),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = c.textPrimary,
@@ -172,15 +177,18 @@ fun LibraryScreen(
 
 private data class LibTabDef(
     val index: Int,
-    val label: String,
+    @StringRes val labelRes: Int,
     val icon: ImageVector
 )
 
+// Top-level val: evaluated at class-init, outside composition. Titles are
+// @StringRes ids and are resolved at the render site — a String captured here
+// would freeze the language the process started in and survive recreate().
 private val libraryTabs = listOf(
-    LibTabDef(0, "My Books", Icons.AutoMirrored.Filled.MenuBook),
-    LibTabDef(1, "History", Icons.Filled.History),
-    LibTabDef(2, "Fines", Icons.Filled.Receipt),
-    LibTabDef(3, "Catalog", Icons.Filled.Search)
+    LibTabDef(0, R.string.lib_my_books, Icons.AutoMirrored.Filled.MenuBook),
+    LibTabDef(1, R.string.lib_tab_history, Icons.Filled.History),
+    LibTabDef(2, R.string.lib_tab_fines, Icons.Filled.Receipt),
+    LibTabDef(3, R.string.lib_tab_catalog, Icons.Filled.Search)
 )
 
 @Composable
@@ -228,13 +236,13 @@ private fun LibraryTabChips(
             ) {
                 Icon(
                     imageVector = tab.icon,
-                    contentDescription = tab.label,
+                    contentDescription = stringResource(tab.labelRes),
                     tint = if (isActive) Color.White else c.textSecondary,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = tab.label,
+                    text = stringResource(tab.labelRes),
                     fontSize = 12.sp,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
                     color = if (isActive) Color.White else c.textSecondary
@@ -273,8 +281,8 @@ private fun CurrentBooksTab(books: List<LibraryIssueDoc>) {
     if (books.isEmpty()) {
         EmptyState(
             emoji = "\uD83D\uDCDA",
-            title = "No books currently borrowed",
-            subtitle = "Visit the school library to borrow books"
+            title = stringResource(R.string.lib_none_borrowed),
+            subtitle = stringResource(R.string.lib_visit_to_borrow)
         )
     } else {
         LazyColumn(
@@ -293,7 +301,7 @@ private fun CurrentBooksTab(books: List<LibraryIssueDoc>) {
 private fun IssuedBookCard(book: LibraryIssueDoc) {
     val c = LocalAppColors.current
     val daysLeft = LibraryViewModel.daysUntilDue(book.dueDate)
-    val dueDateText = LibraryViewModel.dueDateLabel(book.dueDate)
+    val dueDateText = LibraryViewModel.dueDateLabel(LocalContext.current, book.dueDate)
 
     // Color based on urgency
     val urgencyColor = when {
@@ -340,7 +348,7 @@ private fun IssuedBookCard(book: LibraryIssueDoc) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = book.bookTitle.ifBlank { "Untitled Book" },
+                    text = book.bookTitle.ifBlank { stringResource(R.string.lib_untitled_book) },
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = c.textPrimary,
@@ -349,7 +357,7 @@ private fun IssuedBookCard(book: LibraryIssueDoc) {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Issued: ${LibraryViewModel.formatDisplayDate(book.issueDate)}",
+                    text = stringResource(R.string.lib_issued_fmt, LibraryViewModel.formatDisplayDate(book.issueDate)),
                     fontSize = 10.sp,
                     color = c.textSecondary
                 )
@@ -367,7 +375,7 @@ private fun IssuedBookCard(book: LibraryIssueDoc) {
 
                     if (book.renewals > 0) {
                         DotPill(
-                            text = "Renewed ${book.renewals}x",
+                            text = stringResource(R.string.lib_renewed_fmt, book.renewals),
                             dotColor = c.info,
                             bgColor = c.infoBg,
                             textColor = c.info
@@ -388,8 +396,8 @@ private fun HistoryTab(history: List<LibraryIssueDoc>) {
     if (history.isEmpty()) {
         EmptyState(
             emoji = "\uD83D\uDCDA",
-            title = "No borrowing history",
-            subtitle = "Your borrowing history will appear here"
+            title = stringResource(R.string.lib_no_history),
+            subtitle = stringResource(R.string.lib_history_here)
         )
     } else {
         LazyColumn(
@@ -452,7 +460,7 @@ private fun HistoryBookCard(item: LibraryIssueDoc) {
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = item.bookTitle.ifBlank { "Untitled Book" },
+                text = item.bookTitle.ifBlank { stringResource(R.string.lib_untitled_book) },
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = c.textPrimary,
@@ -501,8 +509,8 @@ private fun FinesTab(fines: List<LibraryFineDoc>, totalFines: Double) {
     if (fines.isEmpty()) {
         EmptyState(
             emoji = "\uD83C\uDF89",
-            title = "No outstanding fines",
-            subtitle = "You're all clear! Keep returning books on time"
+            title = stringResource(R.string.lib_no_fines),
+            subtitle = stringResource(R.string.lib_all_clear_msg)
         )
     } else {
         LazyColumn(
@@ -536,7 +544,7 @@ private fun TotalFinesSummary(totalFines: Double, count: Int) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "TOTAL OUTSTANDING",
+            text = stringResource(R.string.lib_total_outstanding),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             color = c.textTertiary,
@@ -551,7 +559,7 @@ private fun TotalFinesSummary(totalFines: Double, count: Int) {
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "$count pending fine${if (count != 1) "s" else ""}",
+            text = pluralStringResource(R.plurals.lib_pending_fines, count, count),
             fontSize = 11.sp,
             color = c.textSecondary
         )
@@ -598,7 +606,7 @@ private fun FineCard(fine: LibraryFineDoc) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = fine.bookTitle.ifBlank { "Library Fine" },
+                    text = fine.bookTitle.ifBlank { stringResource(R.string.lib_library_fine) },
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = c.textPrimary,
@@ -615,7 +623,7 @@ private fun FineCard(fine: LibraryFineDoc) {
                 Spacer(modifier = Modifier.height(6.dp))
 
                 DotPill(
-                    text = "Pending",
+                    text = stringResource(R.string.filter_pending),
                     dotColor = c.error,
                     bgColor = c.errorBg,
                     textColor = c.error
@@ -660,7 +668,7 @@ private fun CatalogTab(
         ) {
             Icon(
                 imageVector = Icons.Filled.Search,
-                contentDescription = "Search",
+                contentDescription = stringResource(R.string.common_search),
                 tint = c.textTertiary,
                 modifier = Modifier.size(18.dp)
             )
@@ -682,7 +690,7 @@ private fun CatalogTab(
                 decorationBox = { innerTextField ->
                     if (searchQuery.isEmpty()) {
                         Text(
-                            text = "Search by book title...",
+                            text = stringResource(R.string.lib_search_hint),
                             fontSize = 14.sp,
                             color = c.textTertiary
                         )
@@ -697,14 +705,14 @@ private fun CatalogTab(
         if (searchQuery.length < 2) {
             EmptyState(
                 emoji = "\uD83D\uDD0D",
-                title = "Search the library catalog",
-                subtitle = "Type at least 2 characters to search"
+                title = stringResource(R.string.lib_search_catalog),
+                subtitle = stringResource(R.string.lib_type_2_chars)
             )
         } else if (books.isEmpty()) {
             EmptyState(
                 emoji = "\uD83D\uDCDA",
-                title = "No books found",
-                subtitle = "Try a different search term"
+                title = stringResource(R.string.lib_no_books),
+                subtitle = stringResource(R.string.lib_try_different_term)
             )
         } else {
             LazyColumn(
@@ -768,7 +776,7 @@ private fun CatalogBookCard(book: LibraryBookDoc) {
             Spacer(modifier = Modifier.height(2.dp))
 
             // Author(s)
-            val authorsText = book.authors.joinToString(", ").ifBlank { "Unknown Author" }
+            val authorsText = book.authors.joinToString(", ").ifBlank { stringResource(R.string.lib_unknown_author) }
             Text(
                 text = authorsText,
                 fontSize = 10.sp,

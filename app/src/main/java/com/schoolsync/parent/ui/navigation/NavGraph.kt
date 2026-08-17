@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.navigation
 
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -111,6 +114,7 @@ import com.schoolsync.parent.ui.theme.LocalAppColors
 
 sealed class Route(val route: String) {
     data object Splash : Route("splash")
+    data object LanguageSetup : Route("language_setup")
     data object Walkthrough : Route("walkthrough")
     data object Login : Route("login")
     /** Phase A — gate before Main when `mustChangePassword` is true. */
@@ -191,9 +195,17 @@ sealed class Route(val route: String) {
     }
 }
 
+/**
+ * Label is a @StringRes id, not a String.
+ *
+ * This is a top-level `val`, evaluated once at class-init outside any
+ * composition, so it cannot call stringResource() — and a String captured
+ * there would freeze whichever language the process started in and survive
+ * recreate(). Resolved at the render site instead.
+ */
 data class BottomNavItem(
     val route: String,
-    val label: String,
+    @StringRes val labelRes: Int,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
 )
@@ -201,31 +213,31 @@ data class BottomNavItem(
 val bottomNavItems = listOf(
     BottomNavItem(
         route = Route.Dashboard.route,
-        label = "Home",
+        labelRes = R.string.nav_home,
         selectedIcon = Icons.Filled.Dashboard,
         unselectedIcon = Icons.Outlined.Dashboard
     ),
     BottomNavItem(
         route = Route.Academics.route,
-        label = "Categories",
+        labelRes = R.string.academics_title,
         selectedIcon = Icons.Filled.School,
         unselectedIcon = Icons.Outlined.School
     ),
     BottomNavItem(
         route = Route.Fees.route,
-        label = "Fees",
+        labelRes = R.string.drawer_fees,
         selectedIcon = Icons.Filled.AccountBalanceWallet,
         unselectedIcon = Icons.Outlined.AccountBalanceWallet
     ),
     BottomNavItem(
         route = Route.Notices.route,
-        label = "Notices",
+        labelRes = R.string.drawer_notices,
         selectedIcon = Icons.Filled.Campaign,
         unselectedIcon = Icons.Outlined.Campaign
     ),
     BottomNavItem(
         route = Route.Profile.route,
-        label = "Profile",
+        labelRes = R.string.drawer_profile,
         selectedIcon = Icons.Filled.Person,
         unselectedIcon = Icons.Outlined.Person
     )
@@ -259,7 +271,8 @@ fun AppNavGraph(
             android.widget.Toast.makeText(guardContext, message, android.widget.Toast.LENGTH_LONG).show()
             navController.navigate(Route.Login.route) {
                 // Drop the whole back stack: the session is gone, so nothing
-                // behind us is still authorised to render. launchSingleTop stops
+                // behind us is still authorised to render. inclusive=true on the
+                // start destination clears it entirely, and launchSingleTop stops
                 // a second trigger (auth-state AND foreground re-check can both
                 // fire) from stacking two Login screens.
                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
@@ -287,6 +300,11 @@ fun AppNavGraph(
                             popUpTo(Route.Splash.route) { inclusive = true }
                         }
                     },
+                    onNavigateToLanguageSetup = {
+                        navController.navigate(Route.LanguageSetup.route) {
+                            popUpTo(Route.Splash.route) { inclusive = true }
+                        }
+                    },
                     onNavigateToLogin = {
                         navController.navigate(Route.Login.route) {
                             popUpTo(Route.Splash.route) { inclusive = true }
@@ -310,6 +328,26 @@ fun AppNavGraph(
                     hasSeenOnboarding = state.hasSeenOnboarding
                 )
             }
+        }
+
+        composable(Route.LanguageSetup.route) {
+            // Choosing a language calls Activity.recreate(), which restarts the
+            // graph at Splash. hasExplicitChoice() is true by then, so Splash
+            // routes onward and this screen is not shown again. onContinue
+            // covers the case where the user keeps the pre-selected language and
+            // no recreate happens.
+            com.schoolsync.parent.ui.splash.LanguageSetupScreen(
+                onContinue = {
+                    // Back to Splash, not straight to Walkthrough: where the
+                    // user goes next depends on whether they are logged in and
+                    // whether they have seen onboarding, and Splash already owns
+                    // that decision. An existing user who was logged in lands on
+                    // the dashboard; a new install continues to the walkthrough.
+                    navController.navigate(Route.Splash.route) {
+                        popUpTo(Route.LanguageSetup.route) { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable(Route.Walkthrough.route) {
@@ -896,6 +934,7 @@ fun MainScreen(
                 myReactions = storyState.myReactions,
                 onClose = { storyViewerTeacherId = null },
                 onStoryViewed = { storyId -> storyViewModel.markStoryViewed(storyId) },
+                onStoryCompleted = { storyId -> storyViewModel.markStoryCompleted(storyId) },
                 onReact = { storyId, emoji -> storyViewModel.reactToStory(storyId, emoji) }
             )
         }
@@ -1055,7 +1094,7 @@ private fun SmoothNavItem(
             ) {
                 Icon(
                     imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                    contentDescription = item.label,
+                    contentDescription = stringResource(item.labelRes),
                     tint = if (isSelected) c.navActive else c.navInactive,
                     modifier = Modifier
                         .size(iconSize)
@@ -1076,7 +1115,7 @@ private fun SmoothNavItem(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = item.label,
+            text = stringResource(item.labelRes),
             fontSize = 10.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
             color = if (isSelected) c.navActive else c.navInactive,

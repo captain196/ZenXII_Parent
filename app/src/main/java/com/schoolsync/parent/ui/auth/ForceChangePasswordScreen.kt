@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.auth
 
+import com.schoolsync.parent.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -84,7 +86,7 @@ fun ForceChangePasswordScreen(
             // and they wonder if anything happened).
             Toast.makeText(
                 context,
-                "Password changed successfully",
+                context.getString(R.string.auth_pw_changed_ok),
                 Toast.LENGTH_LONG,
             ).show()
             kotlinx.coroutines.delay(900) // let the toast appear
@@ -112,7 +114,7 @@ fun ForceChangePasswordScreen(
                 .align(Alignment.TopEnd)
                 .padding(12.dp)
         ) {
-            Icon(Icons.Filled.Logout, contentDescription = "Sign out", tint = c.textPrimary)
+            Icon(Icons.Filled.Logout, contentDescription = stringResource(R.string.auth_action_sign_out), tint = c.textPrimary)
         }
 
         Column(
@@ -147,7 +149,7 @@ fun ForceChangePasswordScreen(
                 }
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = "Set a new password",
+                    text = stringResource(R.string.auth_set_new_password),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = c.textPrimary,
@@ -155,8 +157,7 @@ fun ForceChangePasswordScreen(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "Your password was reset by your school admin. " +
-                           "Please choose a new password to continue.",
+                    text = stringResource(R.string.auth_password_reset_by_admin),
                     fontSize = 13.sp,
                     color = c.textSecondary,
                     textAlign = TextAlign.Center,
@@ -168,7 +169,7 @@ fun ForceChangePasswordScreen(
                 OutlinedTextField(
                     value = uiState.newPassword,
                     onValueChange = viewModel::onNewPasswordChange,
-                    label = { Text("New password") },
+                    label = { Text(stringResource(R.string.auth_new_password)) },
                     singleLine = true,
                     visualTransformation = if (uiState.newVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
@@ -193,7 +194,7 @@ fun ForceChangePasswordScreen(
                 OutlinedTextField(
                     value = uiState.confirmPassword,
                     onValueChange = viewModel::onConfirmPasswordChange,
-                    label = { Text("Confirm password") },
+                    label = { Text(stringResource(R.string.auth_confirm_password)) },
                     singleLine = true,
                     visualTransformation = if (uiState.confirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
@@ -247,7 +248,7 @@ fun ForceChangePasswordScreen(
                         )
                     } else {
                         Text(
-                            text = "Save & Continue",
+                            text = stringResource(R.string.auth_action_save_continue),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -255,7 +256,7 @@ fun ForceChangePasswordScreen(
                 }
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = onLogout) {
-                    Text("Sign out instead", fontSize = 13.sp, color = c.textSecondary)
+                    Text(stringResource(R.string.auth_action_sign_out_instead), fontSize = 13.sp, color = c.textSecondary)
                 }
             }
         }

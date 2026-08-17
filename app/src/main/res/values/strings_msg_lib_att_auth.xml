@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English (source)
+     W5 — messages, library, attendance, auth.
+     Attendance banner lines are DISPLAY of the canonical statuses; the
+     stored codes (P/A/L/H/T) and month keys are untouched. -->
+<resources>
+    <string name="att_absent_today">Absent today</string>
+    <string name="att_approved_leave">Approved leave</string>
+    <string name="att_catch_up">Make sure to catch up</string>
+    <string name="att_enjoy_day_off">Enjoy your day off</string>
+    <string name="att_holiday_today">Holiday today</string>
+    <string name="att_keep_it_up">Keep up the good work!</string>
+    <string name="att_late_today">Late arrival today</string>
+    <string name="att_leave_today">On leave today</string>
+    <string name="att_no_status_yet">No status yet</string>
+    <string name="att_on_time">On time</string>
+    <string name="att_present_today">Present today</string>
+    <string name="att_status_soon">Status will be updated soon</string>
+    <string name="auth_enter_id_first">Enter your Student ID first.</string>
+    <string name="auth_looking_up_school">Looking up your school…</string>
+    <string name="auth_not_student_account">That\'s not a student account. Enter your child\'s Student ID (e.g. STU0001).</string>
+    <string name="auth_pw_changed_ok">Password changed successfully</string>
+    <string name="auth_pw_different">Please choose a different password from the one sent to you.</string>
+    <string name="auth_pw_digit">Must include a digit.</string>
+    <string name="auth_pw_len">Password must be 8–72 characters.</string>
+    <string name="auth_pw_lower">Must include a lowercase letter.</string>
+    <string name="auth_pw_mismatch">Passwords do not match.</string>
+    <string name="auth_pw_upper">Must include an uppercase letter.</string>
+    <string name="auth_server_unreachable">Couldn\'t reach the server. Check your connection and try again.</string>
+    <string name="auth_your_school">Your school</string>
+    <string name="generic_just_now">Just now</string>
+    <string name="lib_all_clear_msg">You\'re all clear! Keep returning books on time</string>
+    <string name="lib_history_here">Your borrowing history will appear here</string>
+    <string name="lib_library_fine">Library Fine</string>
+    <string name="lib_my_books">My Books</string>
+    <string name="lib_no_student_id">Student ID not available</string>
+    <string name="lib_try_different_term">Try a different search term</string>
+    <string name="lib_type_2_chars">Type at least 2 characters to search</string>
+    <string name="lib_unknown_author">Unknown Author</string>
+    <string name="lib_untitled_book">Untitled Book</string>
+    <string name="lib_visit_to_borrow">Visit the school library to borrow books</string>
+    <string name="msg_delete_conv_failed">Failed to delete conversation</string>
+    <string name="msg_delete_msg_failed">Failed to delete message</string>
+    <string name="msg_delete_only_yours">It will be removed from your inbox only — the other person will still see it.</string>
+    <string name="msg_load_chat_failed">Failed to load chat</string>
+    <string name="msg_load_failed">Failed to load messages</string>
+    <string name="msg_lost_connection">Lost real-time connection</string>
+    <string name="msg_observe_inbox_failed">Failed to observe inbox</string>
+    <string name="msg_open_chat_failed">Failed to open chat</string>
+    <string name="msg_react_failed">Failed to react</string>
+    <string name="msg_realtime_unavailable">Real-time updates unavailable</string>
+    <string name="msg_send_failed">Failed to send message</string>
+    <string name="msg_send_media_failed">Failed to send media</string>
+    <string name="msg_upload_failed">Upload failed</string>
+
+    <string name="lib_due_on_date">Due %1$s</string>
+    <plurals name="lib_days_overdue">
+        <item quantity="one">%d day overdue</item>
+        <item quantity="other">%d days overdue</item>
+    </plurals>
+    <plurals name="lib_due_in_days">
+        <item quantity="one">Due in %d day</item>
+        <item quantity="other">Due in %d days</item>
+    </plurals>
+
+    <string name="lib_tab_catalog">Catalog</string>
+    <string name="lib_tab_fines">Fines</string>
+    <string name="lib_tab_history">History</string>
+
+</resources>

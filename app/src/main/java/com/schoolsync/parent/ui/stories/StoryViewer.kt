@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.stories
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -141,6 +143,8 @@ fun StoryViewer(
     myReactions: Map<String, String>,
     onClose: () -> Unit,
     onStoryViewed: (String) -> Unit,
+    /** Called when a story is watched to the end (not tapped past). */
+    onStoryCompleted: (String) -> Unit,
     onReact: (storyId: String, emoji: String) -> Unit
 ) {
     BackHandler(onBack = onClose)
@@ -155,11 +159,12 @@ fun StoryViewer(
         // it correct regardless. (The old blind `delay(1500); onClose()`,
         // which ignored isLoading, is what flash-closed the viewer on first tap.)
         if (isLoading) {
+            val loadingCd = stringResource(R.string.story_loading)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black)
-                    .semantics { contentDescription = "Loading stories" },
+                    .semantics { contentDescription = loadingCd },
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(36.dp))
@@ -171,26 +176,94 @@ fun StoryViewer(
         return
     }
 
-    val initialPage = storyGroups.indexOfFirst { it.teacherId == initialTeacherId }.coerceAtLeast(0)
-    val pagerState = rememberPagerState(initialPage = initialPage) { storyGroups.size }
+    // ── Freeze the running order for this viewing session ─────────────
+    //
+    // `storyGroups` is LIVE and sorted with `.thenByDescending { hasUnviewed }`,
+    // so the instant a parent dwells 500ms on a teacher, that teacher flips to
+    // seen and RE-SORTS below everyone still unseen — while being viewed. With
+    // an unkeyed pager that silently swapped the slot's author mid-swipe, which
+    // is why tapping one teacher could land on another.
+    //
+    // WhatsApp and Instagram pin the running order when the viewer opens. We
+    // snapshot the ORDER only; content stays live via the re-map below.
+    // Freezing waits until the tapped teacher is PRESENT, because the audience
+    // entitlement resolves asynchronously and an early snapshot could omit
+    // them (-1 → page 0 → the wrong person).
+    var frozenOrder by remember(initialTeacherId) { mutableStateOf<List<String>?>(null) }
+    LaunchedEffect(storyGroups, initialTeacherId) {
+        if (frozenOrder == null && storyGroups.any { it.teacherId == initialTeacherId }) {
+            frozenOrder = storyGroups.map { it.teacherId }
+        }
+    }
+    // Decisive breadcrumb — see the Teacher app's equivalent. Tells us whether
+    // the freeze gate ever opened, which separates "no page rendered" from
+    // "page rendered but the dwell never fired".
+    LaunchedEffect(storyGroups.size, frozenOrder == null) {
+        com.schoolsync.parent.util.debugLog(
+            "Story.viewer GATE groups=${storyGroups.size} target=$initialTeacherId " +
+            "present=${storyGroups.any { it.teacherId == initialTeacherId }} frozen=${frozenOrder != null}"
+        )
+    }
+
+    val order = frozenOrder
+    if (order == null) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(36.dp))
+        }
+        return
+    }
+    // Frozen ids re-mapped onto live groups; teachers appearing mid-session are
+    // appended rather than injected, so nothing shifts under the current page.
+    val ordered = remember(storyGroups, order) {
+        val byId = storyGroups.associateBy { it.teacherId }
+        order.mapNotNull { byId[it] } + storyGroups.filter { it.teacherId !in order }
+    }
+    if (ordered.isEmpty()) { LaunchedEffect(Unit) { onClose() }; return }
+
+    val initialPage = ordered.indexOfFirst { it.teacherId == initialTeacherId }.coerceAtLeast(0)
+    val pagerState = rememberPagerState(initialPage = initialPage) { ordered.size }
     val scope = rememberCoroutineScope()
 
     // No opaque background here — each page paints its own black backdrop
     // whose alpha fades during a swipe-down / pinch-out dismiss, revealing
     // whatever is behind the viewer (the dashboard it was opened from).
     Box(modifier = Modifier.fillMaxSize()) {
-        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { pageIndex ->
+        HorizontalPager(
+            state = pagerState,
+            // WITHOUT a key, Compose reuses page slots POSITIONALLY, so any
+            // list change made slot N render a different teacher.
+            key = { index -> ordered[index].teacherId },
+            modifier = Modifier.fillMaxSize()
+        ) { pageIndex ->
             StoryPage(
-                group = storyGroups[pageIndex],
+                // WhatsApp-style cube: the page turns around the edge you drag
+                // toward, so a swipe reads as moving to the next PERSON.
+                modifier = Modifier.graphicsLayer {
+                    val offset =
+                        (pagerState.currentPage - pageIndex) + pagerState.currentPageOffsetFraction
+                    val clamped = offset.coerceIn(-1f, 1f)
+                    cameraDistance = 18f * density
+                    rotationY = clamped * -60f
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(
+                        pivotFractionX = if (clamped < 0f) 0f else 1f,
+                        pivotFractionY = 0.5f
+                    )
+                    alpha = 1f - (kotlin.math.abs(clamped) * 0.35f)
+                },
+                group = ordered[pageIndex],
                 isCurrentPage = pagerState.currentPage == pageIndex,
                 myReactions = myReactions,
                 onClose = onClose,
                 onStoryViewed = onStoryViewed,
+                onStoryCompleted = onStoryCompleted,
                 onReact = onReact,
                 onGroupFinished = {
                     scope.launch {
                         val next = pageIndex + 1
-                        if (next < storyGroups.size) pagerState.animateScrollToPage(next) else onClose()
+                        if (next < ordered.size) pagerState.animateScrollToPage(next) else onClose()
                     }
                 }
             )
@@ -201,11 +274,14 @@ fun StoryViewer(
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 private fun StoryPage(
+    modifier: Modifier = Modifier,
     group: TeacherStoryGroup,
     isCurrentPage: Boolean,
     myReactions: Map<String, String>,
     onClose: () -> Unit,
     onStoryViewed: (String) -> Unit,
+    /** Called when a story is watched to the end (not tapped past). */
+    onStoryCompleted: (String) -> Unit,
     onReact: (storyId: String, emoji: String) -> Unit,
     onGroupFinished: () -> Unit
 ) {
@@ -235,8 +311,12 @@ private fun StoryPage(
         // an author's first story (or flicking through the pager) doesn't
         // inflate the view count. If the page changes before the delay elapses
         // the effect is cancelled and no view is recorded.
+        com.schoolsync.parent.util.debugLog(
+            "Story.viewer PAGE teacher=${group.teacherId} story=${story.storyId} isCurrent=$isCurrentPage"
+        )
         if (isCurrentPage) {
             kotlinx.coroutines.delay(500)
+            com.schoolsync.parent.util.debugLog("Story.viewer DWELL fired story=${story.storyId}")
             onStoryViewed(story.storyId)
         }
     }
@@ -293,13 +373,18 @@ private fun StoryPage(
             last = now
             imageElapsed += delta.coerceIn(0L, 64L)
         }
+        // The timer ran out with the image on screen — genuinely watched, not
+        // skipped. Recorded BEFORE advancing so the story id is still the one
+        // that finished. The image-error auto-advance below deliberately does
+        // NOT call this: bailing out of a broken image is not a completion.
+        onStoryCompleted(story.storyId)
         if (index < stories.size - 1) index++ else onGroupFinished()
     }
 
     val currentProgress = if (isVideo) videoProgress
     else (imageElapsed.toFloat() / IMAGE_DURATION_MS).coerceIn(0f, 1f)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
         // Backdrop — fades out as the story is dismissed, revealing behind.
         Box(
             modifier = Modifier
@@ -339,7 +424,13 @@ private fun StoryPage(
                             isPaused = isPaused || mediaZoomed || isDismissing || trayVisible,
                             isMuted = isMuted,
                             onProgress = { videoProgress = it },
-                            onEnded = { if (index < stories.size - 1) index++ else onGroupFinished() }
+                            onEnded = {
+                                // Reached the last frame — a real completion,
+                                // unlike a tap-forward. Recorded before the
+                                // index moves.
+                                onStoryCompleted(story.storyId)
+                                if (index < stories.size - 1) index++ else onGroupFinished()
+                            }
                         )
                     } else {
                         coil.compose.AsyncImage(
@@ -363,12 +454,13 @@ private fun StoryPage(
                 // Broken/expired media — surface an error instead of an eternal
                 // spinner, and auto-advance (mirrors the video onEnded fallback).
                 if (!isVideo && imageFailed) {
+                    val failedCd = stringResource(R.string.story_could_not_load)
                     Box(
-                        modifier = Modifier.fillMaxSize().semantics { contentDescription = "This story could not be loaded" },
+                        modifier = Modifier.fillMaxSize().semantics { contentDescription = failedCd },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Couldn't load this story",
+                            text = stringResource(R.string.story_load_failed),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.85f),
                             textAlign = TextAlign.Center,
@@ -526,6 +618,8 @@ private fun StoryPage(
                         // parent has reacted it shows their chosen emoji instead.
                         // Sits at the very bottom edge (small bottom padding).
                         val myEmoji = myReactions[story.storyId]
+                        // Hoisted: Modifier.semantics {} is not a composable scope.
+                        val reactCd = stringResource(R.string.story_react)
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
@@ -536,7 +630,7 @@ private fun StoryPage(
                                 .semantics {
                                     contentDescription =
                                         if (myEmoji != null) "You reacted $myEmoji. Tap to change your reaction"
-                                        else "React to this story"
+                                        else reactCd
                                 }
                         ) {
                             if (myEmoji != null) {
@@ -718,7 +812,7 @@ private fun TopChrome(
                     if (group.teacherPic.isNotBlank()) {
                         coil.compose.AsyncImage(
                             model = group.teacherPic,
-                            contentDescription = "${group.teacherName}'s profile photo",
+                            contentDescription = stringResource(R.string.stories_profile_photo_fmt, group.teacherName),
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.size(36.dp).clip(CircleShape)
                         )
@@ -736,7 +830,7 @@ private fun TopChrome(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(group.teacherName, style = MaterialTheme.typography.titleSmall, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(formatStoryTime(createdAt), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
+                        Text(formatStoryTime(LocalContext.current, createdAt), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -751,7 +845,7 @@ private fun TopChrome(
                         }
                     }
                     IconButton(onClick = onClose) {
-                        Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_close), tint = Color.White, modifier = Modifier.size(24.dp))
                     }
                 }
             }
@@ -907,7 +1001,7 @@ private fun VideoStoryPlayer(
 
         if (failed) {
             Text(
-                text = "Couldn't load this story",
+                text = stringResource(R.string.story_load_failed),
                 color = Color.White,
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -922,15 +1016,17 @@ private fun VideoStoryPlayer(
     }
 }
 
-private fun formatStoryTime(timestamp: Long): String {
+/** Top-level helper — no composition here, so the Context is passed in. */
+private fun formatStoryTime(ctx: android.content.Context, timestamp: Long): String {
     if (timestamp <= 0) return ""
     val diff = System.currentTimeMillis() - timestamp
     val minutes = diff / (1000 * 60)
     val hours = diff / (1000 * 60 * 60)
     return when {
-        minutes < 1 -> "Just now"
-        minutes < 60 -> "${minutes}m ago"
-        hours < 24 -> "${hours}h ago"
-        else -> try { SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(timestamp)) } catch (_: Exception) { "" }
+        minutes < 1 -> ctx.getString(R.string.generic_just_now)
+        minutes < 60 -> ctx.getString(R.string.story_mins_ago, minutes.toInt())
+        hours < 24 -> ctx.getString(R.string.story_hours_ago, hours.toInt())
+        // Display formatter: localized month name, Latin digits pinned.
+        else -> try { com.schoolsync.parent.util.DisplayFormat.dayMonth(Date(timestamp)) } catch (_: Exception) { "" }
     }
 }

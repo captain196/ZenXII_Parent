@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- हिन्दी · Hindi
+     W4 — profile + homework. FAQ answers are single resources, joined
+     from concatenated Kotlin fragments: adjacent literals cannot be
+     reordered and word order differs in every language here.
+     Subject-tip KEYS ("mathematics", "science", …) stay English —
+     they are matched against server subject names. -->
+<resources>
+    <string name="faq_a_attendance">उपस्थिति शिक्षकों द्वारा दर्ज की जाती है और आमतौर पर उसी दिन दोपहर 2 बजे के बाद दिखती है। यदि कोई दिन छूटा लगे, तो उपस्थिति स्क्रीन रिफ़्रेश करने के लिए नीचे खींचें — फिर भी खाली हो तो कक्षा शिक्षक से संपर्क करें।</string>
+    <string name="faq_a_fees">नीचे की पट्टी से शुल्क टैब खोलें, किसी भी लंबित शुल्क मद पर टैप करें और Razorpay सुरक्षित चेकआउट के लिए भुगतान चुनें। भुगतान सफल होते ही रसीदें भरे गए शुल्क में दिखाई देती हैं।</string>
+    <string name="faq_a_homework">नीचे की पट्टी में श्रेणियाँ टैब पर टैप करें — गृहकार्य, परिणाम, समय सारणी और परीक्षा कार्यक्रम सब वहीं हैं।</string>
+    <string name="faq_a_password">इस प्रोफ़ाइल टैब में ऊपर जाएँ, \"पासवर्ड बदलें\" खोलें, अपना वर्तमान पासवर्ड और 6+ अक्षरों का नया पासवर्ड दर्ज करें, फिर अपडेट पर टैप करें।</string>
+    <string name="faq_a_push">सुनिश्चित करें कि सेटिंग्स → अधिसूचनाएँ में अधिसूचनाएँ चालू हैं। पुश छूट जाने पर भी विद्यालय की सूचनाएँ सूचनाएँ टैब में दिखती हैं।</string>
+    <string name="faq_q_attendance">मेरे बच्चे की उपस्थिति अपडेट क्यों नहीं हो रही?</string>
+    <string name="faq_q_fees">विद्यालय शुल्क कैसे भरें?</string>
+    <string name="faq_q_homework">गृहकार्य और परिणाम कहाँ देखें?</string>
+    <string name="faq_q_password">मैं अपना पासवर्ड कैसे बदलूँ?</string>
+    <string name="faq_q_push">मुझे किसी सूचना के लिए पुश अधिसूचना नहीं मिली।</string>
+    <string name="hw_describe_optional">आपने क्या पूरा किया, बताएँ (वैकल्पिक):</string>
+    <string name="hw_due_soon">जल्द देय</string>
+    <string name="hw_load_failed_plain">गृहकार्य लोड नहीं हो सका</string>
+    <string name="hw_network_problem">नेटवर्क समस्या — अपना कनेक्शन जाँचें और पुनः प्रयास करें।</string>
+    <string name="hw_no_school_linked">जमा नहीं कर सकते — आपके खाते से कोई विद्यालय जुड़ा नहीं है। लॉग आउट करके फिर लॉगिन करें।</string>
+    <string name="hw_not_found">गृहकार्य नहीं मिला — इसे हटाया जा चुका हो सकता है।</string>
+    <string name="hw_permission_blocked">अनुमतियों के कारण जमा करना अवरुद्ध। लॉग आउट करके फिर लॉगिन करें, फिर पुनः प्रयास करें।</string>
+    <string name="hw_state_not_started">अभी शुरू नहीं</string>
+    <string name="hw_state_ready">पूर्ण, जमा करने के लिए तैयार</string>
+    <string name="hw_state_reviewed">शिक्षक द्वारा समीक्षित</string>
+    <string name="hw_state_started">काम शुरू पर पूरा नहीं</string>
+    <string name="hw_state_submitted">जमा किया - समीक्षा प्रतीक्षित</string>
+    <string name="hw_submit">गृहकार्य जमा करें</string>
+    <string name="hw_tip_english">मुख्य शब्दावली रेखांकित करें और जमा करने से पहले व्याकरण जाँचें।</string>
+    <string name="hw_tip_generic">निर्देश ध्यान से पढ़ें और अपने समय का सही प्रबंधन करें।</string>
+    <string name="hw_tip_geography">जहाँ प्रश्न अनुमति दे, वहाँ मानचित्र और आँकड़ों का संदर्भ दें।</string>
+    <string name="hw_tip_hindi">सुंदर लिखने का अभ्यास करें और जमा करने से पहले मात्रा की त्रुटियाँ जाँचें।</string>
+    <string name="hw_tip_history">अपने उत्तर मजबूत करने के लिए तिथियों और प्रमुख व्यक्तियों के नाम दें।</string>
+    <string name="hw_tip_maths">सभी हल के चरण स्पष्ट लिखें — अंतिम उत्तर गलत होने पर भी विधि के लिए आंशिक अंक मिलते हैं।</string>
+    <string name="hw_tip_science">जहाँ संभव हो नामांकित आरेख बनाएँ। उनके लिए प्रायः अलग अंक होते हैं।</string>
+    <string name="hw_under_review">समीक्षाधीन</string>
+    <string name="profile_about_notices">सूचनाएँ, कार्यक्रम और जन्मदिन की शुभकामनाएँ</string>
+    <string name="profile_about_payments">Razorpay के माध्यम से सुरक्षित शुल्क भुगतान</string>
+    <string name="profile_about_privacy">Firebase प्रोजेक्ट, तीसरे पक्ष के साथ कभी साझा नहीं</string>
+    <string name="profile_about_realtime">रीयल-टाइम उपस्थिति, परिणाम और गृहकार्य</string>
+    <string name="profile_all_done">सब पूरा</string>
+    <string name="profile_call_or_email">कॉल या ईमेल करें</string>
+    <string name="profile_common_questions">सामान्य प्रश्न</string>
+    <string name="profile_loading_contact">संपर्क विवरण लोड हो रहा है…</string>
+    <string name="profile_manage_alerts">अलर्ट प्रबंधित करें</string>
+    <string name="profile_no_contact">संपर्क विवरण दर्ज नहीं है। कृपया विद्यालय कार्यालय में स्वयं जाएँ या विद्यालय की वेबसाइट से संपर्क करें।</string>
+    <string name="profile_update_credentials">क्रेडेंशियल अपडेट करें</string>
+    <string name="profile_update_password">पासवर्ड अपडेट करें</string>
+
+    <string name="hw_due_on">%1$s को देय</string>
+    <string name="hw_due_today_at">आज देय (%1$s)</string>
+
+</resources>

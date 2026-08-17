@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.fees
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,7 +48,7 @@ import com.schoolsync.parent.ui.theme.LocalAppColors
 @Composable
 fun FeeBlockedBanner(
     dueAmount: Double,
-    scope: String = "Results, TC and hall-ticket may be withheld",
+    scope: String = stringResource(R.string.fees_blocked_warning),
     onPayClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -84,7 +86,7 @@ fun FeeBlockedBanner(
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = "Outstanding fees: Rs. ${"%,.0f".format(dueAmount)}",
+                text = stringResource(R.string.fees_outstanding_fmt, "%,.0f".format(dueAmount)),
                 style = MaterialTheme.typography.titleSmall,
                 color = c.error,
                 fontWeight = FontWeight.Bold
@@ -97,7 +99,7 @@ fun FeeBlockedBanner(
         }
         Icon(
             imageVector = Icons.Filled.ChevronRight,
-            contentDescription = "Pay now",
+            contentDescription = stringResource(R.string.fees_pay_now),
             tint = c.error,
             modifier = Modifier.size(18.dp)
         )

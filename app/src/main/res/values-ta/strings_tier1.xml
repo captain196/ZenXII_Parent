@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- தமிழ் · Tamil
+     Tier 1 — notification channel names/descriptions, FriendlyError,
+     and PaymentSession failure copy.
+     Channel IDs and the push `type` keys in channelForType() are WIRE
+     VALUES and stay English; only what Android Settings shows to the
+     user is translated. "Razorpay" is a brand. -->
+<resources>
+    <string name="err_cannot_reach_server">பள்ளி சேவையகத்தை அணுக முடியவில்லை. உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="err_no_internet">இணைய இணைப்பு இல்லை. மீண்டும் இணைத்து முயற்சிக்கவும்.</string>
+    <string name="err_not_found">அதை சேவையகத்தில் காண முடியவில்லை. புதுப்பித்து மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="err_payments_paused">பள்ளி புதிய கட்டணங்களைத் தற்காலிகமாக நிறுத்தியுள்ளது (ஆண்டு இறுதி முடிப்பு அல்லது காலப் பூட்டு). சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும் அல்லது பள்ளி அலுவலகத்தைத் தொடர்பு கொள்ளவும்.</string>
+    <string name="err_server_timeout">பள்ளி சேவையகம் பதிலளிக்க அதிக நேரம் எடுத்தது. சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="err_server_unavailable">பள்ளி சேவையகம் தற்காலிகமாகக் கிடைக்கவில்லை. சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="err_session_expired">உங்கள் அமர்வு காலாவதியாகிவிட்டது. வெளியேறி மீண்டும் உள்நுழையவும்.</string>
+    <string name="notif_ch_alerts">எச்சரிக்கைகள்</string>
+    <string name="notif_ch_alerts_desc">ஆசிரியர்கள் எழுப்பிய முக்கிய எச்சரிக்கைகள்</string>
+    <string name="notif_ch_attendance">வருகை</string>
+    <string name="notif_ch_attendance_desc">உங்கள் குழந்தையின் வருகைப் புதுப்பிப்புகள்</string>
+    <string name="notif_ch_events">நிகழ்வுகள்</string>
+    <string name="notif_ch_events_desc">பள்ளி நிகழ்வுகள்</string>
+    <string name="notif_ch_exams">தேர்வுகள் &amp; முடிவுகள்</string>
+    <string name="notif_ch_exams_desc">தேர்வு அட்டவணைகள் மற்றும் வெளியிடப்பட்ட முடிவுகள்</string>
+    <string name="notif_ch_fees">கட்டணம்</string>
+    <string name="notif_ch_fees_desc">கட்டண நினைவூட்டல்கள் மற்றும் கட்டண உறுதிப்படுத்தல்கள்</string>
+    <string name="notif_ch_gallery">படத்தொகுப்பு</string>
+    <string name="notif_ch_gallery_desc">புதிய புகைப்படங்கள் மற்றும் ஆல்பங்கள்</string>
+    <string name="notif_ch_general">பொது</string>
+    <string name="notif_ch_general_desc">ZenXii இலிருந்து பொது அறிவிப்புகள்</string>
+    <string name="notif_ch_homework">வீட்டுப்பாடம்</string>
+    <string name="notif_ch_homework_desc">புதிய மற்றும் மதிப்பிடப்பட்ட வீட்டுப்பாடம்</string>
+    <string name="notif_ch_leave">விடுப்பு</string>
+    <string name="notif_ch_leave_desc">விடுப்பு விண்ணப்பப் புதுப்பிப்புகள்</string>
+    <string name="notif_ch_notices">அறிவிப்புகள் &amp; சுற்றறிக்கைகள்</string>
+    <string name="notif_ch_notices_desc">புதிய அறிவிப்புகள் மற்றும் சுற்றறிக்கைகள்</string>
+    <string name="notif_ch_stories">ஸ்டோரி</string>
+    <string name="notif_ch_stories_desc">புதிய பள்ளி ஸ்டோரிகள்</string>
+    <string name="pay_cannot_record">இந்தக் கட்டணத்தைப் பதிவு செய்ய பள்ளி சேவையகத்தை அணுக முடியவில்லை.</string>
+    <string name="pay_captured_pending_fmt">கட்டணத்தை Razorpay பெற்றுள்ளது. %1$s பள்ளி சேவையகம் பதிலளித்ததும் ரசீது உங்கள் கட்டணப் பட்டியலில் தோன்றும்.</string>
+    <string name="pay_session_expired_verify">சரிபார்ப்பின் போது அமர்வு காலாவதியானது — மீண்டும் உள்நுழைந்து கட்டணப் பட்டியலைப் பாருங்கள்.</string>
+    <string name="pay_verification_failed">சரிபார்ப்பு தோல்வி.</string>
+
+</resources>

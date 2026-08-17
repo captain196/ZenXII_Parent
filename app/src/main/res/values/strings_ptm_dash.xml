@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English (source)
+     W3 — PTM + dashboard. Terminology per tools/i18n/glossary.md.
+     "PTM" stays as the abbreviation in every locale (glossary). -->
+<resources>
+    <string name="dash_all_cleared">All cleared</string>
+    <string name="dash_below_75">Below 75% — schools often require 75%+</string>
+    <string name="dash_couldnt_load">Couldn\'t load</string>
+    <string name="dash_currently_viewing">Currently viewing</string>
+    <string name="dash_due_today">Due today</string>
+    <string name="dash_due_tomorrow">Due tomorrow</string>
+    <string name="dash_fees_due_caps">FEES DUE</string>
+    <string name="dash_from_school_tap">From school · tap to read</string>
+    <string name="dash_no_pending_today">No pending items today</string>
+    <string name="dash_pay_fees">Pay Fees</string>
+    <string name="dash_recent_exam">Recent Exam</string>
+    <string name="dash_review_today">Review with your child today</string>
+    <string name="dash_school_event">School Event</string>
+    <string name="dash_switch_failed">Failed to switch.</string>
+    <string name="dash_tap_for_details">Tap for details</string>
+    <string name="dash_tap_pay_securely">Tap to pay securely</string>
+    <string name="dash_tap_to_pay">Tap to pay</string>
+    <string name="dash_up_next">UP NEXT</string>
+    <string name="dash_view_all_arrow">View All ›</string>
+    <string name="ptm_add_note">Add a note (optional)</string>
+    <string name="ptm_already_applied_refresh">You\'ve already applied — refresh to see your queue number.</string>
+    <string name="ptm_apply_failed">Failed to apply.</string>
+    <string name="ptm_decline_failed">Failed to decline.</string>
+    <string name="ptm_in_queue">You\'re in the queue.</string>
+    <string name="ptm_load_failed_dot">Failed to load.</string>
+    <string name="ptm_load_failed_plural">Failed to load PTMs.</string>
+    <string name="ptm_marked_delivered">Your class teacher has marked your meeting delivered.</string>
+    <string name="ptm_meeting_completed">Meeting completed</string>
+    <string name="ptm_meeting_title">Parent-Teacher Meeting</string>
+    <string name="ptm_no_show">NO SHOW</string>
+    <string name="ptm_none_yet">No Parent-Teacher Meetings yet</string>
+    <string name="ptm_none_yet_subtitle">When your school schedules a PTM, it will appear here.</string>
+    <string name="ptm_not_found_dot">PTM not found.</string>
+    <string name="ptm_not_your_section">This PTM doesn\'t include your section.</string>
+    <string name="ptm_rsvp_now">RSVP NOW</string>
+    <string name="ptm_school_informed">We\'ve let the school know you can\'t make it.</string>
+    <string name="ptm_thanks_letting_know">Thanks for letting us know.</string>
+    <string name="ptm_you_applied">You\'ve applied for this PTM</string>
+    <string name="ptm_you_declined">You\'ve declined this PTM</string>
+    <string name="ptm_your_class_teacher">Your section\'s class teacher</string>
+
+</resources>

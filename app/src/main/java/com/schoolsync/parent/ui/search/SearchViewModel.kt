@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.search
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.repository.StudentRepository
@@ -53,7 +56,8 @@ data class SearchUiState(
  */
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val studentRepository: StudentRepository,
+    
+    @ApplicationContext private val appContext: Context,private val studentRepository: StudentRepository,
     private val homeworkRepo: HomeworkFirestoreRepository,
     private val communicationRepo: CommunicationFirestoreRepository,
     private val eventRepo: EventFirestoreRepository,
@@ -225,7 +229,7 @@ class SearchViewModel @Inject constructor(
         return listOf(
             feature("Attendance", "📅", Route.Attendance.route,
                 "present", "absent", "attendance", "leave record", "days"),
-            feature("Pay Fees", "💳", Route.Fees.route,
+            feature(appContext.getString(R.string.dash_pay_fees), "💳", Route.Fees.route,
                 "fees", "fee", "payment", "pay", "due", "invoice", "receipt", "challan"),
             feature("Homework", "📝", Route.Homework.route,
                 "homework", "assignment", "assignments", "diary", "task", "work"),
@@ -245,9 +249,9 @@ class SearchViewModel @Inject constructor(
                 "leave", "absence", "apply leave", "sick"),
             feature("PTM", "👥", Route.PtmList.route,
                 "ptm", "parent teacher meeting", "meeting", "appointment"),
-            feature("My Teachers", "👩‍🏫", Route.MyTeachers.route,
+            feature(appContext.getString(R.string.tch_title), "👩‍🏫", Route.MyTeachers.route,
                 "teachers", "teacher", "staff", "faculty", "contact"),
-            feature("Red Flags", "🚩", Route.RedFlags.route,
+            feature(appContext.getString(R.string.rf_title), "🚩", Route.RedFlags.route,
                 "red flags", "flags", "discipline", "warning", "behaviour", "behavior"),
         )
     }

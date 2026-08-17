@@ -535,14 +535,14 @@ private fun ErrorNoticesState(
             }
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = "Couldn't load notices",
+                text = stringResource(R.string.notice_load_failed),
                 style = MaterialTheme.typography.titleLarge,
                 color = c.textPrimary,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "This is not a confirmation that there are none — check your connection and retry.",
+                text = stringResource(R.string.notice_not_confirmation),
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textSecondary,
                 textAlign = TextAlign.Center

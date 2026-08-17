@@ -1,5 +1,8 @@
 package com.schoolsync.parent.data.repository.firestore
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
@@ -23,7 +26,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class MyTeachersFirestoreRepository @Inject constructor(
-    private val firestoreService: FirestoreService,
+    
+    @ApplicationContext private val appContext: Context,private val firestoreService: FirestoreService,
     private val tokenManager: TokenManager
 ) {
     companion object { private const val TAG = "MyTeachersRepo" }
@@ -45,7 +49,7 @@ class MyTeachersFirestoreRepository @Inject constructor(
     }
 
     /**
-     * One row in the "My Teachers" UI: a single subject assignment joined
+     * One row in the appContext.getString(R.string.tch_title) UI: a single subject assignment joined
      * with the resolved staff profile.
      */
     data class TeacherEntry(
@@ -110,7 +114,7 @@ class MyTeachersFirestoreRepository @Inject constructor(
             // staff lifecycle (Phase 3 cascade) sets `archived=true` on every
             // subjectAssignment row owned by a deactivated teacher, so this
             // filter is the join-side guard that keeps deactivated teachers
-            // off the parent's "My Teachers" list.
+            // off the parent's appContext.getString(R.string.tch_title) list.
             val assignments = (sectionSpecific + classWide)
                 .distinctBy { it.id }
                 .filter { !it.archived }

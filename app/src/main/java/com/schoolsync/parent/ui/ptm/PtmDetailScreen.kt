@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.ptm
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -79,12 +81,12 @@ fun PtmDetailScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = c.textPrimary
                 )
             }
             Text(
-                "Parent-Teacher Meeting",
+                stringResource(R.string.ptm_meeting_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = c.textPrimary,
                 fontWeight = FontWeight.SemiBold
@@ -100,7 +102,7 @@ fun PtmDetailScreen(
             state.ptm == null -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        state.errorMessage ?: "PTM not found.",
+                        state.errorMessage ?: stringResource(R.string.ptm_not_found_dot),
                         color = c.textSecondary,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -122,7 +124,7 @@ fun PtmDetailScreen(
                                 .padding(16.dp)
                         ) {
                             Text(
-                                ptm.title.ifBlank { "Parent-Teacher Meeting" },
+                                ptm.title.ifBlank { stringResource(R.string.ptm_meeting_title) },
                                 style = MaterialTheme.typography.titleLarge,
                                 color = c.textPrimary,
                                 fontWeight = FontWeight.Bold
@@ -175,7 +177,7 @@ fun PtmDetailScreen(
                         state.isFresh -> {
                             item {
                                 Text(
-                                    "Add a note (optional)",
+                                    stringResource(R.string.ptm_add_note),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = c.textPrimary,
                                     fontWeight = FontWeight.Medium
@@ -184,7 +186,7 @@ fun PtmDetailScreen(
                                 OutlinedTextField(
                                     value = state.note,
                                     onValueChange = viewModel::onNoteChange,
-                                    placeholder = { Text("e.g. Topics I'd like to discuss", style = TextStyle(fontSize = 13.sp)) },
+                                    placeholder = { Text(stringResource(R.string.ptm_topics_hint), style = TextStyle(fontSize = 13.sp)) },
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(10.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
@@ -242,7 +244,7 @@ private fun AssignmentCard(state: PtmDetailUiState, c: com.schoolsync.parent.ui.
             .padding(16.dp)
     ) {
         Text(
-            "Your section's class teacher",
+            stringResource(R.string.ptm_your_class_teacher),
             style = MaterialTheme.typography.labelMedium,
             color = c.textTertiary,
             fontWeight = FontWeight.SemiBold
@@ -250,7 +252,7 @@ private fun AssignmentCard(state: PtmDetailUiState, c: com.schoolsync.parent.ui.
         Spacer(Modifier.height(8.dp))
         if (a == null) {
             Text(
-                "This PTM doesn't include your section.",
+                stringResource(R.string.ptm_not_your_section),
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.error
             )
@@ -308,14 +310,14 @@ private fun AppliedCard(
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "You've applied for this PTM",
+                    stringResource(R.string.ptm_you_applied),
                     style = MaterialTheme.typography.titleSmall,
                     color = c.textPrimary,
                     fontWeight = FontWeight.SemiBold
                 )
                 val q = state.queueNumber
                 val sub = if (q != null && q > 0) "Queue number: #$q"
-                          else "You're in the queue."
+                          else stringResource(R.string.ptm_in_queue)
                 Text(sub, style = MaterialTheme.typography.labelMedium, color = c.textSecondary)
             }
             if (state.queueNumber != null && state.queueNumber > 0) {
@@ -348,7 +350,7 @@ private fun AppliedCard(
                 ),
                 contentPadding = PaddingValues(vertical = 10.dp)
             ) {
-                Text("Change my response", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.ptm_change_response), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -372,13 +374,13 @@ private fun DeclinedCard(
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "You've declined this PTM",
+                    stringResource(R.string.ptm_you_declined),
                     style = MaterialTheme.typography.titleSmall,
                     color = c.textPrimary,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    "We've let the school know you can't make it.",
+                    stringResource(R.string.ptm_school_informed),
                     style = MaterialTheme.typography.labelMedium,
                     color = c.textSecondary
                 )
@@ -396,7 +398,7 @@ private fun DeclinedCard(
             ),
             contentPadding = PaddingValues(vertical = 10.dp)
         ) {
-            Text("Change my response", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.ptm_change_response), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -415,13 +417,13 @@ private fun DeliveredCard(state: PtmDetailUiState, c: com.schoolsync.parent.ui.t
             Spacer(Modifier.width(10.dp))
             Column {
                 Text(
-                    "Meeting completed",
+                    stringResource(R.string.ptm_meeting_completed),
                     style = MaterialTheme.typography.titleSmall,
                     color = c.textPrimary,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    "Your class teacher has marked your meeting delivered.",
+                    stringResource(R.string.ptm_marked_delivered),
                     style = MaterialTheme.typography.labelMedium,
                     color = c.textSecondary
                 )
@@ -451,7 +453,7 @@ private fun ActionRow(
         ) {
             Icon(Icons.Filled.Close, null, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Can't make it", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.ptm_cant_make_it), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         }
         Button(
             onClick = viewModel::apply,
@@ -473,7 +475,7 @@ private fun ActionRow(
             } else {
                 Icon(Icons.Filled.CheckCircle, null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Apply for PTM", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.ptm_apply), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             }
         }
     }

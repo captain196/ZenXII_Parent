@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.events
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -94,12 +96,12 @@ fun EventsScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = c.textPrimary
                 )
             }
             Text(
-                text = "Events",
+                text = stringResource(R.string.drawer_events),
                 style = MaterialTheme.typography.headlineMedium,
                 color = c.textPrimary,
                 fontWeight = FontWeight.Bold
@@ -139,13 +141,13 @@ fun EventsScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Couldn't load events",
+                                text = stringResource(R.string.events_load_failed),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = c.textSecondary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Something went wrong loading events. Please try again.",
+                                text = stringResource(R.string.events_error_generic),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = c.textTertiary,
                                 textAlign = TextAlign.Center
@@ -167,7 +169,7 @@ fun EventsScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Retry",
+                                    text = stringResource(R.string.action_retry),
                                     style = TextStyle(
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.SemiBold,
@@ -198,13 +200,13 @@ fun EventsScreen(
                                 // The list shows ALL events (past + upcoming),
                                 // not just upcoming, so the label must not imply
                                 // upcoming-only.
-                                text = "No Events",
+                                text = stringResource(R.string.events_empty_title),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = c.textSecondary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Events will appear here when published by the school.",
+                                text = stringResource(R.string.events_empty_subtitle),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = c.textTertiary,
                                 textAlign = TextAlign.Center
@@ -300,7 +302,7 @@ private fun EventListCard(
             ) {
                 AsyncImage(
                     model = cover,
-                    contentDescription = event.title.ifBlank { "Event photo" },
+                    contentDescription = event.title.ifBlank { stringResource(R.string.events_photo) },
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )

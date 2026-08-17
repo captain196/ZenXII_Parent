@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Waves 1-2: authentication and profile.
+
+    Split into a per-wave file rather than appended to strings.xml. Android
+    merges every values/*.xml at build time, so the split costs nothing and it
+    removes a permanent merge-conflict hotspot in a repo where several sessions
+    edit concurrently. It also makes translation and review chunkable.
+
+    Translations follow tools/i18n/glossary.md. Read it before adding to this
+    file — the pinned terms must not drift between waves.
+-->
+<resources>
+
+    <!-- ── Auth ─────────────────────────────────────────────────────────── -->
+
+    <string name="auth_parent_portal">Parent Portal</string>
+    <string name="auth_welcome_back">Welcome Back</string>
+    <string name="auth_sign_in_to_continue">Sign in to continue</string>
+    <string name="auth_student_id">Student ID</string>
+    <string name="auth_hint_student_id">Enter your Student ID</string>
+    <string name="auth_hint_password">Enter your password</string>
+    <string name="auth_action_sign_in">Sign In</string>
+    <string name="auth_action_forgot_password">Forgot password?</string>
+    <string name="auth_error_enter_student_id">Please enter your Student ID</string>
+    <string name="auth_error_enter_password">Please enter your password</string>
+
+    <string name="auth_action_sign_out">Sign out</string>
+    <string name="auth_set_new_password">Set a new password</string>
+    <!-- Was two concatenated Kotlin literals. Joined into one resource: adjacent
+         fragments cannot be reordered, and word order differs in every target
+         language here. -->
+    <string name="auth_password_reset_by_admin">Your password was reset by your school admin. Please choose a new password to continue.</string>
+    <string name="auth_new_password">New password</string>
+    <string name="auth_confirm_password">Confirm password</string>
+    <string name="auth_action_save_continue">Save &amp; Continue</string>
+    <string name="auth_action_sign_out_instead">Sign out instead</string>
+
+    <!-- Also joined from two concatenated literals. -->
+    <string name="auth_forgot_help">Passwords can only be reset by your school\'s admin. Enter your Student ID to see who to contact.</string>
+    <string name="auth_hint_student_id_example">e.g. STU0001</string>
+    <string name="auth_action_look_up">Look up</string>
+    <string name="auth_error_no_dialer">No dialer app found.</string>
+    <string name="auth_error_whatsapp">Couldn\'t open WhatsApp.</string>
+    <string name="auth_error_no_email">No email app found.</string>
+
+    <!-- ── Profile ──────────────────────────────────────────────────────── -->
+
+    <string name="profile_section_personal">Personal Information</string>
+    <string name="profile_dob">Date of Birth</string>
+    <string name="profile_admission_date">Admission Date</string>
+    <string name="profile_section_contact">Contact Information</string>
+    <string name="profile_section_family">Family Information</string>
+    <string name="profile_father_name">Father\'s Name</string>
+    <string name="profile_mother_name">Mother\'s Name</string>
+    <string name="profile_section_school">School Information</string>
+
+    <string name="profile_action_change_password">Change password</string>
+    <string name="profile_action_help_faq">Help &amp; FAQ</string>
+    <string name="profile_action_contact_school">Contact school</string>
+    <string name="profile_action_log_out">Log out</string>
+    <string name="profile_dialog_log_out_title">Log out?</string>
+    <string name="profile_action_call_office">Call office</string>
+    <string name="profile_action_email_office">Email office</string>
+
+    <string name="profile_current_password">Current Password</string>
+    <string name="profile_new_password">New Password</string>
+    <string name="profile_confirm_password">Confirm Password</string>
+    <string name="profile_msg_password_changed">Password changed successfully</string>
+    <string name="profile_error_enter_current_password">Enter current password</string>
+    <string name="profile_error_password_min_length">New password must be at least 6 characters</string>
+    <string name="profile_error_passwords_no_match">Passwords do not match</string>
+
+    <!-- Joined from three concatenated literals. -->
+    <string name="profile_about_tagline">ZenXii is your direct line to your child\'s school. Track attendance, pay fees securely, view homework and results, read circulars, and stay informed of every event — all in one place.</string>
+
+    <!-- Brand. Never translated, never transliterated — glossary rule 1. -->
+    <string name="profile_app_name" translatable="false">ZenXii Parent</string>
+    <string name="profile_app_version" translatable="false">ZenXii Parent v1.0</string>
+
+</resources>

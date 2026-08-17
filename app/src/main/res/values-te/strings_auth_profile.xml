@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- తెలుగు · Telugu. Terminology per tools/i18n/glossary.md.
+     Telugu renders 30-50% wider than English — check every screen in this
+     locale against the pseudolocale layout pass. -->
+<resources>
+
+    <string name="auth_parent_portal">తల్లిదండ్రుల పోర్టల్</string>
+    <string name="auth_welcome_back">మళ్లీ స్వాగతం</string>
+    <string name="auth_sign_in_to_continue">కొనసాగించడానికి సైన్ ఇన్ చేయండి</string>
+    <string name="auth_student_id">విద్యార్థి ID</string>
+    <string name="auth_hint_student_id">మీ విద్యార్థి ID నమోదు చేయండి</string>
+    <string name="auth_hint_password">మీ పాస్‌వర్డ్ నమోదు చేయండి</string>
+    <string name="auth_action_sign_in">సైన్ ఇన్</string>
+    <string name="auth_action_forgot_password">పాస్‌వర్డ్ మర్చిపోయారా?</string>
+    <string name="auth_error_enter_student_id">దయచేసి మీ విద్యార్థి ID నమోదు చేయండి</string>
+    <string name="auth_error_enter_password">దయచేసి మీ పాస్‌వర్డ్ నమోదు చేయండి</string>
+
+    <string name="auth_action_sign_out">సైన్ అవుట్</string>
+    <string name="auth_set_new_password">కొత్త పాస్‌వర్డ్ సెట్ చేయండి</string>
+    <string name="auth_password_reset_by_admin">మీ పాస్‌వర్డ్‌ను మీ పాఠశాల నిర్వాహకుడు రీసెట్ చేశారు. కొనసాగించడానికి దయచేసి కొత్త పాస్‌వర్డ్ ఎంచుకోండి.</string>
+    <string name="auth_new_password">కొత్త పాస్‌వర్డ్</string>
+    <string name="auth_confirm_password">పాస్‌వర్డ్ నిర్ధారించండి</string>
+    <string name="auth_action_save_continue">సేవ్ చేసి కొనసాగించండి</string>
+    <string name="auth_action_sign_out_instead">బదులుగా సైన్ అవుట్ చేయండి</string>
+
+    <string name="auth_forgot_help">పాస్‌వర్డ్‌ను మీ పాఠశాల నిర్వాహకుడు మాత్రమే రీసెట్ చేయగలరు. ఎవరిని సంప్రదించాలో చూడటానికి మీ విద్యార్థి ID నమోదు చేయండి.</string>
+    <string name="auth_hint_student_id_example">ఉదా. STU0001</string>
+    <string name="auth_action_look_up">వెతకండి</string>
+    <string name="auth_error_no_dialer">డయలర్ యాప్ కనుగొనబడలేదు.</string>
+    <string name="auth_error_whatsapp">WhatsApp తెరవలేకపోయాము.</string>
+    <string name="auth_error_no_email">ఇమెయిల్ యాప్ కనుగొనబడలేదు.</string>
+
+    <string name="profile_section_personal">వ్యక్తిగత సమాచారం</string>
+    <string name="profile_dob">పుట్టిన తేదీ</string>
+    <string name="profile_admission_date">ప్రవేశ తేదీ</string>
+    <string name="profile_section_contact">సంప్రదింపు సమాచారం</string>
+    <string name="profile_section_family">కుటుంబ సమాచారం</string>
+    <string name="profile_father_name">తండ్రి పేరు</string>
+    <string name="profile_mother_name">తల్లి పేరు</string>
+    <string name="profile_section_school">పాఠశాల సమాచారం</string>
+
+    <string name="profile_action_change_password">పాస్‌వర్డ్ మార్చండి</string>
+    <string name="profile_action_help_faq">సహాయం &amp; ప్రశ్నలు</string>
+    <string name="profile_action_contact_school">పాఠశాలను సంప్రదించండి</string>
+    <string name="profile_action_log_out">లాగ్ అవుట్</string>
+    <string name="profile_dialog_log_out_title">లాగ్ అవుట్ చేయాలా?</string>
+    <string name="profile_action_call_office">కార్యాలయానికి కాల్ చేయండి</string>
+    <string name="profile_action_email_office">కార్యాలయానికి ఇమెయిల్ చేయండి</string>
+
+    <string name="profile_current_password">ప్రస్తుత పాస్‌వర్డ్</string>
+    <string name="profile_new_password">కొత్త పాస్‌వర్డ్</string>
+    <string name="profile_confirm_password">పాస్‌వర్డ్ నిర్ధారించండి</string>
+    <string name="profile_msg_password_changed">పాస్‌వర్డ్ విజయవంతంగా మార్చబడింది</string>
+    <string name="profile_error_enter_current_password">ప్రస్తుత పాస్‌వర్డ్ నమోదు చేయండి</string>
+    <string name="profile_error_password_min_length">కొత్త పాస్‌వర్డ్ కనీసం 6 అక్షరాలు ఉండాలి</string>
+    <string name="profile_error_passwords_no_match">పాస్‌వర్డ్‌లు సరిపోలడం లేదు</string>
+
+    <string name="profile_about_tagline">ZenXii మీ పిల్లల పాఠశాలతో మీ ప్రత్యక్ష సంబంధం. హాజరు చూడండి, రుసుము సురక్షితంగా చెల్లించండి, ఇంటి పని మరియు ఫలితాలు చూడండి, సర్క్యులర్లు చదవండి, ప్రతి కార్యక్రమం గురించి తెలుసుకోండి — అన్నీ ఒకే చోట.</string>
+
+</resources>

@@ -1,5 +1,19 @@
 package com.schoolsync.parent.util
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DELIBERATELY NOT LOCALIZED — do not "fix" this file when translating.
+//
+// A fee receipt is a financial record. It is forwarded to employers for
+// reimbursement, shown to auditors, and cross-checked against the school
+// office's own English records, paper receipts and UPI app history. It stays
+// English end-to-end in EVERY UI language: labels, digits (Latin), currency
+// (en-IN, ₹) and receipt numbers.
+//
+// This also keeps Indic font embedding out of the PDF path entirely.
+// See tools/i18n/glossary.md, rule 5.
+// ─────────────────────────────────────────────────────────────────────────────
+
+
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap

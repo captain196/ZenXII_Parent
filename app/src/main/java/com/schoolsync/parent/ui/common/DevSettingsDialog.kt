@@ -1,5 +1,13 @@
 package com.schoolsync.parent.ui.common
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DELIBERATELY NOT LOCALIZED — hidden developer surface.
+//
+// Reached only by long-pressing the ZenXii title on the login screen. It exists
+// to point a debug build at a LAN server; no parent ever sees it, and a
+// translated "Base URL" would be worse for the person who does. Leave English.
+// ─────────────────────────────────────────────────────────────────────────────
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer

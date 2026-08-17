@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.leave
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -86,11 +89,18 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-/** Single source of truth for leave-type code -> label (form offers these, history maps back). */
+/**
+ * Single source of truth for leave-type code -> label.
+ *
+ * The CODE ("CL"/"SL"/"EL") is the wire value written to Firestore and matched
+ * back from history — it never changes. The label is a @StringRes id resolved
+ * at the render site: this is a top-level val, evaluated outside composition,
+ * so a String captured here would freeze the launch language.
+ */
 private val LEAVE_TYPES = listOf(
-    "CL" to "Casual Leave",
-    "SL" to "Sick Leave",
-    "EL" to "Emergency Leave"
+    "CL" to R.string.leave_type_casual,
+    "SL" to R.string.leave_type_sick,
+    "EL" to R.string.leave_type_emergency
 )
 private val LEAVE_TYPE_LABELS = LEAVE_TYPES.toMap()
 
@@ -143,12 +153,12 @@ fun LeaveScreen(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.cd_back),
                         tint = TextPrimary
                     )
                 }
                 Text(
-                    text = "Leave Application",
+                    text = stringResource(R.string.leave_application),
                     style = MaterialTheme.typography.headlineMedium,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
@@ -201,7 +211,7 @@ fun LeaveScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "No leave applications yet",
+                                text = stringResource(R.string.leave_none_yet),
                                 color = TextSecondary,
                                 textAlign = TextAlign.Center
                             )
@@ -237,7 +247,7 @@ fun LeaveScreen(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = "Apply Leave",
+                    contentDescription = stringResource(R.string.leave_apply),
                     tint = Color.White
                 )
             }
@@ -254,7 +264,7 @@ fun LeaveScreen(
                     containerColor = c.error,
                     action = {
                         TextButton(onClick = viewModel::clearError) {
-                            Text("Dismiss", color = Color.White)
+                            Text(stringResource(R.string.common_dismiss), color = Color.White)
                         }
                     }
                 ) {
@@ -268,7 +278,7 @@ fun LeaveScreen(
                         .padding(16.dp),
                     containerColor = c.success
                 ) {
-                    Text("Leave application submitted successfully!")
+                    Text(stringResource(R.string.leave_submitted))
                 }
             }
         }
@@ -323,7 +333,7 @@ private fun LeaveApplyForm(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Apply for Leave",
+                text = stringResource(R.string.leave_apply_for),
                 style = MaterialTheme.typography.titleMedium,
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
@@ -333,15 +343,17 @@ private fun LeaveApplyForm(
                 onClick = onCancel,
                 modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             ) {
-                Icon(Icons.Filled.Close, contentDescription = "Close form", tint = TextSecondary)
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.leave_close_form), tint = TextSecondary)
             }
         }
 
         // Leave type chips
-        Text("Leave Type", color = TextSecondary, fontSize = 12.sp)
+        Text(stringResource(R.string.leave_type), color = TextSecondary, fontSize = 12.sp)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            leaveTypes.forEach { (code, label) ->
+            leaveTypes.forEach { (code, labelRes) ->
                 val isSelected = uiState.selectedLeaveType == code
+                // Hoisted: Modifier.semantics {} below is not a composable scope.
+                val label = stringResource(labelRes)
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -374,9 +386,11 @@ private fun LeaveApplyForm(
         ) {
             // Start date
             Column(modifier = Modifier.weight(1f)) {
-                Text("From", color = TextSecondary, fontSize = 12.sp)
+                Text(stringResource(R.string.field_from), color = TextSecondary, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(4.dp))
-                val startLabel = uiState.startDate?.format(dateFormatter) ?: "Select date"
+                val startLabel = uiState.startDate?.format(dateFormatter) ?: stringResource(R.string.leave_select_date)
+                // Hoisted: Modifier.semantics {} is not a composable scope.
+                val startCd = stringResource(R.string.leave_start_date_fmt, startLabel)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -384,7 +398,7 @@ private fun LeaveApplyForm(
                         .clip(RoundedCornerShape(12.dp))
                         .border(1.dp, TextSecondary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                         .clickable { showStartDatePicker = true }
-                        .semantics { contentDescription = "Start date: $startLabel" }
+                        .semantics { contentDescription = startCd }
                         .padding(12.dp)
                 ) {
                     Text(
@@ -396,9 +410,10 @@ private fun LeaveApplyForm(
 
             // End date
             Column(modifier = Modifier.weight(1f)) {
-                Text("To", color = TextSecondary, fontSize = 12.sp)
+                Text(stringResource(R.string.field_to), color = TextSecondary, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(4.dp))
-                val endLabel = uiState.endDate?.format(dateFormatter) ?: "Select date"
+                val endLabel = uiState.endDate?.format(dateFormatter) ?: stringResource(R.string.leave_select_date)
+                val endCd = stringResource(R.string.leave_end_date_fmt, endLabel)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -406,7 +421,7 @@ private fun LeaveApplyForm(
                         .clip(RoundedCornerShape(12.dp))
                         .border(1.dp, TextSecondary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                         .clickable { showEndDatePicker = true }
-                        .semantics { contentDescription = "End date: $endLabel" }
+                        .semantics { contentDescription = endCd }
                         .padding(12.dp)
                 ) {
                     Text(
@@ -421,7 +436,7 @@ private fun LeaveApplyForm(
         if (uiState.startDate != null && uiState.endDate != null) {
             val days = java.time.temporal.ChronoUnit.DAYS.between(uiState.startDate, uiState.endDate) + 1
             Text(
-                text = "$days day${if (days > 1) "s" else ""}",
+                text = pluralStringResource(R.plurals.leave_days_count, days.toInt(), days.toInt()),
                 color = Accent,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
@@ -432,7 +447,7 @@ private fun LeaveApplyForm(
         OutlinedTextField(
             value = uiState.reason,
             onValueChange = onReasonChanged,
-            label = { Text("Reason") },
+            label = { Text(stringResource(R.string.field_reason)) },
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
             maxLines = 4,
@@ -464,7 +479,7 @@ private fun LeaveApplyForm(
             } else {
                 Icon(Icons.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Submit Application")
+                Text(stringResource(R.string.leave_submit))
             }
         }
     }
@@ -485,10 +500,10 @@ private fun LeaveApplyForm(
                         onStartDateChanged(date)
                     }
                     showStartDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.common_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showStartDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showStartDatePicker = false }) { Text(stringResource(R.string.common_cancel)) }
             }
         ) {
             DatePicker(state = datePickerState)
@@ -510,10 +525,10 @@ private fun LeaveApplyForm(
                         onEndDateChanged(date)
                     }
                     showEndDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.common_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showEndDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showEndDatePicker = false }) { Text(stringResource(R.string.common_cancel)) }
             }
         ) {
             DatePicker(state = datePickerState)
@@ -571,7 +586,8 @@ private fun LeaveHistoryCard(
             ) {
                 Text(
                     // Fix (LOW): show the human label (e.g. "Casual Leave"), not the raw "CL" code.
-                    text = LEAVE_TYPE_LABELS[leave.leaveType] ?: leave.leaveType.ifEmpty { "Leave" },
+                    text = LEAVE_TYPE_LABELS[leave.leaveType]?.let { stringResource(it) }
+                        ?: leave.leaveType.ifEmpty { stringResource(R.string.leave_generic) },
                     color = Accent,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold
@@ -607,7 +623,7 @@ private fun LeaveHistoryCard(
 
         if (leave.numberOfDays > 0) {
             Text(
-                text = "${leave.numberOfDays} day${if (leave.numberOfDays > 1) "s" else ""}",
+                text = pluralStringResource(R.plurals.leave_days_count, leave.numberOfDays, leave.numberOfDays),
                 color = TextSecondary,
                 fontSize = 13.sp
             )
@@ -627,7 +643,7 @@ private fun LeaveHistoryCard(
         if (leave.remarks.isNotBlank()) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Remark: ${leave.remarks}",
+                text = stringResource(R.string.leave_remark_fmt, leave.remarks),
                 color = TextSecondary.copy(alpha = 0.8f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
@@ -653,7 +669,7 @@ private fun LeaveHistoryCard(
                     Icon(Icons.Filled.Cancel, contentDescription = null, modifier = Modifier.size(16.dp))
                 }
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(if (cancelling) "Cancelling..." else "Cancel Application", fontSize = 13.sp)
+                Text(if (cancelling) "Cancelling..." else stringResource(R.string.leave_cancel_application), fontSize = 13.sp)
             }
         }
     }
@@ -661,16 +677,16 @@ private fun LeaveHistoryCard(
     if (showCancelConfirm) {
         AlertDialog(
             onDismissRequest = { showCancelConfirm = false },
-            title = { Text("Cancel leave application?") },
-            text = { Text("This will withdraw the leave request. This cannot be undone.") },
+            title = { Text(stringResource(R.string.leave_cancel_confirm)) },
+            text = { Text(stringResource(R.string.leave_withdraw_warning)) },
             confirmButton = {
                 TextButton(onClick = {
                     showCancelConfirm = false
                     onCancel()
-                }) { Text("Yes, cancel", color = c.error) }
+                }) { Text(stringResource(R.string.leave_yes_cancel), color = c.error) }
             },
             dismissButton = {
-                TextButton(onClick = { showCancelConfirm = false }) { Text("Keep") }
+                TextButton(onClick = { showCancelConfirm = false }) { Text(stringResource(R.string.common_keep)) }
             }
         )
     }

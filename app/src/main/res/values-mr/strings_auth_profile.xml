@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- मराठी · Marathi. Terminology per tools/i18n/glossary.md.
+     Note: "रजा" = leave (an application), "सुट्टी" = holiday. Keep them apart. -->
+<resources>
+
+    <string name="auth_parent_portal">पालक पोर्टल</string>
+    <string name="auth_welcome_back">पुन्हा स्वागत आहे</string>
+    <string name="auth_sign_in_to_continue">पुढे जाण्यासाठी साइन इन करा</string>
+    <string name="auth_student_id">विद्यार्थी आयडी</string>
+    <string name="auth_hint_student_id">तुमचा विद्यार्थी आयडी टाका</string>
+    <string name="auth_hint_password">तुमचा पासवर्ड टाका</string>
+    <string name="auth_action_sign_in">साइन इन</string>
+    <string name="auth_action_forgot_password">पासवर्ड विसरलात?</string>
+    <string name="auth_error_enter_student_id">कृपया तुमचा विद्यार्थी आयडी टाका</string>
+    <string name="auth_error_enter_password">कृपया तुमचा पासवर्ड टाका</string>
+
+    <string name="auth_action_sign_out">साइन आउट</string>
+    <string name="auth_set_new_password">नवीन पासवर्ड सेट करा</string>
+    <string name="auth_password_reset_by_admin">तुमचा पासवर्ड तुमच्या शाळेच्या अ‍ॅडमिनने रीसेट केला आहे. पुढे जाण्यासाठी कृपया नवीन पासवर्ड निवडा.</string>
+    <string name="auth_new_password">नवीन पासवर्ड</string>
+    <string name="auth_confirm_password">पासवर्डची पुष्टी करा</string>
+    <string name="auth_action_save_continue">जतन करा आणि पुढे जा</string>
+    <string name="auth_action_sign_out_instead">त्याऐवजी साइन आउट करा</string>
+
+    <string name="auth_forgot_help">पासवर्ड फक्त तुमच्या शाळेचा अ‍ॅडमिनच रीसेट करू शकतो. कोणाशी संपर्क साधावा हे पाहण्यासाठी तुमचा विद्यार्थी आयडी टाका.</string>
+    <string name="auth_hint_student_id_example">उदा. STU0001</string>
+    <string name="auth_action_look_up">शोधा</string>
+    <string name="auth_error_no_dialer">डायलर अ‍ॅप सापडले नाही.</string>
+    <string name="auth_error_whatsapp">WhatsApp उघडता आले नाही.</string>
+    <string name="auth_error_no_email">ईमेल अ‍ॅप सापडले नाही.</string>
+
+    <string name="profile_section_personal">वैयक्तिक माहिती</string>
+    <string name="profile_dob">जन्मतारीख</string>
+    <string name="profile_admission_date">प्रवेश दिनांक</string>
+    <string name="profile_section_contact">संपर्क माहिती</string>
+    <string name="profile_section_family">कौटुंबिक माहिती</string>
+    <string name="profile_father_name">वडिलांचे नाव</string>
+    <string name="profile_mother_name">आईचे नाव</string>
+    <string name="profile_section_school">शाळेची माहिती</string>
+
+    <string name="profile_action_change_password">पासवर्ड बदला</string>
+    <string name="profile_action_help_faq">मदत आणि प्रश्न</string>
+    <string name="profile_action_contact_school">शाळेशी संपर्क साधा</string>
+    <string name="profile_action_log_out">लॉग आउट</string>
+    <string name="profile_dialog_log_out_title">लॉग आउट करायचे?</string>
+    <string name="profile_action_call_office">कार्यालयाला कॉल करा</string>
+    <string name="profile_action_email_office">कार्यालयाला ईमेल करा</string>
+
+    <string name="profile_current_password">सध्याचा पासवर्ड</string>
+    <string name="profile_new_password">नवीन पासवर्ड</string>
+    <string name="profile_confirm_password">पासवर्डची पुष्टी करा</string>
+    <string name="profile_msg_password_changed">पासवर्ड यशस्वीरित्या बदलला</string>
+    <string name="profile_error_enter_current_password">सध्याचा पासवर्ड टाका</string>
+    <string name="profile_error_password_min_length">नवीन पासवर्ड किमान 6 अक्षरांचा असावा</string>
+    <string name="profile_error_passwords_no_match">पासवर्ड जुळत नाहीत</string>
+
+    <string name="profile_about_tagline">ZenXii हा तुमच्या मुलाच्या शाळेशी तुमचा थेट दुवा आहे. उपस्थिती पहा, शुल्क सुरक्षितपणे भरा, गृहपाठ आणि निकाल पहा, परिपत्रके वाचा आणि प्रत्येक कार्यक्रमाची माहिती मिळवा — सर्व एकाच ठिकाणी.</string>
+
+</resources>

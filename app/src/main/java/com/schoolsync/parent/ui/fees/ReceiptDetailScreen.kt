@@ -1,5 +1,21 @@
 package com.schoolsync.parent.ui.fees
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DELIBERATELY NOT LOCALIZED — do not "fix" this file when translating.
+//
+// A fee receipt is a financial record. It is forwarded to employers for
+// reimbursement, shown to auditors, and cross-checked against the school
+// office's own English records, paper receipts and UPI app history. It stays
+// English end-to-end in EVERY UI language: labels, digits (Latin), currency
+// (en-IN, ₹) and receipt numbers.
+//
+// This also keeps Indic font embedding out of the PDF path entirely.
+// See tools/i18n/glossary.md, rule 5.
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -75,11 +91,11 @@ fun ReceiptDetailScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = c.textPrimary)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back), tint = c.textPrimary)
             }
             Spacer(Modifier.width(4.dp))
             Text(
-                "Payment Receipt",
+                stringResource(R.string.fees_receipt_payment),
                 style = MaterialTheme.typography.titleLarge,
                 color = c.textPrimary,
                 fontWeight = FontWeight.Bold
@@ -170,13 +186,13 @@ private fun ReceiptActionButtons(
                 val savedPath = com.schoolsync.parent.util.ReceiptPdfGenerator.saveToDownloads(
                     context, pdf, "Receipt_${receipt.receiptNo.ifBlank { receipt.receiptKey }}.pdf"
                 )
-                Toast.makeText(context, "Saved to $savedPath", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.fees_saved_to, savedPath), Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
-                Toast.makeText(context, "Couldn't save: ${e.localizedMessage ?: "unknown error"}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.fees_save_failed_fmt, e.localizedMessage ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_LONG).show()
             }
         }
     }) {
-        Icon(Icons.Filled.Download, contentDescription = "Download to device", tint = c.accent)
+        Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.fees_download), tint = c.accent)
     }
 
     IconButton(onClick = {
@@ -184,14 +200,14 @@ private fun ReceiptActionButtons(
             try {
                 val pdf = buildPdf()
                 com.schoolsync.parent.util.ReceiptPdfGenerator.sharePdf(
-                    context, pdf, "Share Receipt #${receipt.receiptNo}"
+                    context, pdf, context.getString(R.string.fees_share_receipt_fmt, receipt.receiptNo)
                 )
             } catch (e: Exception) {
-                Toast.makeText(context, "Couldn't share receipt: ${e.localizedMessage ?: "unknown error"}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.fees_share_failed_fmt, e.localizedMessage ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_LONG).show()
             }
         }
     }) {
-        Icon(Icons.Filled.Share, contentDescription = "Share", tint = c.accent)
+        Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.common_share), tint = c.accent)
     }
 }
 
@@ -279,7 +295,7 @@ private fun HeroCard(
             // misclassify as a refund.
             val isRefund = receipt.paymentMode.startsWith("Refund", ignoreCase = true)
             Text(
-                text  = if (isRefund) "Refund Receipt" else "Payment Receipt",
+                text  = if (isRefund) stringResource(R.string.fees_receipt_refund) else stringResource(R.string.fees_receipt_payment),
                 style = MaterialTheme.typography.titleMedium,
                 color = c.onBanner,
                 fontWeight = FontWeight.SemiBold
@@ -303,9 +319,9 @@ private fun HeroCard(
             ) {
                 Text(
                     text = when {
-                        isRefund   -> "REFUND PROCESSED"
-                        isPartial  -> "PARTIAL PAYMENT"
-                        else       -> "FULL PAYMENT"
+                        isRefund   -> stringResource(R.string.fees_badge_refund)
+                        isPartial  -> stringResource(R.string.fees_badge_partial)
+                        else       -> stringResource(R.string.fees_badge_full)
                     },
                     style = MaterialTheme.typography.labelMedium,
                     color = c.onBanner,
@@ -352,7 +368,7 @@ private fun FeeHeadBreakdownCard(receipt: FeeReceiptDoc, heads: List<HeadAllocat
     // only fires on pre-cutover history.
     val hasCarryForward = receipt.advanceCredit > 0.005
     Column(modifier = Modifier.fillMaxWidth().glassCard(16.dp).padding(16.dp)) {
-        SectionHeader("FEE BREAKDOWN")
+        SectionHeader(stringResource(R.string.fees_breakdown_header))
         Spacer(Modifier.height(10.dp))
         heads.forEach { h ->
             val cleared = h.totalAmount > 0 && h.allocatedThisReceipt + 0.005 >= h.totalAmount
@@ -371,13 +387,13 @@ private fun FeeHeadBreakdownCard(receipt: FeeReceiptDoc, heads: List<HeadAllocat
                     )
                     if (h.allocatedThisReceipt <= 0.005) {
                         Text(
-                            "Not paid in this receipt",
+                            stringResource(R.string.fees_not_paid_this_receipt),
                             style = MaterialTheme.typography.labelSmall,
                             color = c.textTertiary
                         )
                     } else if (cleared) {
                         Text(
-                            "Cleared in this receipt",
+                            stringResource(R.string.fees_cleared_this_receipt),
                             style = MaterialTheme.typography.labelSmall,
                             color = c.success,
                             fontWeight = FontWeight.Medium
@@ -387,7 +403,7 @@ private fun FeeHeadBreakdownCard(receipt: FeeReceiptDoc, heads: List<HeadAllocat
                         // elsewhere (prior receipts / carry-forward),
                         // not unpaid.
                         Text(
-                            "Partially applied this receipt — no balance remaining",
+                            stringResource(R.string.fees_partial_no_balance),
                             style = MaterialTheme.typography.labelSmall,
                             color = c.success,
                             fontWeight = FontWeight.Medium
@@ -404,7 +420,7 @@ private fun FeeHeadBreakdownCard(receipt: FeeReceiptDoc, heads: List<HeadAllocat
                         // "Rs X / Rs Y"; a status hint is all we should
                         // add here — no unverifiable balance claim.
                         Text(
-                            "Partially applied this receipt",
+                            stringResource(R.string.fees_partial_applied),
                             style = MaterialTheme.typography.labelSmall,
                             color = c.warning,
                             fontWeight = FontWeight.Medium
@@ -422,10 +438,10 @@ private fun FeeHeadBreakdownCard(receipt: FeeReceiptDoc, heads: List<HeadAllocat
         Spacer(Modifier.height(8.dp))
         Divider()
         Spacer(Modifier.height(10.dp))
-        if (receipt.discount > 0) AmountRow("Discount", -receipt.discount, c.success)
-        if (receipt.fine > 0)     AmountRow("Fine", receipt.fine, c.error)
+        if (receipt.discount > 0) AmountRow(stringResource(R.string.field_discount), -receipt.discount, c.success)
+        if (receipt.fine > 0)     AmountRow(stringResource(R.string.field_fine), receipt.fine, c.error)
         AmountRow(
-            "Total Paid",
+            stringResource(R.string.fees_total_paid),
             receipt.netAmount.takeIf { it > 0 } ?: receipt.amount,
             c.accent,
             bold = true
@@ -437,7 +453,7 @@ private fun FeeHeadBreakdownCard(receipt: FeeReceiptDoc, heads: List<HeadAllocat
 private fun PaidForCard(receipt: FeeReceiptDoc, allocations: List<MonthAllocation>) {
     val c = LocalAppColors.current
     Column(modifier = Modifier.fillMaxWidth().glassCard(16.dp).padding(16.dp)) {
-        SectionHeader("PAID FOR")
+        SectionHeader(stringResource(R.string.fees_paid_for))
         Spacer(Modifier.height(10.dp))
 
         if (allocations.isNotEmpty()) {
@@ -499,7 +515,7 @@ private fun PaidForCard(receipt: FeeReceiptDoc, allocations: List<MonthAllocatio
 private fun StudentCard(receipt: FeeReceiptDoc) {
     val c = LocalAppColors.current
     Column(modifier = Modifier.fillMaxWidth().glassCard(16.dp).padding(16.dp)) {
-        SectionHeader("STUDENT")
+        SectionHeader(stringResource(R.string.field_student_caps))
         Spacer(Modifier.height(10.dp))
         Text(
             receipt.studentName.ifBlank { receipt.studentId.ifBlank { "Student" } },
@@ -543,33 +559,33 @@ private fun ReceiptInfoCard(receipt: FeeReceiptDoc) {
     val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxWidth().glassCard(16.dp).padding(16.dp)) {
-        SectionHeader("RECEIPT INFO")
+        SectionHeader(stringResource(R.string.fees_receipt_info))
         Spacer(Modifier.height(10.dp))
         InfoRow(
-            label = "Receipt No.",
+            label = stringResource(R.string.fees_receipt_no),
             value = "#${receipt.receiptNo.ifBlank { receipt.receiptKey }}",
             copyable = true,
             onCopy = {
                 clipboard.setText(AnnotatedString(receipt.receiptKey.ifBlank { receipt.receiptNo }))
-                Toast.makeText(context, "Receipt number copied", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.fees_receipt_copied), Toast.LENGTH_SHORT).show()
             }
         )
         if (receipt.txnId.isNotBlank()) {
             InfoRow(
-                label = "Transaction ID",
+                label = stringResource(R.string.fees_txn_id),
                 value = receipt.txnId,
                 monospace = true,
                 copyable = true,
                 onCopy = {
                     clipboard.setText(AnnotatedString(receipt.txnId))
-                    Toast.makeText(context, "Transaction ID copied", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.fees_txn_copied), Toast.LENGTH_SHORT).show()
                 }
             )
         }
-        InfoRow(label = "Payment Mode", value = receipt.paymentMode.ifBlank { "—" })
-        InfoRow(label = "Paid On", value = formatDate(receipt.createdAt))
+        InfoRow(label = stringResource(R.string.fees_payment_mode), value = receipt.paymentMode.ifBlank { "—" })
+        InfoRow(label = stringResource(R.string.fees_paid_on), value = formatDate(receipt.createdAt))
         if (receipt.remarks.isNotBlank()) {
-            InfoRow(label = "Remarks", value = receipt.remarks)
+            InfoRow(label = stringResource(R.string.field_remarks), value = receipt.remarks)
         }
     }
 }
@@ -589,7 +605,7 @@ private fun VerifiedBadge() {
         Icon(Icons.Filled.VerifiedUser, null, tint = c.success, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(8.dp))
         Text(
-            "Verified and recorded by the school",
+            stringResource(R.string.fees_verified_by_school),
             style = MaterialTheme.typography.labelMedium,
             color = c.success,
             fontWeight = FontWeight.SemiBold

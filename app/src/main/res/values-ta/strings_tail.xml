@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- தமிழ் · Tamil
+     W6 — long tail. Leave-type labels here are the DISPLAY side of the
+     "CL"/"SL"/"EL" code map; the codes are the wire values and are
+     untouched. Timetable carry-item VALUES are display; the `when`
+     subject KEYS ("maths", "science") stay English. -->
+<resources>
+    <string name="events_detail_load_failed">நிகழ்வு விவரங்களை ஏற்ற முடியவில்லை</string>
+    <string name="events_details">நிகழ்வு விவரங்கள்</string>
+    <string name="events_photo">நிகழ்வுப் புகைப்படம்</string>
+    <string name="events_view_photos">புகைப்படங்களைக் காண்க</string>
+    <string name="exam_datesheet_soon">பள்ளி வெளியிட்டதும் தேர்வு அட்டவணை இங்கே தோன்றும்.</string>
+    <string name="gal_album_load_failed_plain">ஆல்பத்தை ஏற்ற முடியவில்லை</string>
+    <string name="gal_load_failed_plain">படத்தொகுப்பை ஏற்ற முடியவில்லை</string>
+    <string name="gal_photo">படத்தொகுப்புப் படம்</string>
+    <string name="leave_cancel_application">விண்ணப்பத்தை ரத்து செய்</string>
+    <string name="leave_select_date">தேதியைத் தேர்ந்தெடு</string>
+    <string name="leave_type_casual">சாதாரண விடுப்பு</string>
+    <string name="leave_type_emergency">அவசர விடுப்பு</string>
+    <string name="leave_type_sick">உடல்நலக் குறைவு விடுப்பு</string>
+    <string name="lessons_load_failed">பாடங்களை ஏற்ற முடியவில்லை</string>
+    <string name="lessons_next_day">அடுத்த நாள்</string>
+    <string name="lessons_prev_day">முந்தைய நாள்</string>
+    <string name="notices_refresh_failed_short">அறிவிப்புகளைப் புதுப்பிக்க முடியவில்லை</string>
+    <string name="res_exams_load_failed">தேர்வுகளை ஏற்ற முடியவில்லை</string>
+    <string name="res_results_load_failed">முடிவுகளை ஏற்ற முடியவில்லை</string>
+    <string name="res_withheld_notice">கட்டணம் செலுத்தும் வரை முடிவு அட்டைகள் தடுக்கப்படலாம்</string>
+    <string name="rf_load_failed_retry">எச்சரிக்கைகளை ஏற்ற முடியவில்லை. மீண்டும் முயற்சிக்க தட்டவும்.</string>
+    <string name="rf_none_subtitle">உங்கள் குழந்தைக்கு ஆசிரியர்கள் எந்த ரெட் ஃப்ளாக்கும் எழுப்பவில்லை.</string>
+    <string name="rf_none_title">ரெட் ஃப்ளாக் இல்லை</string>
+    <string name="rf_permission_denied">இந்த எச்சரிக்கைகள் இப்போது கிடைக்கவில்லை. வெளியேறி மீண்டும் உள்நுழைந்து முயற்சிக்கவும்.</string>
+    <string name="rf_temporarily_unavailable">எச்சரிக்கைகள் தற்காலிகமாகக் கிடைக்கவில்லை. சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="search_hint_long">வீட்டுப்பாடம், அறிவிப்புகள், நிகழ்வுகள், ஆசிரியர்கள், முடிவுகளைத் தேடுங்கள் அல்லது எந்தப் பகுதிக்கும் செல்லுங்கள்.</string>
+    <string name="search_placeholder_any">எதையும் தேடு…</string>
+    <string name="search_try_different">ஒரு பாடம், ஆசிரியர், அறிவிப்புத் தலைப்பு அல்லது பிரிவின் பெயரை முயற்சிக்கவும்.</string>
+    <string name="splash_get_started">தொடங்கு</string>
+    <string name="story_react">இந்த ஸ்டோரிக்கு எதிர்வினையாற்று</string>
+    <string name="tch_load_failed">ஆசிரியர்களை ஏற்ற முடியவில்லை</string>
+    <string name="tch_unknown">தெரியாத ஆசிரியர்</string>
+    <string name="tt_cant_load">நேர அட்டவணையை ஏற்ற இயலவில்லை</string>
+    <string name="tt_item_calculator">கணிப்பான்</string>
+    <string name="tt_item_drawing_book">வரைபடப் புத்தகம்</string>
+    <string name="tt_item_geometry_box">வடிவியல் பெட்டி</string>
+    <string name="tt_item_lab_coat">ஆய்வக அங்கி</string>
+    <string name="tt_item_notebook">நோட்டுப்புத்தகம்</string>
+    <string name="tt_item_shoes">காலணிகள்</string>
+    <string name="tt_item_sports_kit">விளையாட்டு உடை</string>
+    <string name="tt_item_textbook">பாடப்புத்தகம்</string>
+    <string name="tt_item_usb">USB டிரைவ்</string>
+    <string name="tt_item_water_bottle">தண்ணீர் பாட்டில்</string>
+    <string name="tt_load_failed">நேர அட்டவணையை ஏற்ற முடியவில்லை</string>
+    <string name="tt_none">நேர அட்டவணை இல்லை</string>
+    <string name="tt_not_available_yet">இந்த நாளுக்கான நேர அட்டவணை இதுவரை இல்லை.</string>
+
+    <string name="tt_item_atlas">அட்லஸ்</string>
+    <string name="tt_item_colors">வண்ணங்கள்</string>
+    <string name="tt_item_dictionary">அகராதி</string>
+    <string name="tt_item_eraser">அழிப்பான்</string>
+    <string name="tt_item_pencils">பென்சில்கள்</string>
+
+    <string name="leave_generic">விடுப்பு</string>
+    <string name="story_hours_ago">%1$d மணி முன்பு</string>
+    <string name="story_mins_ago">%1$d நிமிடம் முன்பு</string>
+
+</resources>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- తెలుగు · Telugu
+     W5 — messages, library, attendance, auth.
+     Attendance banner lines are DISPLAY of the canonical statuses; the
+     stored codes (P/A/L/H/T) and month keys are untouched. -->
+<resources>
+    <string name="att_absent_today">ఈరోజు గైర్హాజరు</string>
+    <string name="att_approved_leave">ఆమోదించిన సెలవు</string>
+    <string name="att_catch_up">తప్పిపోయినది పూర్తి చేసుకోండి</string>
+    <string name="att_enjoy_day_off">మీ సెలవును ఆనందించండి</string>
+    <string name="att_holiday_today">ఈరోజు సెలవు దినం</string>
+    <string name="att_keep_it_up">ఇలాగే మంచి పని కొనసాగించండి!</string>
+    <string name="att_late_today">ఈరోజు ఆలస్యంగా వచ్చారు</string>
+    <string name="att_leave_today">ఈరోజు సెలవులో</string>
+    <string name="att_no_status_yet">ఇంకా స్థితి లేదు</string>
+    <string name="att_on_time">సమయానికి</string>
+    <string name="att_present_today">ఈరోజు హాజరు</string>
+    <string name="att_status_soon">స్థితి త్వరలో నవీకరించబడుతుంది</string>
+    <string name="auth_enter_id_first">ముందుగా మీ విద్యార్థి ID నమోదు చేయండి.</string>
+    <string name="auth_looking_up_school">మీ పాఠశాలను వెతుకుతున్నాము…</string>
+    <string name="auth_not_student_account">ఇది విద్యార్థి ఖాతా కాదు. మీ పిల్లల విద్యార్థి ID నమోదు చేయండి (ఉదా. STU0001).</string>
+    <string name="auth_pw_changed_ok">పాస్‌వర్డ్ విజయవంతంగా మార్చబడింది</string>
+    <string name="auth_pw_different">మీకు పంపిన పాస్‌వర్డ్ కంటే వేరే పాస్‌వర్డ్ ఎంచుకోండి.</string>
+    <string name="auth_pw_digit">ఒక అంకె ఉండాలి.</string>
+    <string name="auth_pw_len">పాస్‌వర్డ్ 8–72 అక్షరాలు ఉండాలి.</string>
+    <string name="auth_pw_lower">ఒక చిన్న అక్షరం ఉండాలి.</string>
+    <string name="auth_pw_mismatch">పాస్‌వర్డ్‌లు సరిపోలడం లేదు.</string>
+    <string name="auth_pw_upper">ఒక పెద్ద అక్షరం ఉండాలి.</string>
+    <string name="auth_server_unreachable">సర్వర్‌ను చేరుకోలేకపోయాము. మీ కనెక్షన్ తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.</string>
+    <string name="auth_your_school">మీ పాఠశాల</string>
+    <string name="generic_just_now">ఇప్పుడే</string>
+    <string name="lib_all_clear_msg">మీరు పూర్తిగా క్లియర్! పుస్తకాలను సమయానికి తిరిగి ఇస్తూ ఉండండి</string>
+    <string name="lib_history_here">మీ తీసుకున్న చరిత్ర ఇక్కడ కనిపిస్తుంది</string>
+    <string name="lib_library_fine">గ్రంథాలయ జరిమానా</string>
+    <string name="lib_my_books">నా పుస్తకాలు</string>
+    <string name="lib_no_student_id">విద్యార్థి ID అందుబాటులో లేదు</string>
+    <string name="lib_try_different_term">వేరే శోధన పదం ప్రయత్నించండి</string>
+    <string name="lib_type_2_chars">వెతకడానికి కనీసం 2 అక్షరాలు టైప్ చేయండి</string>
+    <string name="lib_unknown_author">తెలియని రచయిత</string>
+    <string name="lib_untitled_book">శీర్షిక లేని పుస్తకం</string>
+    <string name="lib_visit_to_borrow">పుస్తకాలు తీసుకోవడానికి పాఠశాల గ్రంథాలయాన్ని సందర్శించండి</string>
+    <string name="msg_delete_conv_failed">సంభాషణ తొలగించలేకపోయాము</string>
+    <string name="msg_delete_msg_failed">సందేశం తొలగించలేకపోయాము</string>
+    <string name="msg_delete_only_yours">ఇది మీ ఇన్‌బాక్స్ నుండి మాత్రమే తొలగించబడుతుంది — ఇతర వ్యక్తికి ఇది ఇంకా కనిపిస్తుంది.</string>
+    <string name="msg_load_chat_failed">చాట్ లోడ్ కాలేదు</string>
+    <string name="msg_load_failed">సందేశాలు లోడ్ కాలేదు</string>
+    <string name="msg_lost_connection">రియల్-టైమ్ కనెక్షన్ తెగింది</string>
+    <string name="msg_observe_inbox_failed">ఇన్‌బాక్స్ లోడ్ కాలేదు</string>
+    <string name="msg_open_chat_failed">చాట్ తెరవలేకపోయాము</string>
+    <string name="msg_react_failed">స్పందించలేకపోయాము</string>
+    <string name="msg_realtime_unavailable">రియల్-టైమ్ నవీకరణలు అందుబాటులో లేవు</string>
+    <string name="msg_send_failed">సందేశం పంపలేకపోయాము</string>
+    <string name="msg_send_media_failed">మీడియా పంపలేకపోయాము</string>
+    <string name="msg_upload_failed">అప్‌లోడ్ విఫలమైంది</string>
+
+    <string name="lib_due_on_date">%1$s న గడువు</string>
+    <plurals name="lib_days_overdue">
+        <item quantity="one">%d రోజు ఆలస్యం</item>
+        <item quantity="other">%d రోజుల ఆలస్యం</item>
+    </plurals>
+    <plurals name="lib_due_in_days">
+        <item quantity="one">%d రోజులో గడువు</item>
+        <item quantity="other">%d రోజుల్లో గడువు</item>
+    </plurals>
+
+    <string name="lib_tab_catalog">జాబితా</string>
+    <string name="lib_tab_fines">జరిమానాలు</string>
+    <string name="lib_tab_history">చరిత్ర</string>
+
+</resources>

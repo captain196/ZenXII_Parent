@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English (source)
+     W4 — profile + homework. FAQ answers are single resources, joined
+     from concatenated Kotlin fragments: adjacent literals cannot be
+     reordered and word order differs in every language here.
+     Subject-tip KEYS ("mathematics", "science", …) stay English —
+     they are matched against server subject names. -->
+<resources>
+    <string name="faq_a_attendance">Attendance is marked by teachers and usually appears the same day after 2 PM. If a day looks missing, pull down to refresh the Attendance screen — if it\'s still blank, contact the class teacher.</string>
+    <string name="faq_a_fees">Open the Fees tab from the bottom bar, tap any pending fee head and select Pay to launch Razorpay secure checkout. Receipts appear under Paid Fees the moment payment succeeds.</string>
+    <string name="faq_a_homework">Tap the Academics tab in the bottom bar — Homework, Results, Timetable and Exam schedule all live there.</string>
+    <string name="faq_a_password">Scroll up on this Profile tab, open \"Change password\", enter your current password and a new one of 6+ characters, then tap Update.</string>
+    <string name="faq_a_push">Make sure Notifications are enabled in Settings → Notifications. Notices from your school also appear in the Notices tab even if the push was missed.</string>
+    <string name="faq_q_attendance">Why is my child\'s attendance not updating?</string>
+    <string name="faq_q_fees">How do I pay school fees?</string>
+    <string name="faq_q_homework">Where can I see homework and results?</string>
+    <string name="faq_q_password">How do I change my password?</string>
+    <string name="faq_q_push">I didn\'t receive a push notification for a notice.</string>
+    <string name="hw_describe_optional">Describe what you completed (optional):</string>
+    <string name="hw_due_soon">Due soon</string>
+    <string name="hw_load_failed_plain">Failed to load homework</string>
+    <string name="hw_network_problem">Network problem — check your connection and try again.</string>
+    <string name="hw_no_school_linked">Cannot submit — your account has no school linked. Log out and back in.</string>
+    <string name="hw_not_found">Homework not found — it may have been deleted.</string>
+    <string name="hw_permission_blocked">Submission blocked by permissions. Log out and back in, then retry.</string>
+    <string name="hw_state_not_started">Not yet started</string>
+    <string name="hw_state_ready">Completed, ready to submit</string>
+    <string name="hw_state_reviewed">Reviewed by teacher</string>
+    <string name="hw_state_started">Work started but not finished</string>
+    <string name="hw_state_submitted">Submitted - awaiting review</string>
+    <string name="hw_submit">Submit Homework</string>
+    <string name="hw_tip_english">Underline key vocabulary and proofread for grammar before submission.</string>
+    <string name="hw_tip_generic">Read the instructions carefully and manage your time well.</string>
+    <string name="hw_tip_geography">Reference maps and data wherever the question allows it.</string>
+    <string name="hw_tip_hindi">Practice writing neatly and check for matra errors before submitting.</string>
+    <string name="hw_tip_history">Use dates and names of key people to strengthen your answers.</string>
+    <string name="hw_tip_maths">Show all working steps clearly -- partial marks are given for method even if the final answer is wrong.</string>
+    <string name="hw_tip_science">Draw labelled diagrams wherever possible. They often carry separate marks.</string>
+    <string name="hw_under_review">Under Review</string>
+    <string name="profile_about_notices">Notices, events &amp; birthday wishes</string>
+    <string name="profile_about_payments">Secure fee payments via Razorpay</string>
+    <string name="profile_about_privacy">Firebase project, never shared with third parties</string>
+    <string name="profile_about_realtime">Real-time attendance, results &amp; homework</string>
+    <string name="profile_all_done">All done</string>
+    <string name="profile_call_or_email">Call or email</string>
+    <string name="profile_common_questions">Common questions</string>
+    <string name="profile_loading_contact">Loading contact details…</string>
+    <string name="profile_manage_alerts">Manage alerts</string>
+    <string name="profile_no_contact">Contact details aren\'t on file. Please reach the school office in person or via the school website.</string>
+    <string name="profile_update_credentials">Update credentials</string>
+    <string name="profile_update_password">Update Password</string>
+
+    <string name="hw_due_on">Due on %1$s</string>
+    <string name="hw_due_today_at">Due today (%1$s)</string>
+
+</resources>

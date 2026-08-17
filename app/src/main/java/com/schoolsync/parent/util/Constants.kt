@@ -212,6 +212,8 @@ object Constants {
         const val SECTIONS = "sections"
         const val SUBJECT_ASSIGNMENTS = "subjectAssignments"
         const val USERS = "users"
+        /** Per-device push registration; also carries `lang` for push fan-out. */
+        const val USER_DEVICES = "userDevices"
         const val ATTENDANCE = "attendance"
         const val ATTENDANCE_SUMMARY = "attendanceSummary"
         const val HOMEWORK = "homework"

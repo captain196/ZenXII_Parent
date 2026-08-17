@@ -1,7 +1,9 @@
 package com.schoolsync.parent
 
 import android.app.Application
+import android.content.Context
 import com.schoolsync.parent.service.NotificationChannels
+import com.schoolsync.parent.util.LocaleManager
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.VideoFrameDecoder
@@ -17,6 +19,16 @@ import dagger.hilt.android.HiltAndroidApp
  */
 @HiltAndroidApp
 class SchoolSyncApp : Application(), ImageLoaderFactory {
+
+    /**
+     * Apply the user's chosen language to the Application context before
+     * anything else runs. This is what makes `context.getString()` correct in
+     * ViewModels, WorkManager and any non-Activity code path — an Activity-only
+     * wrapper would leave all of those in English.
+     */
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(LocaleManager.wrap(base))
+    }
 
     /**
      * App-wide Coil [ImageLoader]. Registers [VideoFrameDecoder] so a video

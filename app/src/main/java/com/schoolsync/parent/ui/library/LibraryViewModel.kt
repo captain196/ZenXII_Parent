@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.library
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -40,7 +43,8 @@ data class LibraryUiState(
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
-    private val libraryRepo: LibraryFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val libraryRepo: LibraryFirestoreRepository,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
@@ -60,7 +64,7 @@ class LibraryViewModel @Inject constructor(
 
             if (studentId.isBlank()) {
                 _uiState.update {
-                    it.copy(isLoading = false, error = "Student ID not available")
+                    it.copy(isLoading = false, error = appContext.getString(R.string.lib_no_student_id))
                 }
                 return@launch
             }
@@ -184,11 +188,16 @@ class LibraryViewModel @Inject constructor(
     // ── Static helpers ──────────────────────────────────────────────────────
 
     companion object {
+        // machine parsers — do not localize. These read server-written strings, so
+        // they must stay in the locale the server writes: Locale.ROOT. Under
+        // Locale.getDefault() the "dd MMM yyyy" parser cannot read "15 Mar 2026"
+        // once the device is in Hindi (it expects "15 मार्च 2026"), so every
+        // library due date silently became null and no book showed as due.
         private val dateFormats = listOf(
-            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
-            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()),
-            SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()),
-            SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+            SimpleDateFormat("dd/MM/yyyy", Locale.ROOT),
+            SimpleDateFormat("yyyy-MM-dd", Locale.ROOT),
+            SimpleDateFormat("dd-MM-yyyy", Locale.ROOT),
+            SimpleDateFormat("dd MMM yyyy", Locale.ROOT)
         )
 
         fun parseDate(dateStr: String): Date? {
@@ -216,18 +225,27 @@ class LibraryViewModel @Inject constructor(
         /**
          * Human-readable due date text.
          */
-        fun dueDateLabel(dueDate: String): String {
+        /**
+         * Companion-object helper, so the Context is passed in explicitly —
+         * there is no injected appContext in this scope.
+         *
+         * The day counts use <plurals>; the old `"$days days"` was English-only
+         * pluralisation and wrong in every other language.
+         */
+        fun dueDateLabel(ctx: android.content.Context, dueDate: String): String {
             val days = daysUntilDue(dueDate) ?: return dueDate
             return when {
-                days < -1 -> "${-days} days overdue"
-                days == -1L -> "1 day overdue"
-                days == 0L -> "Due today"
-                days == 1L -> "Due tomorrow"
-                days <= 7 -> "Due in $days days"
+                days < 0L -> ctx.resources.getQuantityString(
+                    R.plurals.lib_days_overdue, (-days).toInt(), (-days).toInt())
+                days == 0L -> ctx.getString(R.string.dash_due_today)
+                days == 1L -> ctx.getString(R.string.dash_due_tomorrow)
+                days <= 7 -> ctx.resources.getQuantityString(
+                    R.plurals.lib_due_in_days, days.toInt(), days.toInt())
                 else -> {
-                    val fmt = SimpleDateFormat("dd MMM", Locale.getDefault())
                     val d = parseDate(dueDate)
-                    if (d != null) "Due ${fmt.format(d)}" else dueDate
+                    // Display formatter: localized month name, Latin digits pinned.
+                    if (d != null) ctx.getString(R.string.lib_due_on_date,
+                        com.schoolsync.parent.util.DisplayFormat.dayMonth(d)) else dueDate
                 }
             }
         }

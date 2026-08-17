@@ -2,6 +2,9 @@
 
 package com.schoolsync.parent.ui.gallery
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -102,7 +105,7 @@ fun GalleryDetailScreen(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.cd_back),
                         tint = c.textPrimary
                     )
                 }
@@ -145,13 +148,13 @@ fun GalleryDetailScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Couldn't load this album",
+                                text = stringResource(R.string.gal_album_load_failed),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = c.textSecondary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Check your connection and try again.",
+                                text = stringResource(R.string.gal_check_connection),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = c.textTertiary,
                                 textAlign = TextAlign.Center
@@ -173,7 +176,7 @@ fun GalleryDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Retry",
+                                    text = stringResource(R.string.action_retry),
                                     style = TextStyle(
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.SemiBold,
@@ -201,7 +204,7 @@ fun GalleryDetailScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Album not found",
+                                text = stringResource(R.string.gal_album_not_found),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = c.textSecondary
                             )
@@ -241,7 +244,7 @@ fun GalleryDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "${media.size} item${if (media.size != 1) "s" else ""}",
+                                    text = pluralStringResource(R.plurals.gal_item_count, media.size, media.size),
                                     style = TextStyle(
                                         fontSize = 13.sp,
                                         color = c.textSecondary,
@@ -371,7 +374,7 @@ private fun MediaThumbnail(
         if (!posterUrl.isNullOrBlank()) {
             AsyncImage(
                 model = posterUrl,
-                contentDescription = media.caption.ifBlank { "Gallery photo" },
+                contentDescription = media.caption.ifBlank { stringResource(R.string.gal_photo) },
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -394,7 +397,7 @@ private fun MediaThumbnail(
             ) {
                 Icon(
                     imageVector = Icons.Filled.PlayCircle,
-                    contentDescription = "Play video",
+                    contentDescription = stringResource(R.string.gal_play_video),
                     tint = Color.White.copy(alpha = 0.9f),
                     modifier = Modifier.size(32.dp)
                 )

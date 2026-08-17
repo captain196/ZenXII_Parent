@@ -1,5 +1,9 @@
 package com.schoolsync.parent.ui.homework
 
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -126,7 +130,7 @@ fun HomeworkScreen(
                     deepLinkConsumed = true
                     android.widget.Toast.makeText(
                         context,
-                        "Homework not found — it may have been deleted.",
+                        context.getString(R.string.hw_not_found),
                         android.widget.Toast.LENGTH_LONG
                     ).show()
                 }
@@ -222,7 +226,7 @@ private fun HomeworkDeepLinkLoading(onBack: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.cd_back),
                 tint = c.textPrimary,
                 modifier = Modifier.size(22.dp)
             )
@@ -279,14 +283,14 @@ private fun HomeworkListPage(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = c.textPrimary,
                     modifier = Modifier.size(18.dp)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Homework",
+                text = stringResource(R.string.drawer_homework),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = c.textPrimary,
@@ -355,7 +359,7 @@ private fun HomeworkListPage(
                     .padding(12.dp)
             ) {
                 Text(
-                    text = "⚠ $error — data shown may be out of date.",
+                    text = stringResource(R.string.hw_stale_fmt, error),
                     color = c.error,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -434,17 +438,25 @@ private fun HomeworkListPage(
 
 // ── Status Tab Chips (horizontal scrollable pills) ──────────────────────────
 
-private data class TabDef(val key: String, val label: String)
+/**
+ * Label is a @StringRes id, not a String.
+ *
+ * This is a top-level `val`, evaluated once at class-init outside any
+ * composition, so it cannot call stringResource() — and a String captured
+ * there would freeze whichever language the process started in and survive
+ * recreate(). Resolved at the render site instead.
+ */
+private data class TabDef(val key: String, @StringRes val labelRes: Int)
 
 private val tabs = listOf(
-    TabDef("all", "All"),
-    TabDef("pending", "Pending"),
+    TabDef("all", R.string.common_all),
+    TabDef("pending", R.string.filter_pending),
     // "Incomplete" = teacher bounced the work back for a redo. It's actionable
     // (the child must resubmit), so it sits right after Pending rather than
     // being buried in "All".
-    TabDef("incomplete", "Incomplete"),
-    TabDef("submitted", "Submitted"),
-    TabDef("graded", "Graded")
+    TabDef("incomplete", R.string.hw_tab_incomplete),
+    TabDef("submitted", R.string.hw_tab_submitted),
+    TabDef("graded", R.string.hw_tab_graded)
 )
 
 // Tab keys handed to the SwipeablePagerTabs pager — derived from `tabs`
@@ -476,6 +488,8 @@ private fun StatusTabChips(
                 else -> 0
             }
             val isActive = selectedTab == tab.key
+            // Hoisted: Modifier.semantics {} is not a composable scope.
+            val tabCd = pluralStringResource(R.plurals.hw_tab_items, count, stringResource(tab.labelRes), count)
 
             Row(
                 modifier = Modifier
@@ -498,14 +512,14 @@ private fun StatusTabChips(
                     .semantics(mergeDescendants = true) {
                         role = Role.Tab
                         selected = isActive
-                        contentDescription = "${tab.label}, $count item${if (count == 1) "" else "s"}"
+                        contentDescription = tabCd
                     }
                     .padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = tab.label,
+                    text = stringResource(tab.labelRes),
                     fontSize = 12.sp,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
                     color = if (isActive) Color.White else c.textSecondary
@@ -572,7 +586,7 @@ private fun SubjectFilterChips(
         // "All" chip
         SubjectChip(
             emoji = "\uD83D\uDCDA",
-            label = "All",
+            label = stringResource(R.string.common_all),
             isSelected = selected == null,
             color = c.accent,
             onClick = { onSelect(null) }
@@ -722,7 +736,7 @@ private fun HomeworkCard(item: Homework, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 // Title
                 Text(
-                    text = item.title.ifBlank { "Homework" },
+                    text = item.title.ifBlank { stringResource(R.string.drawer_homework) },
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = c.textPrimary,
@@ -753,7 +767,7 @@ private fun HomeworkCard(item: Homework, onClick: () -> Unit) {
                     // Due date pill
                     if (item.dueDate.isNotBlank()) {
                         DotPill(
-                            text = HomeworkViewModel.dueDateLabel(item),
+                            text = HomeworkViewModel.dueDateLabel(LocalContext.current, item),
                             dotColor = priorityColor,
                             bgColor = priorityColor.copy(alpha = 0.15f),
                             textColor = priorityColor
@@ -805,7 +819,7 @@ private fun HomeworkCard(item: Homework, onClick: () -> Unit) {
             // Right chevron
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Open",
+                contentDescription = stringResource(R.string.common_open),
                 tint = c.textTertiary,
                 modifier = Modifier
                     .size(20.dp)
@@ -862,7 +876,7 @@ private fun ErrorHomeworkState(message: String, onRetry: () -> Unit) {
             Text(text = "⚠️", fontSize = 48.sp)
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Couldn't load homework",
+                text = stringResource(R.string.hw_load_failed),
                 style = MaterialTheme.typography.titleMedium,
                 color = c.textSecondary,
                 fontWeight = FontWeight.SemiBold
@@ -879,7 +893,7 @@ private fun ErrorHomeworkState(message: String, onRetry: () -> Unit) {
                 onClick = onRetry,
                 colors = ButtonDefaults.buttonColors(containerColor = c.accent)
             ) {
-                Text(text = "Retry", color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text(text = stringResource(R.string.action_retry), color = Color.White, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -900,14 +914,14 @@ private fun EmptyHomeworkState() {
             Text(text = "\uD83C\uDF89", fontSize = 48.sp)
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Nothing here",
+                text = stringResource(R.string.hw_nothing_here),
                 style = MaterialTheme.typography.titleMedium,
                 color = c.textSecondary,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "No homework in this category",
+                text = stringResource(R.string.hw_none_in_category),
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textTertiary,
                 textAlign = TextAlign.Center
@@ -981,7 +995,7 @@ private fun HomeworkDetailPage(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.cd_back),
                         tint = c.textPrimary,
                         modifier = Modifier.size(18.dp)
                     )
@@ -989,7 +1003,7 @@ private fun HomeworkDetailPage(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = homework.subject.ifBlank { "Homework" },
+                        text = homework.subject.ifBlank { stringResource(R.string.drawer_homework) },
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = subjectColor
@@ -1012,7 +1026,7 @@ private fun HomeworkDetailPage(
                     Text(
                         text = when (priority) {
                             Priority.HIGH -> "Urgent"
-                            Priority.MEDIUM -> "Due soon"
+                            Priority.MEDIUM -> stringResource(R.string.hw_due_soon)
                             Priority.LOW -> "Relaxed"
                         },
                         fontSize = 11.sp,
@@ -1024,7 +1038,7 @@ private fun HomeworkDetailPage(
 
             // ── Title ───────────────────────────────────────────────────
             Text(
-                text = homework.title.ifBlank { "Homework" },
+                text = homework.title.ifBlank { stringResource(R.string.drawer_homework) },
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = c.textPrimary,
@@ -1042,7 +1056,7 @@ private fun HomeworkDetailPage(
             ) {
                 if (homework.dueDate.isNotBlank()) {
                     DotPill(
-                        text = HomeworkViewModel.dueDateLabel(homework),
+                        text = HomeworkViewModel.dueDateLabel(LocalContext.current, homework),
                         dotColor = priorityColor,
                         bgColor = priorityColor.copy(alpha = 0.15f),
                         textColor = priorityColor
@@ -1060,7 +1074,7 @@ private fun HomeworkDetailPage(
 
             // ── Instructions ────────────────────────────────────────────
             if (homework.description.isNotBlank()) {
-                SectionLabel(text = "INSTRUCTIONS")
+                SectionLabel(text = stringResource(R.string.section_instructions))
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1092,7 +1106,7 @@ private fun HomeworkDetailPage(
             // so backward compatibility is preserved.
             if (homework.attachments.isNotEmpty()) {
                 val context = LocalContext.current
-                SectionLabel(text = "ATTACHMENTS FROM TEACHER")
+                SectionLabel(text = stringResource(R.string.hw_attachments_from_teacher))
                 Column(
                     modifier = Modifier.padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1160,7 +1174,7 @@ private fun HomeworkDetailPage(
                                     // FIX 8: the tap dispatches ACTION_VIEW (opens
                                     // the file), it does not download — label it
                                     // accurately.
-                                    text = "Tap to open",
+                                    text = stringResource(R.string.hw_tap_to_open),
                                     fontSize = 11.sp,
                                     color = c.textTertiary
                                 )
@@ -1168,7 +1182,7 @@ private fun HomeworkDetailPage(
                             // Download icon
                             Icon(
                                 imageVector = Icons.Filled.Download,
-                                contentDescription = "Download",
+                                contentDescription = stringResource(R.string.common_download),
                                 tint = c.textTertiary,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -1179,7 +1193,7 @@ private fun HomeworkDetailPage(
             }
 
             // ── Submission Status ───────────────────────────────────────
-            SectionLabel(text = "SUBMISSION")
+            SectionLabel(text = stringResource(R.string.section_submission))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1215,11 +1229,11 @@ private fun HomeworkDetailPage(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = when (homework.studentStatus.lowercase().trim()) {
-                            "incomplete" -> "Work started but not finished"
-                            "complete", "done" -> "Completed, ready to submit"
-                            "submitted" -> "Submitted - awaiting review"
-                            "reviewed" -> "Reviewed by teacher"
-                            else -> "Not yet started"
+                            "incomplete" -> stringResource(R.string.hw_state_started)
+                            "complete", "done" -> stringResource(R.string.hw_state_ready)
+                            "submitted" -> stringResource(R.string.hw_state_submitted)
+                            "reviewed" -> stringResource(R.string.hw_state_reviewed)
+                            else -> stringResource(R.string.hw_state_not_started)
                         },
                         fontSize = 11.sp,
                         color = c.textSecondary
@@ -1243,7 +1257,7 @@ private fun HomeworkDetailPage(
                         .padding(16.dp)
                 ) {
                     Text(
-                        text = "Evaluated (no submission)",
+                        text = stringResource(R.string.hw_evaluated_no_submission),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = c.warning
@@ -1252,7 +1266,7 @@ private fun HomeworkDetailPage(
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Score",
+                                text = stringResource(R.string.field_score),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = c.textSecondary
@@ -1270,7 +1284,7 @@ private fun HomeworkDetailPage(
                     if (remark.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Teacher's Remark",
+                            text = stringResource(R.string.hw_teacher_remark),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = c.textSecondary
@@ -1301,7 +1315,7 @@ private fun HomeworkDetailPage(
                     if (homework.score >= 0) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Score",
+                                text = stringResource(R.string.field_score),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = c.textSecondary
@@ -1318,7 +1332,7 @@ private fun HomeworkDetailPage(
                     if (homework.feedback.isNotBlank()) {
                         if (homework.score >= 0) Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Teacher's Remark",
+                            text = stringResource(R.string.hw_teacher_remark),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = c.textSecondary
@@ -1348,7 +1362,7 @@ private fun HomeworkDetailPage(
                 Text(text = "\uD83D\uDCA1", fontSize = 20.sp)
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = HomeworkViewModel.subjectTip(homework.subject),
+                    text = stringResource(HomeworkViewModel.subjectTip(homework.subject)),
                     fontSize = 12.sp,
                     color = c.textSecondary,
                     lineHeight = 18.sp
@@ -1432,7 +1446,7 @@ private fun resolveStatusInfo(status: String, c: AppColors): StatusInfo = when (
     "complete", "done" -> StatusInfo("Complete", c.success, c.successBg)
     "submitted" -> StatusInfo("Submitted", c.purple, c.purpleBg)
     "reviewed" -> StatusInfo("Reviewed", c.success, c.successBg)
-    "pending review" -> StatusInfo("Under Review", c.accent, c.accent.copy(alpha = 0.12f))
+    "pending review" -> StatusInfo(stringResource(R.string.hw_under_review), c.accent, c.accent.copy(alpha = 0.12f))
     "overdue" -> StatusInfo("Overdue", c.error, c.errorBg)
     else -> StatusInfo("Pending", c.warning, c.warningBg)
 }
@@ -1472,7 +1486,7 @@ private fun SubmitHomeworkDialog(
         onDismissRequest = { if (!isSubmitting) onDismiss() },
         title = {
             androidx.compose.material3.Text(
-                "Submit Homework",
+                stringResource(R.string.hw_submit),
                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                 color = c.textPrimary
             )
@@ -1493,7 +1507,7 @@ private fun SubmitHomeworkDialog(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 androidx.compose.material3.Text(
-                    "Describe what you completed (optional):",
+                    stringResource(R.string.hw_describe_optional),
                     color = c.textSecondary,
                     fontSize = 13.sp
                 )
@@ -1504,7 +1518,7 @@ private fun SubmitHomeworkDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(120.dp),
-                    placeholder = { androidx.compose.material3.Text("e.g. Solved Q1-Q5, wrote essay on page 42...") },
+                    placeholder = { androidx.compose.material3.Text(stringResource(R.string.hw_note_hint)) },
                     maxLines = 5,
                     colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = c.accent,
@@ -1544,14 +1558,14 @@ private fun SubmitHomeworkDialog(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    androidx.compose.material3.Text("Submit")
+                    androidx.compose.material3.Text(stringResource(R.string.common_submit))
                 }
             }
         },
         dismissButton = {
             if (!isSubmitting) {
                 androidx.compose.material3.TextButton(onClick = onDismiss) {
-                    androidx.compose.material3.Text("Cancel", color = c.textSecondary)
+                    androidx.compose.material3.Text(stringResource(R.string.common_cancel), color = c.textSecondary)
                 }
             }
         },

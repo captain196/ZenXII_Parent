@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- தமிழ் · Tamil. Terminology per tools/i18n/glossary.md.
+     Tamil renders 30-50% wider than English — check every screen in this
+     locale against the pseudolocale layout pass. -->
+<resources>
+
+    <string name="auth_parent_portal">பெற்றோர் போர்டல்</string>
+    <string name="auth_welcome_back">மீண்டும் வரவேற்கிறோம்</string>
+    <string name="auth_sign_in_to_continue">தொடர உள்நுழையவும்</string>
+    <string name="auth_student_id">மாணவர் ID</string>
+    <string name="auth_hint_student_id">உங்கள் மாணவர் ID ஐ உள்ளிடவும்</string>
+    <string name="auth_hint_password">உங்கள் கடவுச்சொல்லை உள்ளிடவும்</string>
+    <string name="auth_action_sign_in">உள்நுழை</string>
+    <string name="auth_action_forgot_password">கடவுச்சொல் மறந்துவிட்டதா?</string>
+    <string name="auth_error_enter_student_id">உங்கள் மாணவர் ID ஐ உள்ளிடவும்</string>
+    <string name="auth_error_enter_password">உங்கள் கடவுச்சொல்லை உள்ளிடவும்</string>
+
+    <string name="auth_action_sign_out">வெளியேறு</string>
+    <string name="auth_set_new_password">புதிய கடவுச்சொல்லை அமைக்கவும்</string>
+    <string name="auth_password_reset_by_admin">உங்கள் கடவுச்சொல்லை உங்கள் பள்ளி நிர்வாகி மீட்டமைத்துள்ளார். தொடர புதிய கடவுச்சொல்லைத் தேர்ந்தெடுக்கவும்.</string>
+    <string name="auth_new_password">புதிய கடவுச்சொல்</string>
+    <string name="auth_confirm_password">கடவுச்சொல்லை உறுதிப்படுத்தவும்</string>
+    <string name="auth_action_save_continue">சேமித்துத் தொடரவும்</string>
+    <string name="auth_action_sign_out_instead">அதற்குப் பதிலாக வெளியேறு</string>
+
+    <string name="auth_forgot_help">கடவுச்சொல்லை உங்கள் பள்ளி நிர்வாகி மட்டுமே மீட்டமைக்க முடியும். யாரைத் தொடர்பு கொள்வது என்பதைப் பார்க்க உங்கள் மாணவர் ID ஐ உள்ளிடவும்.</string>
+    <string name="auth_hint_student_id_example">எ.கா. STU0001</string>
+    <string name="auth_action_look_up">தேடு</string>
+    <string name="auth_error_no_dialer">டயலர் செயலி எதுவும் இல்லை.</string>
+    <string name="auth_error_whatsapp">WhatsApp ஐத் திறக்க முடியவில்லை.</string>
+    <string name="auth_error_no_email">மின்னஞ்சல் செயலி எதுவும் இல்லை.</string>
+
+    <string name="profile_section_personal">தனிப்பட்ட தகவல்</string>
+    <string name="profile_dob">பிறந்த தேதி</string>
+    <string name="profile_admission_date">சேர்க்கை தேதி</string>
+    <string name="profile_section_contact">தொடர்பு தகவல்</string>
+    <string name="profile_section_family">குடும்பத் தகவல்</string>
+    <string name="profile_father_name">தந்தையின் பெயர்</string>
+    <string name="profile_mother_name">தாயின் பெயர்</string>
+    <string name="profile_section_school">பள்ளித் தகவல்</string>
+
+    <string name="profile_action_change_password">கடவுச்சொல்லை மாற்று</string>
+    <string name="profile_action_help_faq">உதவி &amp; கேள்விகள்</string>
+    <string name="profile_action_contact_school">பள்ளியைத் தொடர்பு கொள்ளவும்</string>
+    <string name="profile_action_log_out">வெளியேறு</string>
+    <string name="profile_dialog_log_out_title">வெளியேறவா?</string>
+    <string name="profile_action_call_office">அலுவலகத்தை அழைக்கவும்</string>
+    <string name="profile_action_email_office">அலுவலகத்திற்கு மின்னஞ்சல் அனுப்பவும்</string>
+
+    <string name="profile_current_password">தற்போதைய கடவுச்சொல்</string>
+    <string name="profile_new_password">புதிய கடவுச்சொல்</string>
+    <string name="profile_confirm_password">கடவுச்சொல்லை உறுதிப்படுத்தவும்</string>
+    <string name="profile_msg_password_changed">கடவுச்சொல் வெற்றிகரமாக மாற்றப்பட்டது</string>
+    <string name="profile_error_enter_current_password">தற்போதைய கடவுச்சொல்லை உள்ளிடவும்</string>
+    <string name="profile_error_password_min_length">புதிய கடவுச்சொல் குறைந்தது 6 எழுத்துகள் இருக்க வேண்டும்</string>
+    <string name="profile_error_passwords_no_match">கடவுச்சொற்கள் பொருந்தவில்லை</string>
+
+    <string name="profile_about_tagline">ZenXii உங்கள் குழந்தையின் பள்ளியுடனான உங்கள் நேரடித் தொடர்பு. வருகையைக் காணுங்கள், கட்டணத்தைப் பாதுகாப்பாகச் செலுத்துங்கள், வீட்டுப்பாடம் மற்றும் முடிவுகளைப் பாருங்கள், சுற்றறிக்கைகளைப் படியுங்கள், ஒவ்வொரு நிகழ்வையும் அறிந்திருங்கள் — அனைத்தும் ஒரே இடத்தில்.</string>
+
+</resources>

@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.results
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -41,7 +44,8 @@ data class ResultsUiState(
 
 @HiltViewModel
 class ResultsViewModel @Inject constructor(
-    private val examFirestoreRepo: ExamFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val examFirestoreRepo: ExamFirestoreRepository,
     private val feeFirestoreRepo: FeeFirestoreRepository,
     private val tokenManager: TokenManager,
     savedStateHandle: SavedStateHandle
@@ -116,11 +120,11 @@ class ResultsViewModel @Inject constructor(
                     }
                 },
                 onFailure = { e ->
-                    Log.e("ResultsVM", "Failed to load exams", e)
+                    Log.e("ResultsVM", appContext.getString(R.string.res_exams_load_failed), e)
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: "Failed to load exams"
+                            errorMessage = e.message ?: appContext.getString(R.string.res_exams_load_failed)
                         )
                     }
                 }
@@ -203,14 +207,14 @@ class ResultsViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                errorMessage = e.message ?: "Failed to load results"
+                                errorMessage = e.message ?: appContext.getString(R.string.res_results_load_failed)
                             )
                         }
                     }
                 )
             } else {
                 _uiState.update {
-                    it.copy(isLoading = false, errorMessage = "Student info not available")
+                    it.copy(isLoading = false, errorMessage = appContext.getString(R.string.att_no_student_info))
                 }
             }
         }

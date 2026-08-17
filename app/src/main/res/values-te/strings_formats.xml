@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- తెలుగు · Telugu
+     Format-argument strings. Indices are preserved but reordered
+     within the sentence where the language requires it. -->
+<resources>
+    <string name="common_page_of_fmt">%2$d లో %1$d</string>
+    <string name="dash_attendance_great_fmt">అద్భుతమైన హాజరు · %1$d%%</string>
+    <string name="dash_attendance_low_fmt">హాజరు తక్కువ · %1$d%%</string>
+    <string name="dash_fees_due_fmt">రుసుము బకాయి · %1$s</string>
+    <string name="dash_happy_birthday_fmt">పుట్టినరోజు శుభాకాంక్షలు, %1$s!</string>
+    <string name="exam_max_fmt">గరిష్టం %1$d</string>
+    <string name="exam_room_fmt">గది %1$s</string>
+    <string name="fees_checked_at">తనిఖీ చేసినది: %1$s</string>
+    <string name="fees_outstanding_fmt">బకాయి రుసుము: Rs. %1$s</string>
+    <string name="fees_receipt_hash">రసీదు #%1$s</string>
+    <string name="fees_save_failed_fmt">సేవ్ చేయలేకపోయాము: %1$s</string>
+    <string name="fees_saved_to">%1$s లో సేవ్ చేయబడింది</string>
+    <string name="fees_share_failed_fmt">రసీదు షేర్ చేయలేకపోయాము: %1$s</string>
+    <string name="fees_total_dues_fmt">మొత్తం బకాయి: Rs. %1$s</string>
+    <string name="hw_stale_fmt">⚠ %1$s — చూపిన డేటా పాతది కావచ్చు.</string>
+    <string name="leave_end_date_fmt">ముగింపు తేదీ: %1$s</string>
+    <string name="leave_remark_fmt">వ్యాఖ్య: %1$s</string>
+    <string name="leave_start_date_fmt">ప్రారంభ తేదీ: %1$s</string>
+    <string name="lessons_by_teacher_fmt">%1$s ద్వారా</string>
+    <string name="lessons_rescheduled_fmt">%1$s కి పునఃషెడ్యూల్ చేయబడింది</string>
+    <string name="lib_issued_fmt">జారీ: %1$s</string>
+    <string name="lib_renewed_fmt">%1$d సార్లు పునరుద్ధరించబడింది</string>
+    <string name="res_rank_colon_fmt">ర్యాంక్: %1$s</string>
+    <string name="res_rank_fmt">ర్యాంక్ %1$s</string>
+    <string name="res_result_status_fmt">ఫలితం: %1$s</string>
+    <string name="rf_severity_fmt">తీవ్రత: %1$s</string>
+    <string name="stories_profile_photo_fmt">%1$s యొక్క ప్రొఫైల్ ఫోటో</string>
+    <string name="tch_call_name">%1$s కి కాల్ చేయండి</string>
+    <string name="tch_message_name">%1$s కి సందేశం పంపండి</string>
+    <string name="tt_period_fmt">పీరియడ్ %1$s</string>
+
+    <plurals name="att_day_streak">
+        <item quantity="one">%d రోజుల వరుస</item>
+        <item quantity="other">%d రోజుల వరుస</item>
+    </plurals>
+    <plurals name="gal_item_count">
+        <item quantity="one">%d అంశం</item>
+        <item quantity="other">%d అంశాలు</item>
+    </plurals>
+    <plurals name="leave_days_count">
+        <item quantity="one">%d రోజు</item>
+        <item quantity="other">%d రోజులు</item>
+    </plurals>
+    <plurals name="lib_pending_fines">
+        <item quantity="one">%d పెండింగ్ జరిమానా</item>
+        <item quantity="other">%d పెండింగ్ జరిమానాలు</item>
+    </plurals>
+
+    <string name="dash_attendance_dropping_fmt">హాజరు తగ్గుతోంది · -%1$s%%</string>
+    <string name="dash_tap_retry">మళ్లీ ప్రయత్నించడానికి ట్యాప్ చేయండి</string>
+    <string name="fees_share_receipt_fmt">రసీదు #%1$s షేర్ చేయండి</string>
+    <string name="generic_unknown_error">తెలియని లోపం</string>
+    <string name="hw_subject_filter_fmt">%1$s సబ్జెక్టు ఫిల్టర్</string>
+    <string name="rf_error_retry_fmt">%1$s  మళ్లీ ప్రయత్నించడానికి ట్యాప్ చేయండి.</string>
+    <string name="tt_now_prefix">ఇప్పుడు: </string>
+    <plurals name="hw_tab_items">
+        <item quantity="one">%1$s, %2$d అంశం</item>
+        <item quantity="other">%1$s, %2$d అంశాలు</item>
+    </plurals>
+
+    <plurals name="att_best_streak">
+        <item quantity="one">ఉత్తమం: %1$d రోజు</item>
+        <item quantity="other">ఉత్తమం: %1$d రోజులు</item>
+    </plurals>
+    <plurals name="att_school_days">
+        <item quantity="one">ఈ నెల %1$d పాఠశాల రోజు</item>
+        <item quantity="other">ఈ నెల %1$d పాఠశాల రోజులు</item>
+    </plurals>
+    <plurals name="dash_homework_pending_fmt">
+        <item quantity="one">ఇంటి పని · %1$d పెండింగ్</item>
+        <item quantity="other">ఇంటి పని · %1$d పెండింగ్</item>
+    </plurals>
+    <plurals name="dash_notices_new_fmt">
+        <item quantity="one">ప్రకటనలు · %1$d కొత్తది</item>
+        <item quantity="other">ప్రకటనలు · %1$d కొత్తవి</item>
+    </plurals>
+    <plurals name="fees_paid_months">
+        <item quantity="one">చెల్లించినవి (%1$d నెల)</item>
+        <item quantity="other">చెల్లించినవి (%1$d నెలలు)</item>
+    </plurals>
+    <plurals name="fees_unpaid_months">
+        <item quantity="one">చెల్లించనివి (%1$d నెల)</item>
+        <item quantity="other">చెల్లించనివి (%1$d నెలలు)</item>
+    </plurals>
+    <plurals name="leave_max_days_fmt">
+        <item quantity="one">సెలవు %1$d రోజుకు మించకూడదు</item>
+        <item quantity="other">సెలవు %1$d రోజులకు మించకూడదు</item>
+    </plurals>
+    <plurals name="messages_unread_badge_format">
+        <item quantity="one">%d కొత్తది</item>
+        <item quantity="other">%d కొత్తవి</item>
+    </plurals>
+
+</resources>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ગુજરાતી · Gujarati
+     Tier 1 — notification channel names/descriptions, FriendlyError,
+     and PaymentSession failure copy.
+     Channel IDs and the push `type` keys in channelForType() are WIRE
+     VALUES and stay English; only what Android Settings shows to the
+     user is translated. "Razorpay" is a brand. -->
+<resources>
+    <string name="err_cannot_reach_server">શાળાના સર્વર સુધી પહોંચી શકાયું નથી. કૃપા કરીને તમારું કનેક્શન તપાસો અને ફરી પ્રયાસ કરો.</string>
+    <string name="err_no_internet">ઇન્ટરનેટ કનેક્શન નથી. કૃપા કરીને ફરી કનેક્ટ કરો અને ફરી પ્રયાસ કરો.</string>
+    <string name="err_not_found">અમને તે સર્વર પર મળ્યું નથી. કૃપા કરીને રિફ્રેશ કરીને ફરી પ્રયાસ કરો.</string>
+    <string name="err_payments_paused">શાળાએ નવી ચુકવણી અસ્થાયી રૂપે અટકાવી છે (વર્ષાંત બંધ અથવા સમયગાળો લૉક). કૃપા કરીને થોડી વારમાં ફરી પ્રયાસ કરો અથવા શાળા કાર્યાલયનો સંપર્ક કરો.</string>
+    <string name="err_server_timeout">શાળાના સર્વરે જવાબ આપવામાં ઘણો સમય લીધો. કૃપા કરીને થોડી વારમાં ફરી પ્રયાસ કરો.</string>
+    <string name="err_server_unavailable">શાળાનું સર્વર અસ્થાયી રૂપે અનુપલબ્ધ છે. કૃપા કરીને થોડી વારમાં ફરી પ્રયાસ કરો.</string>
+    <string name="err_session_expired">તમારું સત્ર સમાપ્ત થયું છે. કૃપા કરીને લૉગ આઉટ કરીને ફરી લૉગિન કરો.</string>
+    <string name="notif_ch_alerts">અલર્ટ</string>
+    <string name="notif_ch_alerts_desc">શિક્ષકો દ્વારા ઉઠાવેલા મહત્વપૂર્ણ અલર્ટ</string>
+    <string name="notif_ch_attendance">હાજરી</string>
+    <string name="notif_ch_attendance_desc">તમારા બાળકની હાજરીના અપડેટ</string>
+    <string name="notif_ch_events">કાર્યક્રમો</string>
+    <string name="notif_ch_events_desc">શાળાના કાર્યક્રમો</string>
+    <string name="notif_ch_exams">પરીક્ષા અને પરિણામ</string>
+    <string name="notif_ch_exams_desc">પરીક્ષા સમયપત્રક અને પ્રકાશિત પરિણામ</string>
+    <string name="notif_ch_fees">ફી</string>
+    <string name="notif_ch_fees_desc">ફી રિમાઇન્ડર અને ચુકવણી પુષ્ટિ</string>
+    <string name="notif_ch_gallery">ગેલેરી</string>
+    <string name="notif_ch_gallery_desc">નવા ફોટા અને આલ્બમ</string>
+    <string name="notif_ch_general">સામાન્ય</string>
+    <string name="notif_ch_general_desc">ZenXii તરફથી સામાન્ય નોટિફિકેશન</string>
+    <string name="notif_ch_homework">ગૃહકાર્ય</string>
+    <string name="notif_ch_homework_desc">નવું અને મૂલ્યાંકિત ગૃહકાર્ય</string>
+    <string name="notif_ch_leave">રજા</string>
+    <string name="notif_ch_leave_desc">રજા અરજીના અપડેટ</string>
+    <string name="notif_ch_notices">સૂચનાઓ અને પરિપત્રો</string>
+    <string name="notif_ch_notices_desc">નવી સૂચનાઓ અને પરિપત્રો</string>
+    <string name="notif_ch_stories">સ્ટોરી</string>
+    <string name="notif_ch_stories_desc">શાળાની નવી સ્ટોરી</string>
+    <string name="pay_cannot_record">આ ચુકવણી નોંધવા અમે શાળાના સર્વર સુધી પહોંચી શક્યા નથી.</string>
+    <string name="pay_captured_pending_fmt">ચુકવણી Razorpay ને મળી. %1$s શાળાનું સર્વર જવાબ આપતાં જ રસીદ તમારી ફી યાદીમાં દેખાશે.</string>
+    <string name="pay_session_expired_verify">ચકાસણી દરમિયાન સત્ર સમાપ્ત થયું — કૃપા કરીને ફરી લૉગિન કરો અને ફી યાદી જુઓ.</string>
+    <string name="pay_verification_failed">ચકાસણી નિષ્ફળ.</string>
+
+</resources>

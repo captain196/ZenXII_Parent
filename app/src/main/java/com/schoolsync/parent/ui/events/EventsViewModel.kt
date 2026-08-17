@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.events
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -41,7 +44,8 @@ data class EventDetailUiState(
 
 @HiltViewModel
 class EventsViewModel @Inject constructor(
-    private val eventFirestoreRepo: EventFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val eventFirestoreRepo: EventFirestoreRepository,
     private val ptmFirestoreRepo: PtmFirestoreRepository,
     private val galleryFirestoreRepo: GalleryFirestoreRepository,
     private val tokenManager: TokenManager
@@ -95,7 +99,7 @@ class EventsViewModel @Inject constructor(
                                 isLoading = false,
                                 // If events failed but PTMs loaded, still show the PTMs.
                                 events = if (ptmRows.isNotEmpty()) ptmRows else emptyList(),
-                                errorMessage = if (ptmRows.isEmpty()) (e.message ?: "Failed to load events") else null
+                                errorMessage = if (ptmRows.isEmpty()) (e.message ?: appContext.getString(R.string.events_load_failed)) else null
                             )
                         }
                     }
@@ -121,7 +125,7 @@ class EventsViewModel @Inject constructor(
 
     private fun PtmEventDoc.toEvent(): Event = Event(
         eventId      = ptmEventId.ifBlank { id },
-        title        = title.ifBlank { "Parent-Teacher Meeting" },
+        title        = title.ifBlank { appContext.getString(R.string.ptm_meeting_title) },
         description  = description,
         category     = "ptm",
         startDate    = date,
@@ -167,7 +171,7 @@ class EventsViewModel @Inject constructor(
                     _detailState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: "Failed to load event details"
+                            errorMessage = e.message ?: appContext.getString(R.string.events_detail_load_failed)
                         )
                     }
                 }

@@ -1,5 +1,6 @@
 package com.schoolsync.parent.ui.auth
 
+import com.schoolsync.parent.R
 import android.annotation.SuppressLint
 import android.content.Context
 import android.provider.Settings
@@ -66,11 +67,11 @@ class LoginViewModel @Inject constructor(
         val state = _uiState.value
 
         if (state.userId.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Please enter your Student ID") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.auth_error_enter_student_id)) }
             return
         }
         if (state.password.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Please enter your password") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.auth_error_enter_password)) }
             return
         }
 
@@ -79,6 +80,13 @@ class LoginViewModel @Inject constructor(
 
             when (val result = authRepository.login(state.userId, state.password, deviceId)) {
                 is AuthResult.Success -> {
+                    // Reinstall / account-switch restore: the device-local language
+                    // preference is gone but students.prefLang is not. Awaited (not
+                    // fire-and-forget) so the first screen after login already renders
+                    // in the restored language instead of flashing English first.
+                    // No-ops instantly when an explicit local choice already exists.
+                    authRepository.restoreLanguageFromServer()
+
                     val mustChange = result.data.mustChangePassword
                     _uiState.update {
                         it.copy(

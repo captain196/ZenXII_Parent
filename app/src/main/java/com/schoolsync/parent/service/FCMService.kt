@@ -15,6 +15,7 @@ import com.schoolsync.parent.MainActivity
 import com.schoolsync.parent.R
 import com.schoolsync.parent.data.repository.AuthRepository
 import com.schoolsync.parent.data.repository.AuthResult
+import com.schoolsync.parent.util.LocaleManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +38,16 @@ class FCMService : FirebaseMessagingService() {
     private val deviceId: String
         @SuppressLint("HardwareIds")
         get() = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
+
+    /**
+     * Apply the user's language here too. This service builds notification text
+     * with `getString()` while the app may not be running at all, so without the
+     * wrapper every locally-composed push string falls back to English even
+     * though the app itself is in Tamil.
+     */
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(LocaleManager.wrap(base))
+    }
 
     override fun onCreate() {
         super.onCreate()

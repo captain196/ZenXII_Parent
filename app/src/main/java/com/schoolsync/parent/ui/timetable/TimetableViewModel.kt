@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.timetable
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.local.TokenManager
@@ -67,7 +70,8 @@ data class TimetableUiState(
 
 @HiltViewModel
 class TimetableViewModel @Inject constructor(
-    private val timetableFirestoreRepo: TimetableFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val timetableFirestoreRepo: TimetableFirestoreRepository,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
@@ -169,7 +173,7 @@ class TimetableViewModel @Inject constructor(
                 val user = tokenManager.user.firstOrNull() ?: User.empty()
                 if (user.className.isBlank() || user.section.isBlank()) {
                     _uiState.update {
-                        it.copy(isLoading = false, errorMessage = "Class info not available")
+                        it.copy(isLoading = false, errorMessage = appContext.getString(R.string.tt_no_class_info))
                     }
                     return@launch
                 }
@@ -189,7 +193,7 @@ class TimetableViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                errorMessage = e.message ?: "Failed to load timetable"
+                                errorMessage = e.message ?: appContext.getString(R.string.tt_load_failed)
                             )
                         }
                     }
@@ -198,7 +202,7 @@ class TimetableViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.message ?: "Failed to load timetable"
+                        errorMessage = e.message ?: appContext.getString(R.string.tt_load_failed)
                     )
                 }
             }

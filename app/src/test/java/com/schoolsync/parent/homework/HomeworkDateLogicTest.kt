@@ -222,20 +222,26 @@ class HomeworkDateLogicTest {
 
     // ── dueDateLabel (deterministic: parse-fallback + far-future branch) ─────
 
+    // dueDateLabel's TEXT now lives in string resources and needs a Context, so
+    // these assert the pure branch decision instead — which is the part that can
+    // actually regress. Rendering is covered on-device.
+
     @Test
-    fun dueDateLabel_blankReturnsRawValue() {
-        assertEquals("", HomeworkViewModel.dueDateLabel(hw(dueDate = "")))
+    fun dueDateOffset_blankIsNull() {
+        assertNull(HomeworkViewModel.dueDateOffsetDays(hw(dueDate = "")))
     }
 
     @Test
-    fun dueDateLabel_unparseableReturnsRawValue() {
-        assertEquals("15th May", HomeworkViewModel.dueDateLabel(hw(dueDate = "15th May")))
+    fun dueDateOffset_unparseableIsNull() {
+        assertNull(HomeworkViewModel.dueDateOffsetDays(hw(dueDate = "15th May")))
     }
 
     @Test
-    fun dueDateLabel_farFutureUsesDueOnDdMmm() {
-        // Well beyond "tomorrow", so the relative branch is not hit.
-        assertEquals("Due on 15 Jun", HomeworkViewModel.dueDateLabel(hw(dueDate = "2099-06-15")))
+    fun dueDateOffset_farFutureIsWellBeyondTomorrow() {
+        val days = HomeworkViewModel.dueDateOffsetDays(hw(dueDate = "2099-06-15"))
+        assertNotNull(days)
+        // Beyond the today/tomorrow branches, so the absolute-date branch renders.
+        assertTrue(days!! > 1L)
     }
 
     // ── dueDateFullLabel (pure formatting) ───────────────────────────────────

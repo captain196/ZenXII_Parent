@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- தமிழ் · Tamil
+     W4 — profile + homework. FAQ answers are single resources, joined
+     from concatenated Kotlin fragments: adjacent literals cannot be
+     reordered and word order differs in every language here.
+     Subject-tip KEYS ("mathematics", "science", …) stay English —
+     they are matched against server subject names. -->
+<resources>
+    <string name="faq_a_attendance">வருகையை ஆசிரியர்கள் பதிவு செய்கிறார்கள், பொதுவாக அதே நாள் மதியம் 2 மணிக்குப் பிறகு தோன்றும். ஒரு நாள் விடுபட்டதாகத் தோன்றினால், வருகைத் திரையைப் புதுப்பிக்க கீழே இழுக்கவும் — அப்போதும் காலியாக இருந்தால் வகுப்பு ஆசிரியரைத் தொடர்பு கொள்ளவும்.</string>
+    <string name="faq_a_fees">கீழ்ப் பட்டியிலிருந்து கட்டணத் தாவலைத் திறந்து, நிலுவையில் உள்ள கட்டணத்தைத் தட்டி, Razorpay பாதுகாப்பான செக்அவுட்டுக்குச் செலுத்து என்பதைத் தேர்ந்தெடுக்கவும். கட்டணம் வெற்றியடைந்ததும் ரசீதுகள் செலுத்திய கட்டணத்தில் தோன்றும்.</string>
+    <string name="faq_a_homework">கீழ்ப் பட்டியில் வகைகள் தாவலைத் தட்டவும் — வீட்டுப்பாடம், முடிவுகள், நேர அட்டவணை மற்றும் தேர்வு அட்டவணை அனைத்தும் அங்கே உள்ளன.</string>
+    <string name="faq_a_password">இந்தச் சுயவிவரத் தாவலில் மேலே செல்லவும், \"கடவுச்சொல்லை மாற்று\" திறந்து, தற்போதைய கடவுச்சொல்லையும் 6+ எழுத்துகள் கொண்ட புதியதையும் உள்ளிட்டு, புதுப்பி என்பதைத் தட்டவும்.</string>
+    <string name="faq_a_push">அமைப்புகள் → அறிவிப்புகளில் அறிவிப்புகள் இயக்கப்பட்டுள்ளதா என உறுதிசெய்யவும். புஷ் தவறினாலும் பள்ளியின் அறிவிப்புகள் அறிவிப்புகள் தாவலில் தோன்றும்.</string>
+    <string name="faq_q_attendance">என் குழந்தையின் வருகை ஏன் புதுப்பிக்கப்படவில்லை?</string>
+    <string name="faq_q_fees">பள்ளிக் கட்டணத்தை எப்படிச் செலுத்துவது?</string>
+    <string name="faq_q_homework">வீட்டுப்பாடம் மற்றும் முடிவுகளை எங்கே காண்பது?</string>
+    <string name="faq_q_password">என் கடவுச்சொல்லை எப்படி மாற்றுவது?</string>
+    <string name="faq_q_push">ஒரு அறிவிப்புக்கான புஷ் அறிவிப்பு எனக்குக் கிடைக்கவில்லை.</string>
+    <string name="hw_describe_optional">நீங்கள் என்ன முடித்தீர்கள் என விவரிக்கவும் (விருப்பம்):</string>
+    <string name="hw_due_soon">விரைவில் நிலுவை</string>
+    <string name="hw_load_failed_plain">வீட்டுப்பாடத்தை ஏற்ற முடியவில்லை</string>
+    <string name="hw_network_problem">பிணையச் சிக்கல் — உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="hw_no_school_linked">சமர்ப்பிக்க முடியாது — உங்கள் கணக்குடன் பள்ளி இணைக்கப்படவில்லை. வெளியேறி மீண்டும் உள்நுழையவும்.</string>
+    <string name="hw_not_found">வீட்டுப்பாடம் கிடைக்கவில்லை — அது நீக்கப்பட்டிருக்கலாம்.</string>
+    <string name="hw_permission_blocked">அனுமதிகளால் சமர்ப்பிப்பு தடுக்கப்பட்டது. வெளியேறி மீண்டும் உள்நுழைந்து முயற்சிக்கவும்.</string>
+    <string name="hw_state_not_started">இன்னும் தொடங்கவில்லை</string>
+    <string name="hw_state_ready">முடிந்தது, சமர்ப்பிக்கத் தயார்</string>
+    <string name="hw_state_reviewed">ஆசிரியரால் மதிப்பாய்வு செய்யப்பட்டது</string>
+    <string name="hw_state_started">வேலை தொடங்கியது ஆனால் முடியவில்லை</string>
+    <string name="hw_state_submitted">சமர்ப்பிக்கப்பட்டது - மதிப்பாய்வு நிலுவையில்</string>
+    <string name="hw_submit">வீட்டுப்பாடத்தைச் சமர்ப்பி</string>
+    <string name="hw_tip_english">முக்கியச் சொற்களை அடிக்கோடிட்டு, சமர்ப்பிக்கும் முன் இலக்கணத்தைச் சரிபார்க்கவும்.</string>
+    <string name="hw_tip_generic">அறிவுறுத்தல்களைக் கவனமாகப் படித்து, நேரத்தை நன்கு நிர்வகிக்கவும்.</string>
+    <string name="hw_tip_geography">கேள்வி அனுமதிக்கும் இடங்களில் வரைபடங்களையும் தரவையும் குறிப்பிடுங்கள்.</string>
+    <string name="hw_tip_hindi">நேர்த்தியாக எழுதப் பயிற்சி செய்து, சமர்ப்பிக்கும் முன் மாத்திரைப் பிழைகளைச் சரிபார்க்கவும்.</string>
+    <string name="hw_tip_history">உங்கள் பதில்களை வலுப்படுத்த தேதிகளையும் முக்கிய நபர்களின் பெயர்களையும் பயன்படுத்துங்கள்.</string>
+    <string name="hw_tip_maths">அனைத்து படிநிலைகளையும் தெளிவாக எழுதுங்கள் — இறுதி விடை தவறானாலும் முறைக்கு பகுதி மதிப்பெண் வழங்கப்படும்.</string>
+    <string name="hw_tip_science">முடிந்த இடங்களில் பெயரிடப்பட்ட படங்களை வரையுங்கள். அவற்றுக்குத் தனி மதிப்பெண் உண்டு.</string>
+    <string name="hw_under_review">மதிப்பாய்வில்</string>
+    <string name="profile_about_notices">அறிவிப்புகள், நிகழ்வுகள் மற்றும் பிறந்தநாள் வாழ்த்துக்கள்</string>
+    <string name="profile_about_payments">Razorpay மூலம் பாதுகாப்பான கட்டணச் செலுத்துதல்</string>
+    <string name="profile_about_privacy">Firebase திட்டம், மூன்றாம் தரப்பினருடன் ஒருபோதும் பகிரப்படாது</string>
+    <string name="profile_about_realtime">நேரடி வருகை, முடிவுகள் மற்றும் வீட்டுப்பாடம்</string>
+    <string name="profile_all_done">அனைத்தும் முடிந்தது</string>
+    <string name="profile_call_or_email">அழைக்கவும் அல்லது மின்னஞ்சல் அனுப்பவும்</string>
+    <string name="profile_common_questions">பொதுவான கேள்விகள்</string>
+    <string name="profile_loading_contact">தொடர்பு விவரங்கள் ஏற்றப்படுகின்றன…</string>
+    <string name="profile_manage_alerts">எச்சரிக்கைகளை நிர்வகி</string>
+    <string name="profile_no_contact">தொடர்பு விவரங்கள் பதிவில் இல்லை. பள்ளி அலுவலகத்தை நேரில் அல்லது பள்ளி இணையதளம் வழியாகத் தொடர்பு கொள்ளவும்.</string>
+    <string name="profile_update_credentials">சான்றுகளைப் புதுப்பி</string>
+    <string name="profile_update_password">கடவுச்சொல்லைப் புதுப்பி</string>
+
+    <string name="hw_due_on">%1$s அன்று நிலுவை</string>
+    <string name="hw_due_today_at">இன்று நிலுவை (%1$s)</string>
+
+</resources>

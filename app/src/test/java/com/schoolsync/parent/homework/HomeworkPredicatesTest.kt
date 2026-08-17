@@ -1,5 +1,6 @@
 package com.schoolsync.parent.homework
 
+import com.schoolsync.parent.R
 import com.schoolsync.parent.data.model.Homework
 import com.schoolsync.parent.data.model.isActionNeeded
 import com.schoolsync.parent.ui.homework.HomeworkViewModel
@@ -139,11 +140,15 @@ class HomeworkPredicatesTest {
 
     // ── subjectTip (pure) ────────────────────────────────────────────────────
 
+    // subjectTip now returns a @StringRes id (the text lives in resources), so
+    // assert the MAPPING — subject name -> correct tip — which is the logic that
+    // can regress. The `when` subjects stay English because they are matched
+    // against server-provided subject names.
     @Test
-    fun subjectTip_returnsSubjectSpecificAndDefault() {
-        assertTrue(HomeworkViewModel.subjectTip("maths").contains("working steps"))
-        assertTrue(HomeworkViewModel.subjectTip("physics").contains("diagrams"))
+    fun subjectTip_mapsSubjectToCorrectResource() {
+        assertEquals(R.string.hw_tip_maths, HomeworkViewModel.subjectTip("maths"))
+        assertEquals(R.string.hw_tip_science, HomeworkViewModel.subjectTip("physics"))
         // unknown subject -> generic tip
-        assertTrue(HomeworkViewModel.subjectTip("astrology").contains("instructions"))
+        assertEquals(R.string.hw_tip_generic, HomeworkViewModel.subjectTip("astrology"))
     }
 }

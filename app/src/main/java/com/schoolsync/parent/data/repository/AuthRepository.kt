@@ -1,5 +1,6 @@
 package com.schoolsync.parent.data.repository
 
+import android.content.Context
 import android.util.Log
 import com.schoolsync.parent.data.firebase.FirebaseAuthManager
 import com.schoolsync.parent.data.firebase.FirebaseService
@@ -9,6 +10,7 @@ import com.schoolsync.parent.data.remote.AuthApi
 import com.schoolsync.parent.data.model.User
 import com.schoolsync.parent.data.model.firestore.StudentDoc
 import com.schoolsync.parent.util.Constants
+import com.schoolsync.parent.util.LocaleManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.tasks.await
@@ -22,6 +24,7 @@ sealed class AuthResult<out T> {
 
 @Singleton
 class AuthRepository @Inject constructor(
+    private val appContext: Context,
     private val tokenManager: TokenManager,
     private val firebaseAuthManager: FirebaseAuthManager,
     private val firebaseService: FirebaseService,
@@ -345,16 +348,15 @@ class AuthRepository @Inject constructor(
             // so the change *looks* fine, but on the next cold start Splash's forced
             // refresh throws FirebaseAuthInvalidUserException and signs the user out:
             // they set a password in the app and are dropped on the Login screen with
-            // no explanation. (Observed on STU0162 during UAT.) SessionGuard now
-            // refreshes on every foreground too, which would surface it in seconds.
+            // no explanation. (Observed on STU0162 during UAT.)
             //
             // We hold the new password right here, so mint a fresh session instead.
             // Best-effort: if it fails the user simply logs in again, which is the
             // old behaviour — never worse.
-            val reauthId = cachedUser?.userId
-            if (!reauthId.isNullOrBlank()) {
+            val userId = cachedUser?.userId
+            if (!userId.isNullOrBlank()) {
                 try {
-                    firebaseAuthManager.signInWithEmailAndPassword(reauthId, newPassword)
+                    firebaseAuthManager.signInWithEmailAndPassword(userId, newPassword)
                     Log.d(TAG, "clearMustChange: re-authenticated after password change")
                 } catch (e: Exception) {
                     Log.w(TAG, "clearMustChange: re-auth failed; user will be asked to log in again", e)
@@ -428,6 +430,79 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    /**
+     * Mirror the user's language choice to Firestore. Best-effort and
+     * fire-and-forget by design: the device-local preference is the rendering
+     * authority, so a failed write here never affects what the user sees. It
+     * exists so (a) push can be composed in the right language server-side and
+     * (b) a reinstall has something to restore from.
+     *
+     * `students.prefLang` is guarded by a narrow rules clause allowing only
+     * ['prefLang','updatedAt'] on a self-owned document; `userDevices` has no
+     * affectedKeys() constraint, so `lang` needs no rule change there.
+     */
+    suspend fun mirrorPreferredLanguage(tag: String, deviceId: String? = null) {
+        if (!LocaleManager.isSupported(tag)) return
+        try {
+            val user = tokenManager.user.firstOrNull() ?: return
+            val userId = user.userId
+            if (userId.isNullOrBlank()) return
+            val schoolId = user.schoolId
+            val now = java.time.OffsetDateTime.now().toString()
+
+            try {
+                firestoreService.setDocument(
+                    Constants.Firestore.STUDENTS,
+                    "${schoolId}_${userId}",
+                    mapOf("prefLang" to tag, "updatedAt" to now),
+                    merge = true
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "prefLang mirror failed (non-fatal)", e)
+            }
+
+            // Update this device's row too, so the next push is already correct
+            // rather than waiting for the next token refresh.
+            if (!deviceId.isNullOrBlank()) {
+                val safeDeviceId = deviceId.replace(Regex("[^A-Za-z0-9_\\-]"), "_")
+                try {
+                    firestoreService.setDocument(
+                        Constants.Firestore.USER_DEVICES,
+                        "${userId}_${safeDeviceId}",
+                        mapOf("lang" to tag, "lastActive" to now),
+                        merge = true
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "userDevices.lang mirror failed (non-fatal)", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "language mirror failed (non-fatal)", e)
+        }
+    }
+
+    /**
+     * Reinstall / account-switch restore. The device-local preference is gone
+     * but `students.prefLang` is not, so adopt it — unless the user has already
+     * made an explicit choice on this device, which always wins.
+     *
+     * Call after a successful login, before the first screen renders.
+     */
+    suspend fun restoreLanguageFromServer() {
+        if (LocaleManager.hasExplicitChoice(appContext)) return
+        try {
+            val user = tokenManager.user.firstOrNull() ?: return
+            val userId = user.userId
+            if (userId.isNullOrBlank()) return
+            val doc = firestoreService.getDocument(
+                Constants.Firestore.STUDENTS, "${user.schoolId}_${userId}")
+            val serverTag = doc?.getString("prefLang")
+            LocaleManager.adoptFromServerIfUnset(appContext, serverTag)
+        } catch (e: Exception) {
+            Log.w(TAG, "language restore failed (non-fatal)", e)
+        }
+    }
+
     suspend fun registerFcmToken(fcmToken: String, deviceId: String): AuthResult<Unit> {
         return try {
             val user = tokenManager.user.firstOrNull()
@@ -451,13 +526,20 @@ class AuthRepository @Inject constructor(
                 "platform"   to "android",
                 "status"     to "active",
                 "lastActive" to now,
-                "appRole"    to "parent"
+                "appRole"    to "parent",
+                // Language for server-side push composition. It lives HERE, on the
+                // device doc, rather than only on students/{...}.prefLang because
+                // the Cloud Function's token resolvers already read these snapshots
+                // in full to get fcmToken — so bucketing a broadcast by language
+                // costs zero extra reads. Sourcing it from `students` would be an
+                // N+1 per fan-out, i.e. thousands of extra reads on one notice.
+                "lang"       to LocaleManager.effectiveTag(appContext)
             )
 
             // ── Firestore FIRST (canonical — rules now allow userDevices writes) ──
             var firestoreOk = false
             try {
-                firestoreService.setDocument("userDevices", docId, payload, merge = true)
+                firestoreService.setDocument(Constants.Firestore.USER_DEVICES, docId, payload, merge = true)
                 firestoreOk = true
                 Log.w(TAG, "FCM token written to Firestore userDevices/$docId")
             } catch (e: Exception) {

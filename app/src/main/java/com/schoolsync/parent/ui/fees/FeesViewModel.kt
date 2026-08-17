@@ -1,5 +1,10 @@
 package com.schoolsync.parent.ui.fees
 
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -43,11 +48,20 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-enum class FeesTab(val title: String) {
-    PENDING("Pending Dues"),
-    PAYMENTS("Payments"),
-    DISCOUNTS("Discounts"),
-    STRUCTURE("Fee Structure"),
+/**
+ * Tab titles are @StringRes ids, not Strings.
+ *
+ * This is an enum declared at file scope: its constructor arguments are
+ * evaluated once at class-init, outside any composition and with no Context in
+ * scope. A String captured there would also freeze whichever language the
+ * process started in and survive recreate(). Resolve at the render site
+ * instead — see FeesScreen's tab row.
+ */
+enum class FeesTab(@StringRes val titleRes: Int) {
+    PENDING(R.string.fees_pending_dues),
+    PAYMENTS(R.string.fees_tab_payments),
+    DISCOUNTS(R.string.fees_tab_discounts),
+    STRUCTURE(R.string.fees_fee_structure),
 }
 
 /**
@@ -136,7 +150,8 @@ data class FeesUiState(
 
 @HiltViewModel
 class FeesViewModel @Inject constructor(
-    private val feeFirestoreRepo: FeeFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val feeFirestoreRepo: FeeFirestoreRepository,
     private val tokenManager: TokenManager,
     private val feesApi: FeesApi,
     private val paymentSession: PaymentSession,
@@ -572,7 +587,7 @@ class FeesViewModel @Inject constructor(
             if (studentId.isBlank() || className.isBlank() || section.isBlank()) {
                 Log.e("FeesVM", "MISSING: studentId=$studentId className=$className section=$section")
                 _uiState.update {
-                    it.copy(isLoading = false, errorMessage = "Student info not available")
+                    it.copy(isLoading = false, errorMessage = appContext.getString(R.string.att_no_student_info))
                 }
                 return@launch
             }
@@ -617,8 +632,9 @@ class FeesViewModel @Inject constructor(
                     it.copy(
                         isLoading = false,
                         errorMessage = friendlyErrorMessage(
+                            appContext,
                             e,
-                            fallback = "Couldn't load fee details. Please pull to refresh."
+                            fallback = appContext.getString(R.string.fees_load_failed_refresh)
                         )
                     )
                 }
@@ -961,7 +977,7 @@ class FeesViewModel @Inject constructor(
             .sumOf { it.balanceAmount }
         val totalAmount = amountOverride ?: computedTotal
         if (totalAmount <= 0) {
-            _uiState.update { it.copy(errorMessage = "Nothing to pay for the selected months.") }
+            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.fees_nothing_selected)) }
             return
         }
 
@@ -979,7 +995,7 @@ class FeesViewModel @Inject constructor(
                 didClaim = true
                 current.copy(
                     paymentInProgress = true,
-                    paymentStatus = "Creating order…",
+                    paymentStatus = appContext.getString(R.string.fees_creating_order),
                     errorMessage = null,
                     paymentFailure = null
                 )
@@ -991,7 +1007,7 @@ class FeesViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // Remember what we tried so a failure dialog can offer "Try again".
+            // Remember what we tried so a failure dialog can offer appContext.getString(R.string.fees_try_again).
             lastAttemptedMonths = months
             lastAttemptedAmount = amountOverride
             Log.i("FeesVM", "[PAY START] months=$months override=$amountOverride total=$totalAmount")
@@ -1013,7 +1029,7 @@ class FeesViewModel @Inject constructor(
                     it.copy(
                         paymentInProgress = false,
                         paymentStatus = null,
-                        errorMessage = "Please re-login to make a payment."
+                        errorMessage = appContext.getString(R.string.fees_relogin)
                     )
                 }
                 return@launch
@@ -1036,8 +1052,9 @@ class FeesViewModel @Inject constructor(
                         paymentInProgress = false,
                         paymentStatus = null,
                         errorMessage = friendlyErrorMessage(
+                            appContext,
                             e,
-                            fallback = "Couldn't start the payment. Please try again in a moment."
+                            fallback = appContext.getString(R.string.fees_start_payment_failed)
                         )
                     )
                 }
@@ -1049,7 +1066,7 @@ class FeesViewModel @Inject constructor(
                     it.copy(
                         paymentInProgress = false,
                         paymentStatus = null,
-                        errorMessage = response.error ?: "Failed to create payment order."
+                        errorMessage = response.error ?: appContext.getString(R.string.fees_create_order_failed)
                     )
                 }
                 return@launch
@@ -1063,7 +1080,7 @@ class FeesViewModel @Inject constructor(
                     it.copy(
                         paymentInProgress = false,
                         paymentStatus = null,
-                        errorMessage = "Razorpay is not configured. Ask the school admin to enable it."
+                        errorMessage = appContext.getString(R.string.fees_razorpay_missing)
                     )
                 }
                 return@launch
@@ -1075,7 +1092,7 @@ class FeesViewModel @Inject constructor(
                 (response.amount * 100).toLong()
             }
 
-            _uiState.update { it.copy(paymentStatus = "Opening checkout…") }
+            _uiState.update { it.copy(paymentStatus = appContext.getString(R.string.fees_opening_checkout)) }
             val description = "Fees — ${months.joinToString(", ")}"
             // Cache for one-tap retry without a fresh createOrder hop.
             lastCheckout = CachedCheckout(
@@ -1091,6 +1108,10 @@ class FeesViewModel @Inject constructor(
                     orderId = response.gateway_order_id,
                     amountPaise = amountPaise,
                     currency = response.currency.ifBlank { "INR" },
+                    // Not localized, deliberately: this is the merchant NAME shown
+                    // in the Razorpay sheet and recorded against the transaction.
+                    // A business name is not translated, and the school's own
+                    // display name is what normally fills it. Glossary rule 1.
                     name = user.schoolDisplayName.ifBlank { "School Fees" },
                     description = description,
                     prefillEmail = user.email,
@@ -1152,7 +1173,7 @@ class FeesViewModel @Inject constructor(
             return
         }
         // Stage B1 atomic claim — same race-closing pattern as
-        // initiatePayment so a fast double-tap of "Try again" cannot
+        // initiatePayment so a fast double-tap of appContext.getString(R.string.fees_try_again) cannot
         // re-open Razorpay checkout twice for one cached order.
         var didClaim = false
         _uiState.update { current ->
@@ -1161,7 +1182,7 @@ class FeesViewModel @Inject constructor(
                 didClaim = true
                 current.copy(
                     paymentInProgress = true,
-                    paymentStatus = "Reopening checkout…",
+                    paymentStatus = appContext.getString(R.string.fees_reopening_checkout),
                     errorMessage = null,
                     paymentFailure = null
                 )
@@ -1179,6 +1200,10 @@ class FeesViewModel @Inject constructor(
                     orderId = cached.orderId,
                     amountPaise = cached.amountPaise,
                     currency = cached.currency,
+                    // Not localized, deliberately: this is the merchant NAME shown
+                    // in the Razorpay sheet and recorded against the transaction.
+                    // A business name is not translated, and the school's own
+                    // display name is what normally fills it. Glossary rule 1.
                     name = user.schoolDisplayName.ifBlank { "School Fees" },
                     description = cached.description,
                     prefillEmail = user.email,

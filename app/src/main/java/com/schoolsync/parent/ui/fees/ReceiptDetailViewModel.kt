@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.fees
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -75,7 +78,8 @@ data class ReceiptDetailUiState(
 
 @HiltViewModel
 class ReceiptDetailViewModel @Inject constructor(
-    private val feeFirestoreRepo: FeeFirestoreRepository,
+    
+    @ApplicationContext private val appContext: Context,private val feeFirestoreRepo: FeeFirestoreRepository,
     private val tokenManager: TokenManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -92,7 +96,7 @@ class ReceiptDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             val user = tokenManager.user.firstOrNull() ?: User.empty()
             if (receiptId.isBlank()) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = "Invalid receipt.") }
+                _uiState.update { it.copy(isLoading = false, errorMessage = appContext.getString(R.string.fees_receipt_invalid)) }
                 return@launch
             }
 
@@ -105,7 +109,7 @@ class ReceiptDetailViewModel @Inject constructor(
                 rRes.fold(
                     onSuccess = { refund ->
                         if (refund == null) {
-                            _uiState.update { it.copy(isLoading = false, errorMessage = "Refund not found.") }
+                            _uiState.update { it.copy(isLoading = false, errorMessage = appContext.getString(R.string.fees_refund_not_found)) }
                         } else {
                             _uiState.update {
                                 it.copy(
@@ -122,7 +126,7 @@ class ReceiptDetailViewModel @Inject constructor(
                         }
                     },
                     onFailure = { e ->
-                        _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load refund.") }
+                        _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: appContext.getString(R.string.fees_refund_load_failed)) }
                     }
                 )
                 return@launch
@@ -132,7 +136,7 @@ class ReceiptDetailViewModel @Inject constructor(
             res.fold(
                 onSuccess = { doc ->
                     if (doc == null) {
-                        _uiState.update { it.copy(isLoading = false, errorMessage = "Receipt not found.") }
+                        _uiState.update { it.copy(isLoading = false, errorMessage = appContext.getString(R.string.fees_receipt_not_found)) }
                     } else {
                         _uiState.update { it.copy(isLoading = false, receipt = doc, user = user) }
                         // Fire-and-forget school meta lookup so the
@@ -151,7 +155,7 @@ class ReceiptDetailViewModel @Inject constructor(
                     }
                 },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load receipt.") }
+                    _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: appContext.getString(R.string.fees_receipt_load_failed)) }
                 }
             )
         }

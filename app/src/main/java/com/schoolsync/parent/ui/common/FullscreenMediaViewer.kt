@@ -2,6 +2,8 @@
 
 package com.schoolsync.parent.ui.common
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -240,7 +242,7 @@ fun FullscreenMediaViewer(
                 IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = "Close",
+                        contentDescription = stringResource(R.string.cd_close),
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
@@ -336,7 +338,7 @@ private fun InlineVideoPage(url: String, isActive: Boolean) {
                 )
                 Spacer(modifier = Modifier.size(12.dp))
                 Text(
-                    text = "This video can't be played.",
+                    text = stringResource(R.string.common_video_cannot_play),
                     style = TextStyle(fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f)),
                     textAlign = TextAlign.Center
                 )
@@ -419,7 +421,7 @@ private fun InlineVideoPage(url: String, isActive: Boolean) {
 
         if (failed) {
             Text(
-                text = "This video couldn't be played.",
+                text = stringResource(R.string.common_video_could_not_play),
                 style = TextStyle(fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f)),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.align(Alignment.Center).padding(24.dp)

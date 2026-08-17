@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English (source)
+     Tier 1 — notification channel names/descriptions, FriendlyError,
+     and PaymentSession failure copy.
+     Channel IDs and the push `type` keys in channelForType() are WIRE
+     VALUES and stay English; only what Android Settings shows to the
+     user is translated. "Razorpay" is a brand. -->
+<resources>
+    <string name="err_cannot_reach_server">Couldn\'t reach the school server. Please check your connection and try again.</string>
+    <string name="err_no_internet">No internet connection. Please reconnect and try again.</string>
+    <string name="err_not_found">We couldn\'t find that on the server. Please refresh and try again.</string>
+    <string name="err_payments_paused">The school has temporarily paused new payments (year-end close or period lock). Please try again shortly or contact the school office.</string>
+    <string name="err_server_timeout">The school server took too long to respond. Please try again in a moment.</string>
+    <string name="err_server_unavailable">The school server is temporarily unavailable. Please try again shortly.</string>
+    <string name="err_session_expired">Your session has expired. Please log out and log in again.</string>
+    <string name="notif_ch_alerts">Alerts</string>
+    <string name="notif_ch_alerts_desc">Important alerts raised by teachers</string>
+    <string name="notif_ch_attendance">Attendance</string>
+    <string name="notif_ch_attendance_desc">Your child\'s attendance updates</string>
+    <string name="notif_ch_events">Events</string>
+    <string name="notif_ch_events_desc">School events</string>
+    <string name="notif_ch_exams">Exams &amp; Results</string>
+    <string name="notif_ch_exams_desc">Exam schedules and published results</string>
+    <string name="notif_ch_fees">Fees</string>
+    <string name="notif_ch_fees_desc">Fee reminders and payment confirmations</string>
+    <string name="notif_ch_gallery">Gallery</string>
+    <string name="notif_ch_gallery_desc">New photos and albums</string>
+    <string name="notif_ch_general">General</string>
+    <string name="notif_ch_general_desc">General notifications from ZenXii</string>
+    <string name="notif_ch_homework">Homework</string>
+    <string name="notif_ch_homework_desc">New and graded homework</string>
+    <string name="notif_ch_leave">Leave</string>
+    <string name="notif_ch_leave_desc">Leave application updates</string>
+    <string name="notif_ch_notices">Notices &amp; Circulars</string>
+    <string name="notif_ch_notices_desc">New notices and circulars</string>
+    <string name="notif_ch_stories">Stories</string>
+    <string name="notif_ch_stories_desc">New school stories</string>
+    <string name="pay_cannot_record">We couldn\'t reach the school server to record this payment.</string>
+    <string name="pay_captured_pending_fmt">Payment received by Razorpay. %1$s The receipt will appear in your Fees list once the school server responds.</string>
+    <string name="pay_session_expired_verify">Session expired during verification — please re-login and check the fees list.</string>
+    <string name="pay_verification_failed">Verification failed.</string>
+
+</resources>

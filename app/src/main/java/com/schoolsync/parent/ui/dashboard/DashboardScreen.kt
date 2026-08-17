@@ -354,10 +354,10 @@ fun DashboardScreen(
                             item("highlights") {
                                 var expanded by rememberSaveable { mutableStateOf(true) }
                                 CollapsibleSection(
-                                    title = "Highlights",
+                                    title = stringResource(R.string.section_highlights),
                                     expanded = expanded,
                                     onToggle = { expanded = !expanded },
-                                    actionLabel = "View All",
+                                    actionLabel = stringResource(R.string.dash_view_all),
                                     onAction = onNavigateToEvents
                                 ) {
                                     val gradients = listOf(
@@ -515,7 +515,7 @@ fun DashboardScreen(
                         modifier = Modifier.weight(1f)
                     )
                     TextButton(onClick = { viewModel.clearError() }) {
-                        Text("Dismiss", color = c.error, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.common_dismiss), color = c.error, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -576,11 +576,13 @@ private fun TopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val openMenuCd = stringResource(R.string.dash_open_menu)
+        val openProfileCd = stringResource(R.string.dash_open_profile)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier.minimumInteractiveComponentSize().size(40.dp).clip(CircleShape)
                     .clickable(onClick = onMenuClick)
-                    .semantics { role = Role.Button; contentDescription = "Open menu" },
+                    .semantics { role = Role.Button; contentDescription = openMenuCd },
                 contentAlignment = Alignment.Center
             ) {
                 HamburgerIcon(tint = c.textPrimary)
@@ -615,7 +617,7 @@ private fun TopBar(
                 modifier = Modifier.minimumInteractiveComponentSize().size(42.dp).clip(RoundedCornerShape(14.dp)).background(
                     Brush.linearGradient(listOf(c.accent, c.accentSecondary))
                 ).clickable(onClick = onProfileClick)
-                    .semantics { role = Role.Button; contentDescription = "Open profile" },
+                    .semantics { role = Role.Button; contentDescription = openProfileCd },
                 contentAlignment = Alignment.Center
             ) {
                 Text(initials, style = MaterialTheme.typography.labelLarge, color = c.onBanner, fontWeight = FontWeight.Bold)
@@ -666,7 +668,7 @@ private fun DashboardSearchRow(onSearch: () -> Unit, onGrid: () -> Unit) {
         ) {
             Icon(Icons.Filled.Search, null, tint = c.textTertiary, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(10.dp))
-            Text("Search…", style = MaterialTheme.typography.bodyMedium, color = c.textTertiary)
+            Text(stringResource(R.string.dashboard_search_placeholder), style = MaterialTheme.typography.bodyMedium, color = c.textTertiary)
         }
         Box(
             modifier = Modifier
@@ -846,7 +848,7 @@ private fun StudentIdCard(
                     Icon(Icons.Filled.EventAvailable, null, tint = c.onBanner, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        "Today: $todayStatus",
+                        stringResource(R.string.dash_today_status_fmt, todayStatus),
                         style = MaterialTheme.typography.labelMedium,
                         color = c.onBanner,
                         fontWeight = FontWeight.SemiBold
@@ -874,7 +876,7 @@ private fun KpiGrid(
     onNotices: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        PlainSectionHeader(title = "Overview")
+        PlainSectionHeader(title = stringResource(R.string.section_overview))
         // Bento: Attendance is the tall hero tile (left); Homework and Notices
         // stack in the right column. Heights driven by weights so the left
         // tile matches the combined right column exactly.
@@ -896,10 +898,10 @@ private fun KpiGrid(
                 CountTileCard(
                     icon = Icons.AutoMirrored.Outlined.Assignment,
                     iconColor = Color(0xFFE65100),
-                    label = "Homework",
+                    label = stringResource(R.string.drawer_homework),
                     value = if (homeworkFailed) "—" else homeworkCount.toString(),
                     sublabel = when {
-                        homeworkFailed -> "Tap to retry"
+                        homeworkFailed -> stringResource(R.string.dash_tap_retry)
                         homeworkCount == 1 -> "task pending"
                         else -> "tasks pending"
                     },
@@ -909,7 +911,7 @@ private fun KpiGrid(
                 CountTileCard(
                     icon = Icons.Outlined.Campaign,
                     iconColor = Color(0xFF6A1B9A),
-                    label = "Notices",
+                    label = stringResource(R.string.drawer_notices),
                     value = noticeCount.toString(),
                     sublabel = if (noticeCount == 1) "new circular" else "new circulars",
                     modifier = Modifier.fillMaxWidth().weight(1f)
@@ -940,7 +942,7 @@ private fun AttendanceRingCard(
     Column(
         modifier = modifier.glassCard(20.dp).padding(16.dp)
     ) {
-        Text("ATTENDANCE", style = OverlineLabel, color = c.textTertiary)
+        Text(stringResource(R.string.section_attendance_caps), style = OverlineLabel, color = c.textTertiary)
 
         Spacer(modifier = Modifier.weight(1f))
 
@@ -976,7 +978,7 @@ private fun AttendanceRingCard(
                         color = c.textTertiary
                     )
                     Text(
-                        "Tap to retry",
+                        stringResource(R.string.dash_tap_retry),
                         style = MaterialTheme.typography.labelSmall,
                         color = c.warning
                     )
@@ -1045,7 +1047,7 @@ private fun FeesDueCard(
             Text(
                 when {
                     loadFailed -> "FEES"
-                    isOverdue -> "FEES DUE"
+                    isOverdue -> stringResource(R.string.dash_fees_due_caps)
                     else -> "FEES"
                 },
                 style = OverlineLabel,
@@ -1055,7 +1057,7 @@ private fun FeesDueCard(
         Spacer(modifier = Modifier.height(6.dp))
         if (loadFailed) {
             Text(
-                "Couldn't load",
+                stringResource(R.string.dash_couldnt_load),
                 style = MaterialTheme.typography.titleMedium,
                 color = c.textPrimary,
                 fontWeight = FontWeight.SemiBold
@@ -1077,9 +1079,9 @@ private fun FeesDueCard(
         }
         Text(
             when {
-                loadFailed -> "Tap to retry"
-                isOverdue -> "Tap to pay"
-                else -> "All cleared"
+                loadFailed -> stringResource(R.string.dash_tap_retry)
+                isOverdue -> stringResource(R.string.dash_tap_to_pay)
+                else -> stringResource(R.string.dash_all_cleared)
             },
             style = MaterialTheme.typography.labelSmall,
             color = accent,
@@ -1201,13 +1203,13 @@ private fun QuickActionsSection(
     // is by parent-value: daily → weekly → occasional. Each carries an emoji
     // glyph rendered on a white squircle tile (see QuickActionTile).
     val all = listOf(
-        QuickAction("homework",  Icons.Outlined.Assignment,     Color(0xFFEF6C00), "Homework",   "📝", onHomework, badgeCount = homeworkCount),
-        QuickAction("redflags",  Icons.Outlined.Flag,           Color(0xFFD32F2F), "Red Flags",  "🚩", onRedFlags, badgeCount = flagCount),
-        QuickAction("fees",      Icons.Outlined.CreditCard,     c.accent,          "Pay Fees",   "💳", onFees),
+        QuickAction("homework",  Icons.Outlined.Assignment,     Color(0xFFEF6C00), stringResource(R.string.drawer_homework),   "📝", onHomework, badgeCount = homeworkCount),
+        QuickAction("redflags",  Icons.Outlined.Flag,           Color(0xFFD32F2F), stringResource(R.string.rf_title),  "🚩", onRedFlags, badgeCount = flagCount),
+        QuickAction("fees",      Icons.Outlined.CreditCard,     c.accent,          stringResource(R.string.dash_pay_fees),   "💳", onFees),
         QuickAction("attendance",Icons.Outlined.EventAvailable, Color(0xFF1565C0), "Attendance", "✅", onAttendance),
         QuickAction("results",   Icons.Outlined.Assessment,     Color(0xFF2E7D32), "Results",    "📊", onResults),
         QuickAction("timetable", Icons.Outlined.Schedule,       Color(0xFFC62828), "Timetable",  "📅", onTimetable),
-        QuickAction("leave",     Icons.Outlined.EventBusy,      Color(0xFF00838F), "Leave",      "🏖️", onLeave),
+        QuickAction("leave",     Icons.Outlined.EventBusy,      Color(0xFF00838F), stringResource(R.string.attendance_status_leave),      "🏖️", onLeave),
         QuickAction("events",    Icons.Outlined.Celebration,    Color(0xFFAD1457), "Events",     "🎉", onEvents),
         QuickAction("ptm",       Icons.Outlined.Groups,         Color(0xFF6A1B9A), "PTM",        "👥", onPtm),
         QuickAction("library",   Icons.Outlined.LocalLibrary,   Color(0xFF4527A0), "Library",    "📚", onLibrary),
@@ -1221,7 +1223,7 @@ private fun QuickActionsSection(
         ranked.mapNotNull { k -> all.firstOrNull { it.key == k } }
     }
     Column {
-        PlainSectionHeader(title = "Quick Actions")
+        PlainSectionHeader(title = stringResource(R.string.dash_quick_actions_title))
         Spacer(modifier = Modifier.height(14.dp))
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -1383,12 +1385,12 @@ private fun RecentNoticesSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SectionHeader(title = "Recent Notices")
+            SectionHeader(title = stringResource(R.string.dash_recent_notices_title))
             Row(
                 modifier = Modifier.clickable(onClick = onViewAll),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("View All", style = MaterialTheme.typography.labelLarge, color = c.accent, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.dash_view_all), style = MaterialTheme.typography.labelLarge, color = c.accent, fontWeight = FontWeight.Medium)
                 Icon(Icons.Filled.ChevronRight, null, tint = c.accent, modifier = Modifier.size(18.dp))
             }
         }
@@ -1401,7 +1403,7 @@ private fun RecentNoticesSection(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Campaign, null, tint = c.textTertiary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("No recent notices", style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
+                    Text(stringResource(R.string.dash_no_recent_notices), style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
                 }
             }
         } else {
@@ -1482,13 +1484,13 @@ private fun UpcomingEventsSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SectionHeader(title = "Upcoming Events")
+            SectionHeader(title = stringResource(R.string.dash_upcoming_events_title))
             if (events.isNotEmpty()) {
                 Row(
                     modifier = Modifier.clickable(onClick = onViewAll),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("View All", style = MaterialTheme.typography.labelLarge, color = c.accent, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.dash_view_all), style = MaterialTheme.typography.labelLarge, color = c.accent, fontWeight = FontWeight.Medium)
                     Icon(Icons.Filled.ChevronRight, null, tint = c.accent, modifier = Modifier.size(18.dp))
                 }
             }
@@ -1502,7 +1504,7 @@ private fun UpcomingEventsSection(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Event, null, tint = c.textTertiary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("No upcoming events", style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
+                    Text(stringResource(R.string.dashboard_no_upcoming_events), style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
                 }
             }
         } else {
@@ -1638,7 +1640,7 @@ private fun EventBannerCard(event: Event, onClick: () -> Unit) {
             }
             Column {
                 Text(
-                    event.title.ifBlank { "School Event" },
+                    event.title.ifBlank { stringResource(R.string.dash_school_event) },
                     style = MaterialTheme.typography.titleMedium,
                     color = c.onBanner,
                     fontWeight = FontWeight.Bold,
@@ -1767,7 +1769,7 @@ private fun HighlightBannerCard(
             }
             Column {
                 Text(
-                    event.title.ifBlank { "School event" },
+                    event.title.ifBlank { stringResource(R.string.dash_school_event) },
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
@@ -1793,7 +1795,8 @@ private fun HighlightBannerCard(
 private fun computeDaysUntil(iso: String): Long? {
     if (iso.isBlank()) return null
     return try {
-        val parser = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        // machine key — do not localize. Wire value from Firestore.
+        val parser = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT)
         parser.isLenient = false
         val target = parser.parse(iso) ?: return null
         val targetMillis = target.time
@@ -1856,8 +1859,8 @@ private fun buildPulses(
         val amt = formatRupees(pendingFeeAmount)
         out += Pulse(
             kind = PulseKind.FEES,
-            title = "Fees due · $amt",
-            subtitle = "Tap to pay securely",
+            title = stringResource(R.string.dash_fees_due_fmt, amt),
+            subtitle = stringResource(R.string.dash_tap_pay_securely),
             icon = Icons.Filled.CreditCard,
             tint = c.warning,
             onClick = onFees,
@@ -1879,7 +1882,7 @@ private fun buildPulses(
         out += Pulse(
             kind = PulseKind.PTM,
             title = "PTM \u00B7 $timing",
-            subtitle = "Tap to RSVP \u00B7 ${nextPtm.title.ifBlank { "Parent-Teacher Meeting" }}",
+            subtitle = "Tap to RSVP \u00B7 ${nextPtm.title.ifBlank { stringResource(R.string.ptm_meeting_title) }}",
             icon = Icons.Filled.EventAvailable,
             tint = c.info,
             onClick = { onPtm(nextPtm.ptmEventId.ifBlank { nextPtm.id }) },
@@ -1898,8 +1901,8 @@ private fun buildPulses(
             }
             out += Pulse(
                 kind = PulseKind.EVENT,
-                title = "${nextEvent.title.ifBlank { "School event" }} · $when_",
-                subtitle = nextEvent.location.ifBlank { "Tap for details" },
+                title = "${nextEvent.title.ifBlank { stringResource(R.string.dash_school_event) }} · $when_",
+                subtitle = nextEvent.location.ifBlank { stringResource(R.string.dash_tap_for_details) },
                 icon = Icons.Filled.Event,
                 tint = c.coral,
                 onClick = {
@@ -1916,8 +1919,8 @@ private fun buildPulses(
         when {
             attendancePct < 75f -> out += Pulse(
                 kind = PulseKind.ATTENDANCE,
-                title = "Attendance low · ${attendancePct.toInt()}%",
-                subtitle = "Below 75% — schools often require 75%+",
+                title = stringResource(R.string.dash_attendance_low_fmt, attendancePct.toInt()),
+                subtitle = stringResource(R.string.dash_below_75),
                 icon = Icons.Filled.Warning,
                 tint = c.warning,
                 onClick = onAttendance,
@@ -1925,7 +1928,7 @@ private fun buildPulses(
             )
             attendanceChange != null && attendanceChange < -3f -> out += Pulse(
                 kind = PulseKind.ATTENDANCE,
-                title = "Attendance dropping · -${"%.1f".format(kotlin.math.abs(attendanceChange))}%",
+                title = stringResource(R.string.dash_attendance_dropping_fmt, "%.1f".format(kotlin.math.abs(attendanceChange))),
                 subtitle = "Down ${"%.1f".format(kotlin.math.abs(attendanceChange))}% this month",
                 icon = Icons.AutoMirrored.Filled.TrendingDown,
                 tint = c.warning,
@@ -1934,7 +1937,7 @@ private fun buildPulses(
             )
             attendancePct >= 92f -> out += Pulse(
                 kind = PulseKind.CELEBRATE,
-                title = "Great attendance · ${attendancePct.toInt()}%",
+                title = stringResource(R.string.dash_attendance_great_fmt, attendancePct.toInt()),
                 subtitle = "${attendancePct.toInt()}% this month · keep it up",
                 icon = Icons.AutoMirrored.Filled.TrendingUp,
                 tint = c.success,
@@ -1947,8 +1950,8 @@ private fun buildPulses(
     if (pendingHomework > 0) {
         out += Pulse(
             kind = PulseKind.HOMEWORK,
-            title = "Homework · $pendingHomework pending",
-            subtitle = "Review with your child today",
+            title = pluralStringResource(R.plurals.dash_homework_pending_fmt, pendingHomework, pendingHomework),
+            subtitle = stringResource(R.string.dash_review_today),
             icon = Icons.AutoMirrored.Filled.Assignment,
             tint = c.teal,
             onClick = onHomework,
@@ -1960,8 +1963,8 @@ private fun buildPulses(
     if (noticeCount > 0) {
         out += Pulse(
             kind = PulseKind.NOTICE,
-            title = "Notices · $noticeCount new",
-            subtitle = "From school · tap to read",
+            title = pluralStringResource(R.plurals.dash_notices_new_fmt, noticeCount, noticeCount),
+            subtitle = stringResource(R.string.dash_from_school_tap),
             icon = Icons.Filled.Campaign,
             tint = c.purple,
             onClick = onNotices,
@@ -1973,8 +1976,8 @@ private fun buildPulses(
     if (out.isEmpty()) {
         out += Pulse(
             kind = PulseKind.CELEBRATE,
-            title = "All caught up",
-            subtitle = "No pending items today",
+            title = stringResource(R.string.dash_all_caught_up),
+            subtitle = stringResource(R.string.dash_no_pending_today),
             icon = Icons.Filled.Celebration,
             tint = c.success,
             onClick = {}
@@ -1986,7 +1989,7 @@ private fun buildPulses(
 @Composable
 private fun PulseStrip(pulses: List<Pulse>) {
     Column {
-        PlainSectionHeader(title = "Today's Pulse")
+        PlainSectionHeader(title = stringResource(R.string.dash_todays_pulse))
         Spacer(modifier = Modifier.height(12.dp))
         // Colored alert pills in a horizontal scroll.
         Row(
@@ -2045,11 +2048,8 @@ private fun PulseCard(pulse: Pulse) {
 
 private fun formatPtmShortDate(iso: String): String {
     if (iso.isBlank()) return ""
-    return try {
-        val parser = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-        val out    = java.text.SimpleDateFormat("EEE, d MMM", java.util.Locale.getDefault())
-        parser.parse(iso)?.let { out.format(it) } ?: iso
-    } catch (_: Exception) { iso }
+    val parsed = com.schoolsync.parent.util.DateParse.parse(iso) ?: return iso
+    return com.schoolsync.parent.util.DisplayFormat.weekdayDayMonth(parsed)
 }
 
 /** "₹5,000" / "₹5,00,000" (Indian digit grouping). */
@@ -2106,7 +2106,7 @@ private fun WhatsNowCard(
     }
     val (label, slot, accent) = when {
         current != null -> Triple("NOW", current, c.success)
-        next != null    -> Triple("UP NEXT", next, c.accent)
+        next != null    -> Triple(stringResource(R.string.dash_up_next), next, c.accent)
         else            -> return // school day done — no widget
     }
 
@@ -2226,7 +2226,7 @@ private fun HomeworkPreviewSection(
     onOpenItem: (com.schoolsync.parent.data.model.firestore.HomeworkDoc) -> Unit
 ) {
     Column {
-        PlainSectionHeader(title = "Today's Homework", actionLabel = "View All ›", onAction = onViewAll)
+        PlainSectionHeader(title = stringResource(R.string.dash_todays_homework), actionLabel = stringResource(R.string.dash_view_all_arrow), onAction = onViewAll)
         Spacer(modifier = Modifier.height(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items.take(3).forEach { hw ->
@@ -2338,8 +2338,8 @@ private fun formatHomeworkDue(dueDate: String): DueLabel {
     val days = daysUntilIso(dueDate) ?: return DueLabel("Due $dueDate", c.textTertiary)
     return when {
         days < 0L  -> DueLabel("Overdue", c.error)
-        days == 0L -> DueLabel("Due today", c.error)
-        days == 1L -> DueLabel("Due tomorrow", c.warning)
+        days == 0L -> DueLabel(stringResource(R.string.dash_due_today), c.error)
+        days == 1L -> DueLabel(stringResource(R.string.dash_due_tomorrow), c.warning)
         days <= 7L -> DueLabel("Due in $days days", c.warning)
         else       -> DueLabel("Due in $days days", c.textTertiary)
     }
@@ -2461,10 +2461,10 @@ private fun AttendanceCalendarStrip(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CalendarLegend(color = c.success.copy(alpha = 0.55f), label = "Present")
-            CalendarLegend(color = c.error.copy(alpha = 0.55f), label = "Absent")
-            CalendarLegend(color = c.warning.copy(alpha = 0.55f), label = "Tardy")
-            CalendarLegend(color = c.info.copy(alpha = 0.55f), label = "Leave")
+            CalendarLegend(color = c.success.copy(alpha = 0.55f), label = stringResource(R.string.attendance_status_present))
+            CalendarLegend(color = c.error.copy(alpha = 0.55f), label = stringResource(R.string.attendance_status_absent))
+            CalendarLegend(color = c.warning.copy(alpha = 0.55f), label = stringResource(R.string.attendance_status_tardy))
+            CalendarLegend(color = c.info.copy(alpha = 0.55f), label = stringResource(R.string.attendance_status_leave))
         }
     }
 }
@@ -2549,7 +2549,7 @@ private fun LatestResultCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("LATEST RESULT", style = OverlineLabel, color = c.textTertiary)
+            Text(stringResource(R.string.dash_latest_result), style = OverlineLabel, color = c.textTertiary)
             if (result.rank > 0) {
                 Box(
                     modifier = Modifier
@@ -2603,7 +2603,7 @@ private fun LatestResultCard(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    result.examName.ifBlank { "Recent Exam" },
+                    result.examName.ifBlank { stringResource(R.string.dash_recent_exam) },
                     style = MaterialTheme.typography.titleMedium,
                     color = c.textPrimary,
                     fontWeight = FontWeight.SemiBold,
@@ -2710,7 +2710,7 @@ private fun StoriesRowShimmer() {
     }
 }
 
-/** Skeleton for the "Highlights" (upcoming events) rail — shown while the
+/** Skeleton for the stringResource(R.string.section_highlights) (upcoming events) rail — shown while the
  *  first dashboard load is still fetching events, so the section fades in
  *  instead of popping. Mirrors the real banner-card row's shape/size. */
 @Composable
@@ -2832,7 +2832,7 @@ private fun DrawerContent(
                 if (photoUrl.isNotBlank()) {
                     AsyncImage(
                         model = photoUrl,
-                        contentDescription = "Profile",
+                        contentDescription = stringResource(R.string.drawer_profile),
                         modifier = Modifier.size(56.dp).clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
@@ -2854,7 +2854,7 @@ private fun DrawerContent(
             Triple(Icons.Filled.Schedule,      stringResource(R.string.drawer_timetable),  onTimetable),
             Triple(Icons.AutoMirrored.Filled.Assignment,    stringResource(R.string.drawer_homework),   onHomework),
             Triple(Icons.Filled.Campaign,      stringResource(R.string.drawer_notices),    onNotices),
-            Triple(Icons.AutoMirrored.Filled.EventNote,     "Apply Leave",                              onLeave),
+            Triple(Icons.AutoMirrored.Filled.EventNote,     stringResource(R.string.leave_apply),                              onLeave),
             Triple(Icons.Filled.Event,         stringResource(R.string.drawer_events),     onEvents),
             Triple(Icons.Filled.PhotoLibrary,  stringResource(R.string.drawer_gallery),    onGallery),
             Triple(Icons.Filled.LocalLibrary,  stringResource(R.string.drawer_library),    onLibrary),
@@ -2938,8 +2938,8 @@ fun AcademicsHubContent(
         AcademicsMenuItem(Icons.Filled.Schedule,      stringResource(R.string.drawer_timetable),  stringResource(R.string.academics_timetable_subtitle),  c.accent,  onNavigateToTimetable)
         AcademicsMenuItem(
             Icons.AutoMirrored.Filled.EventNote,
-            "Daily Lessons",
-            "Today's topics, notes & subject progress",
+            stringResource(R.string.academics_lessons_title),
+            stringResource(R.string.academics_lessons_subtitle),
             c.teal,
             onNavigateToLessons
         )
@@ -2948,8 +2948,8 @@ fun AcademicsHubContent(
         AcademicsMenuItem(Icons.Filled.LocalLibrary,  stringResource(R.string.drawer_library),    stringResource(R.string.academics_library_subtitle),    c.purple,  onNavigateToLibrary)
         AcademicsMenuItem(
             Icons.Filled.EventAvailable,
-            "Parent-Teacher Meetings",
-            "View upcoming and past PTMs · RSVP",
+            stringResource(R.string.academics_ptm_title),
+            stringResource(R.string.academics_ptm_subtitle),
             Color(0xFF1565C0),
             onNavigateToPtmList
         )
@@ -3079,7 +3079,7 @@ private fun SiblingSwitcher(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "Currently viewing",
+                            stringResource(R.string.dash_currently_viewing),
                             style = MaterialTheme.typography.labelSmall,
                             color = c.accent.copy(alpha = 0.7f)
                         )
@@ -3170,7 +3170,7 @@ private fun UpcomingEventHeroCard(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "UPCOMING EVENT",
+                    text = stringResource(R.string.dash_upcoming_event_caps),
                     color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
@@ -3179,7 +3179,7 @@ private fun UpcomingEventHeroCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = event.title.ifBlank { "School Event" },
+                text = event.title.ifBlank { stringResource(R.string.dash_school_event) },
                 color = androidx.compose.ui.graphics.Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
@@ -3220,16 +3220,18 @@ private fun UpcomingEventHeroCard(
     }
 }
 
-/** "2026-04-27" → "Mon, 27 Apr". Returns the raw input on parse failure. */
+/**
+ * "2026-04-27" → "Mon, 27 Apr", in the app's language. Raw input on parse failure.
+ *
+ * The parse and the render are deliberately two different locales. The input is
+ * a server-written wire value and is read with Locale.ROOT; the output is read
+ * by a person and is rendered in their language with Latin digits pinned. Using
+ * one locale for both — as this did — is wrong in both directions at once.
+ */
 private fun formatEventDate(iso: String): String {
     if (iso.isBlank()) return ""
-    return try {
-        val parser = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        val formatter = java.text.SimpleDateFormat("EEE, d MMM", java.util.Locale.getDefault())
-        parser.parse(iso)?.let { formatter.format(it) } ?: iso
-    } catch (e: Exception) {
-        iso
-    }
+    val parsed = com.schoolsync.parent.util.DateParse.parse(iso) ?: return iso
+    return com.schoolsync.parent.util.DisplayFormat.weekdayDayMonth(parsed)
 }
 
 /**

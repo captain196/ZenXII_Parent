@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.attendance
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -63,6 +66,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.schoolsync.parent.data.model.AttendanceData
 import com.schoolsync.parent.data.model.AttendanceStatus
+import com.schoolsync.parent.util.displayLabel
 import com.schoolsync.parent.ui.theme.*
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -218,7 +222,7 @@ fun AttendanceScreen(
                 if (uiState.recentDays.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Recent days",
+                            text = stringResource(R.string.att_recent_days),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = colors.textPrimary,
@@ -248,7 +252,7 @@ fun AttendanceScreen(
                         )
                     ) {
                         Text(
-                            text = "Apply for leave",
+                            text = stringResource(R.string.att_apply_for_leave),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -314,7 +318,7 @@ private fun AttendanceErrorState(
                 )
             ) {
                 Text(
-                    text = "Retry",
+                    text = stringResource(R.string.action_retry),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -351,7 +355,7 @@ private fun AttendanceHeader(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.cd_back),
                 tint = colors.textPrimary,
                 modifier = Modifier.size(18.dp)
             )
@@ -361,7 +365,7 @@ private fun AttendanceHeader(
 
         Column {
             Text(
-                text = "Attendance",
+                text = stringResource(R.string.drawer_attendance),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.textPrimary
@@ -397,21 +401,21 @@ private fun TodayStatusBanner(
     }
 
     val statusText = when (todayStatus) {
-        AttendanceStatus.PRESENT -> "Present today"
-        AttendanceStatus.ABSENT -> "Absent today"
-        AttendanceStatus.LEAVE -> "On leave today"
-        AttendanceStatus.HOLIDAY -> "Holiday today"
-        AttendanceStatus.TRIP -> "Late arrival today"
+        AttendanceStatus.PRESENT -> stringResource(R.string.att_present_today)
+        AttendanceStatus.ABSENT -> stringResource(R.string.att_absent_today)
+        AttendanceStatus.LEAVE -> stringResource(R.string.att_leave_today)
+        AttendanceStatus.HOLIDAY -> stringResource(R.string.att_holiday_today)
+        AttendanceStatus.TRIP -> stringResource(R.string.att_late_today)
         // PAR-H1: treat 'V' as no record, never "Vacation".
-        AttendanceStatus.VACATION, null -> "No status yet"
+        AttendanceStatus.VACATION, null -> stringResource(R.string.att_no_status_yet)
     }
 
     val subtitle = when (todayStatus) {
-        AttendanceStatus.PRESENT -> "Keep up the good work!"
-        AttendanceStatus.ABSENT -> "Make sure to catch up"
-        AttendanceStatus.LEAVE -> "Approved leave"
-        AttendanceStatus.HOLIDAY -> "Enjoy your day off"
-        else -> "Status will be updated soon"
+        AttendanceStatus.PRESENT -> stringResource(R.string.att_keep_it_up)
+        AttendanceStatus.ABSENT -> stringResource(R.string.att_catch_up)
+        AttendanceStatus.LEAVE -> stringResource(R.string.att_approved_leave)
+        AttendanceStatus.HOLIDAY -> stringResource(R.string.att_enjoy_day_off)
+        else -> stringResource(R.string.att_status_soon)
     }
 
     Row(
@@ -459,7 +463,7 @@ private fun TodayStatusBanner(
             // rendering nonsense like "Day 188 of 22". Show the month's working
             // days plainly instead (dayOfYear is no longer used here).
             Text(
-                text = "$totalSchoolDays school days this month",
+                text = pluralStringResource(R.plurals.att_school_days, totalSchoolDays, totalSchoolDays),
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 color = colors.textTertiary
@@ -573,21 +577,21 @@ private fun StatsCard(
                 ) {
                     StatGridItem(
                         count = stats.present,
-                        label = "Present",
+                        label = stringResource(R.string.attendance_status_present),
                         dotColor = colors.attPresent,
                         colors = colors,
                         modifier = Modifier.weight(1f)
                     )
                     StatGridItem(
                         count = stats.absent,
-                        label = "Absent",
+                        label = stringResource(R.string.attendance_status_absent),
                         dotColor = colors.attAbsent,
                         colors = colors,
                         modifier = Modifier.weight(1f)
                     )
                     StatGridItem(
                         count = stats.tardy,
-                        label = "Tardy",
+                        label = stringResource(R.string.attendance_status_tardy),
                         dotColor = colors.attVacation,
                         colors = colors,
                         modifier = Modifier.weight(1f)
@@ -599,14 +603,14 @@ private fun StatsCard(
                 ) {
                     StatGridItem(
                         count = stats.leave,
-                        label = "Leave",
+                        label = stringResource(R.string.attendance_status_leave),
                         dotColor = colors.warning,
                         colors = colors,
                         modifier = Modifier.weight(1f)
                     )
                     StatGridItem(
                         count = stats.holiday,
-                        label = "Holiday",
+                        label = stringResource(R.string.attendance_status_holiday),
                         dotColor = colors.textTertiary,
                         colors = colors,
                         modifier = Modifier.weight(1f)
@@ -631,14 +635,14 @@ private fun StatsCard(
             Text(text = "\uD83D\uDD25", fontSize = 14.sp)
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "$currentStreak day streak",
+                text = pluralStringResource(R.plurals.att_day_streak, currentStreak, currentStreak),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.success
             )
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = "Best: $bestStreak days",
+                text = pluralStringResource(R.plurals.att_best_streak, bestStreak, bestStreak),
                 fontSize = 10.sp,
                 color = colors.textSecondary
             )
@@ -723,7 +727,7 @@ private fun CalendarCard(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "Previous month",
+                    contentDescription = stringResource(R.string.att_prev_month),
                     tint = if (canGoBack) colors.textPrimary else colors.textTertiary.copy(alpha = 0.3f),
                     modifier = Modifier.size(20.dp)
                 )
@@ -751,7 +755,7 @@ private fun CalendarCard(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "Next month",
+                    contentDescription = stringResource(R.string.att_next_month),
                     tint = if (canGoForward) colors.textPrimary else colors.textTertiary.copy(alpha = 0.3f),
                     modifier = Modifier.size(20.dp)
                 )
@@ -828,10 +832,10 @@ private fun CalendarCard(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            LegendDot(color = colors.attPresent, label = "Present", colors = colors)
-            LegendDot(color = colors.attAbsent, label = "Absent", colors = colors)
-            LegendDot(color = colors.warning, label = "Leave", colors = colors)
-            LegendDot(color = colors.textTertiary, label = "Holiday", colors = colors)
+            LegendDot(color = colors.attPresent, label = stringResource(R.string.attendance_status_present), colors = colors)
+            LegendDot(color = colors.attAbsent, label = stringResource(R.string.attendance_status_absent), colors = colors)
+            LegendDot(color = colors.warning, label = stringResource(R.string.attendance_status_leave), colors = colors)
+            LegendDot(color = colors.textTertiary, label = stringResource(R.string.attendance_status_holiday), colors = colors)
         }
     }
 }
@@ -886,8 +890,9 @@ private fun CalendarDayCell(
     // PAR-M4: status is color-only; announce day + status for screen readers.
     // A future/unrecorded/'V' cell (showStatus == false, or VACATION/null)
     // reads "not recorded". VACATION's label is already "Not recorded".
+    val a11yContext = androidx.compose.ui.platform.LocalContext.current
     val cellDescription = if (showStatus && status != null) {
-        "Day $day: ${status.label}"
+        "Day $day: ${status.displayLabel(a11yContext)}"
     } else {
         "Day $day: not recorded"
     }
@@ -966,7 +971,7 @@ private fun MonthlyOverviewCard(
             .padding(16.dp)
     ) {
         Text(
-            text = "MONTHLY OVERVIEW",
+            text = stringResource(R.string.att_monthly_overview),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             color = colors.textTertiary,
@@ -1091,10 +1096,11 @@ private fun RecentDayCard(
             // Status label, plus a "+N min late" suffix on tardy days when
             // we have a recorded arrival time.
             val lateMinutes = day.arrivalTime?.let { computeLateMinutes(it) }
+            val rowContext = androidx.compose.ui.platform.LocalContext.current
             val statusLabel = when {
                 day.status == AttendanceStatus.TRIP && lateMinutes != null && lateMinutes > 0 ->
-                    "Tardy · +${lateMinutes} min"
-                else -> day.status.label
+                    "${day.status.displayLabel(rowContext)} · +${lateMinutes} min"
+                else -> day.status.displayLabel(rowContext)
             }
             Text(
                 text = statusLabel,
@@ -1108,12 +1114,12 @@ private fun RecentDayCard(
         // layout doesn't shift.
         Column(horizontalAlignment = Alignment.End) {
             val arrivalLabel = day.arrivalTime ?: when (day.status) {
-                AttendanceStatus.PRESENT -> "On time"
+                AttendanceStatus.PRESENT -> stringResource(R.string.att_on_time)
                 AttendanceStatus.ABSENT -> "—"
-                AttendanceStatus.LEAVE -> "Leave"
-                AttendanceStatus.HOLIDAY -> "Holiday"
+                AttendanceStatus.LEAVE -> stringResource(R.string.attendance_status_leave)
+                AttendanceStatus.HOLIDAY -> stringResource(R.string.attendance_status_holiday)
                 AttendanceStatus.VACATION -> "Vacation"
-                AttendanceStatus.TRIP -> "Tardy"
+                AttendanceStatus.TRIP -> stringResource(R.string.attendance_status_tardy)
             }
             Text(
                 text = arrivalLabel,

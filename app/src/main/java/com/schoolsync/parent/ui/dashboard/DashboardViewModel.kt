@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.dashboard
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -74,9 +77,15 @@ data class DashboardUiState(
     val feesLoadFailed: Boolean = false,
     val pendingHomeworkCount: Int = 0,
     /** Live count of ACTIVE red flags for the current child — drives the
-     *  dashboard "Red Flags" tile badge so a new serious flag is visible
+     *  dashboard appContext.getString(R.string.rf_title) tile badge so a new serious flag is visible
      *  at a glance without opening the screen. */
     val activeFlagCount: Int = 0,
+    /**
+     * True when the red-flag listener failed, so [activeFlagCount] is the last
+     * known value (or 0 on a cold start) rather than a confirmed count. The UI
+     * must not present it as "no open concerns" while this is set.
+     */
+    val flagCountLoadFailed: Boolean = false,
     /** True when the homework listener errored — distinguishes a real
      *  "0 pending" from a failed load. */
     val homeworkLoadFailed: Boolean = false,
@@ -103,7 +112,8 @@ data class DashboardUiState(
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    private val studentRepository: StudentRepository,
+    
+    @ApplicationContext private val appContext: Context,private val studentRepository: StudentRepository,
     private val attendanceFirestoreRepo: AttendanceFirestoreRepository,
     private val feeFirestoreRepo: FeeFirestoreRepository,
     private val communicationFirestoreRepo: CommunicationFirestoreRepository,
@@ -251,7 +261,7 @@ class DashboardViewModel @Inject constructor(
             try {
                 val result = studentFirestoreRepo.getStudent(studentId)
                 val doc = result.getOrNull() ?: run {
-                    _uiState.update { it.copy(errorMessage = "Couldn't load that child's profile.") }
+                    _uiState.update { it.copy(errorMessage = appContext.getString(R.string.dash_child_profile_failed)) }
                     return@launch
                 }
                 val current = _uiState.value.user ?: User.empty()
@@ -290,6 +300,7 @@ class DashboardViewModel @Inject constructor(
                         homeworkPreview = emptyList(),
                         homeworkLoadFailed = false,
                         activeFlagCount = 0,
+                        flagCountLoadFailed = false,
                         todaySchedule = null,
                         latestResult = null,
                         resultLoadFailed = false,
@@ -312,7 +323,7 @@ class DashboardViewModel @Inject constructor(
                 loadEvents()
             } catch (e: Exception) {
                 Log.e("DashboardVM", "switchToSibling failed", e)
-                _uiState.update { it.copy(errorMessage = e.message ?: "Failed to switch.") }
+                _uiState.update { it.copy(errorMessage = e.message ?: appContext.getString(R.string.dash_switch_failed)) }
             }
         }
     }
@@ -407,7 +418,7 @@ class DashboardViewModel @Inject constructor(
                 else ptmFirestoreRepo.getUpcomingPtms(cls, sec).getOrNull().orEmpty().map { p ->
                     Event(
                         eventId      = p.ptmEventId.ifBlank { p.id.removePrefix("${p.schoolId}_") },
-                        title        = p.title.ifBlank { "Parent-Teacher Meeting" },
+                        title        = p.title.ifBlank { appContext.getString(R.string.ptm_meeting_title) },
                         description  = p.description,
                         category     = "ptm",
                         startDate    = p.date,
@@ -487,8 +498,15 @@ class DashboardViewModel @Inject constructor(
                     val todayDay = java.time.LocalDate.now().dayOfMonth
                     val todayStatus = currentMonthSummary?.dayWise?.getOrNull(todayDay - 1)?.let { code ->
                         when (code) {
-                            'P' -> "Present"; 'A' -> "Absent"; 'L' -> "Leave"
-                            'H' -> "Holiday"; 'V' -> "Vacation"; 'T' -> "Tardy"
+                            // Display labels for the stored code chars. The CODES
+                            // ('P'/'A'/'L'/'H'/'V'/'T') are the wire values and are
+                            // untouched; only the rendered text is translated.
+                            'P' -> appContext.getString(R.string.attendance_status_present)
+                            'A' -> appContext.getString(R.string.attendance_status_absent)
+                            'L' -> appContext.getString(R.string.attendance_status_leave)
+                            'H' -> appContext.getString(R.string.attendance_status_holiday)
+                            'V' -> appContext.getString(R.string.attendance_status_vacation)
+                            'T' -> appContext.getString(R.string.attendance_status_tardy)
                             else -> null
                         }
                     }
@@ -646,8 +664,17 @@ class DashboardViewModel @Inject constructor(
      * observeFlags() flatMapLatch-es on the active user, so this single
      * listener automatically re-targets on a sibling switch — we just
      * cancel-and-restart defensively so repeat loadDashboard() calls don't
-     * stack listeners. Failure is swallowed to 0 (the tile simply shows no
-     * badge); the full Red Flags screen is the authoritative error surface.
+     * stack listeners.
+     *
+     * Failure must NOT report 0. `badgeCount = 0` renders no badge at all, which
+     * is visually identical to "your child has no open concerns" — and since the
+     * badge is the only thing prompting a parent to open the screen, the old
+     * "the full Red Flags screen is the authoritative error surface" rationale
+     * doesn't hold: a parent who sees no badge never goes there. This is the same
+     * false-all-clear class that RedFlagViewModel was explicitly hardened against
+     * (it refuses to fall through to the empty state on error); the dashboard
+     * predates that hardening. On failure we now keep the last known count and
+     * raise [flagCountLoadFailed] instead of asserting a reassuring zero.
      */
     private fun loadFlags() {
         flagListenerJob?.cancel()
@@ -655,13 +682,16 @@ class DashboardViewModel @Inject constructor(
             try {
                 redFlagRepository.observeFlags().collect { flags ->
                     val active = flags.count { it.status == "active" }
-                    _uiState.update { it.copy(activeFlagCount = active) }
+                    _uiState.update {
+                        it.copy(activeFlagCount = active, flagCountLoadFailed = false)
+                    }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // normal on student switch — silent
             } catch (e: Exception) {
                 Log.w("DashboardVM", "Red-flag count listener failed", e)
-                _uiState.update { it.copy(activeFlagCount = 0) }
+                // Keep the last known count; never assert a reassuring zero.
+                _uiState.update { it.copy(flagCountLoadFailed = true) }
             }
         }
     }

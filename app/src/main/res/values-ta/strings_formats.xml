@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- தமிழ் · Tamil
+     Format-argument strings. Indices are preserved but reordered
+     within the sentence where the language requires it. -->
+<resources>
+    <string name="common_page_of_fmt">%2$d இல் %1$d</string>
+    <string name="dash_attendance_great_fmt">சிறந்த வருகை · %1$d%%</string>
+    <string name="dash_attendance_low_fmt">வருகை குறைவு · %1$d%%</string>
+    <string name="dash_fees_due_fmt">கட்டணம் நிலுவை · %1$s</string>
+    <string name="dash_happy_birthday_fmt">பிறந்தநாள் வாழ்த்துக்கள், %1$s!</string>
+    <string name="exam_max_fmt">அதிகபட்சம் %1$d</string>
+    <string name="exam_room_fmt">அறை %1$s</string>
+    <string name="fees_checked_at">சரிபார்க்கப்பட்டது: %1$s</string>
+    <string name="fees_outstanding_fmt">நிலுவைக் கட்டணம்: Rs. %1$s</string>
+    <string name="fees_receipt_hash">ரசீது #%1$s</string>
+    <string name="fees_save_failed_fmt">சேமிக்க முடியவில்லை: %1$s</string>
+    <string name="fees_saved_to">%1$s இல் சேமிக்கப்பட்டது</string>
+    <string name="fees_share_failed_fmt">ரசீதைப் பகிர முடியவில்லை: %1$s</string>
+    <string name="fees_total_dues_fmt">மொத்த நிலுவை: Rs. %1$s</string>
+    <string name="hw_stale_fmt">⚠ %1$s — காட்டப்படும் தரவு பழையதாக இருக்கலாம்.</string>
+    <string name="leave_end_date_fmt">முடிவு தேதி: %1$s</string>
+    <string name="leave_remark_fmt">கருத்து: %1$s</string>
+    <string name="leave_start_date_fmt">தொடக்கத் தேதி: %1$s</string>
+    <string name="lessons_by_teacher_fmt">%1$s அவர்களால்</string>
+    <string name="lessons_rescheduled_fmt">%1$s க்கு மாற்றப்பட்டது</string>
+    <string name="lib_issued_fmt">வழங்கப்பட்டது: %1$s</string>
+    <string name="lib_renewed_fmt">%1$d முறை புதுப்பிக்கப்பட்டது</string>
+    <string name="res_rank_colon_fmt">தரவரிசை: %1$s</string>
+    <string name="res_rank_fmt">தரவரிசை %1$s</string>
+    <string name="res_result_status_fmt">முடிவு: %1$s</string>
+    <string name="rf_severity_fmt">தீவிரம்: %1$s</string>
+    <string name="stories_profile_photo_fmt">%1$s இன் சுயவிவரப் படம்</string>
+    <string name="tch_call_name">%1$s ஐ அழைக்கவும்</string>
+    <string name="tch_message_name">%1$s க்கு செய்தி அனுப்பு</string>
+    <string name="tt_period_fmt">பாடவேளை %1$s</string>
+
+    <plurals name="att_day_streak">
+        <item quantity="one">%d நாள் தொடர்</item>
+        <item quantity="other">%d நாள் தொடர்</item>
+    </plurals>
+    <plurals name="gal_item_count">
+        <item quantity="one">%d பொருள்</item>
+        <item quantity="other">%d பொருட்கள்</item>
+    </plurals>
+    <plurals name="leave_days_count">
+        <item quantity="one">%d நாள்</item>
+        <item quantity="other">%d நாட்கள்</item>
+    </plurals>
+    <plurals name="lib_pending_fines">
+        <item quantity="one">%d நிலுவை அபராதம்</item>
+        <item quantity="other">%d நிலுவை அபராதங்கள்</item>
+    </plurals>
+
+    <string name="dash_attendance_dropping_fmt">வருகை குறைகிறது · -%1$s%%</string>
+    <string name="dash_tap_retry">மீண்டும் முயற்சிக்க தட்டவும்</string>
+    <string name="fees_share_receipt_fmt">ரசீது #%1$s ஐப் பகிர்</string>
+    <string name="generic_unknown_error">அறியப்படாத பிழை</string>
+    <string name="hw_subject_filter_fmt">%1$s பாட வடிகட்டி</string>
+    <string name="rf_error_retry_fmt">%1$s  மீண்டும் முயற்சிக்க தட்டவும்.</string>
+    <string name="tt_now_prefix">இப்போது: </string>
+    <plurals name="hw_tab_items">
+        <item quantity="one">%1$s, %2$d பொருள்</item>
+        <item quantity="other">%1$s, %2$d பொருட்கள்</item>
+    </plurals>
+
+    <plurals name="att_best_streak">
+        <item quantity="one">சிறந்தது: %1$d நாள்</item>
+        <item quantity="other">சிறந்தது: %1$d நாட்கள்</item>
+    </plurals>
+    <plurals name="att_school_days">
+        <item quantity="one">இந்த மாதம் %1$d பள்ளி நாள்</item>
+        <item quantity="other">இந்த மாதம் %1$d பள்ளி நாட்கள்</item>
+    </plurals>
+    <plurals name="dash_homework_pending_fmt">
+        <item quantity="one">வீட்டுப்பாடம் · %1$d நிலுவை</item>
+        <item quantity="other">வீட்டுப்பாடம் · %1$d நிலுவை</item>
+    </plurals>
+    <plurals name="dash_notices_new_fmt">
+        <item quantity="one">அறிவிப்புகள் · %1$d புதியது</item>
+        <item quantity="other">அறிவிப்புகள் · %1$d புதியவை</item>
+    </plurals>
+    <plurals name="fees_paid_months">
+        <item quantity="one">செலுத்தப்பட்டது (%1$d மாதம்)</item>
+        <item quantity="other">செலுத்தப்பட்டது (%1$d மாதங்கள்)</item>
+    </plurals>
+    <plurals name="fees_unpaid_months">
+        <item quantity="one">செலுத்தப்படாதது (%1$d மாதம்)</item>
+        <item quantity="other">செலுத்தப்படாதது (%1$d மாதங்கள்)</item>
+    </plurals>
+    <plurals name="leave_max_days_fmt">
+        <item quantity="one">விடுப்பு %1$d நாளுக்கு மேல் இருக்கக் கூடாது</item>
+        <item quantity="other">விடுப்பு %1$d நாட்களுக்கு மேல் இருக்கக் கூடாது</item>
+    </plurals>
+    <plurals name="messages_unread_badge_format">
+        <item quantity="one">%d புதியது</item>
+        <item quantity="other">%d புதியவை</item>
+    </plurals>
+
+</resources>

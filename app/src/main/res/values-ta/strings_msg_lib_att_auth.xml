@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- தமிழ் · Tamil
+     W5 — messages, library, attendance, auth.
+     Attendance banner lines are DISPLAY of the canonical statuses; the
+     stored codes (P/A/L/H/T) and month keys are untouched. -->
+<resources>
+    <string name="att_absent_today">இன்று வரவில்லை</string>
+    <string name="att_approved_leave">அனுமதிக்கப்பட்ட விடுப்பு</string>
+    <string name="att_catch_up">விடுபட்டதைச் சரிசெய்யுங்கள்</string>
+    <string name="att_enjoy_day_off">உங்கள் விடுமுறையை அனுபவியுங்கள்</string>
+    <string name="att_holiday_today">இன்று விடுமுறை</string>
+    <string name="att_keep_it_up">இதே போல் தொடருங்கள்!</string>
+    <string name="att_late_today">இன்று தாமதமாக வந்தது</string>
+    <string name="att_leave_today">இன்று விடுப்பில்</string>
+    <string name="att_no_status_yet">இதுவரை நிலை இல்லை</string>
+    <string name="att_on_time">சரியான நேரத்தில்</string>
+    <string name="att_present_today">இன்று ஆஜர்</string>
+    <string name="att_status_soon">நிலை விரைவில் புதுப்பிக்கப்படும்</string>
+    <string name="auth_enter_id_first">முதலில் உங்கள் மாணவர் ID ஐ உள்ளிடவும்.</string>
+    <string name="auth_looking_up_school">உங்கள் பள்ளியைத் தேடுகிறோம்…</string>
+    <string name="auth_not_student_account">இது மாணவர் கணக்கு அல்ல. உங்கள் குழந்தையின் மாணவர் ID ஐ உள்ளிடவும் (எ.கா. STU0001).</string>
+    <string name="auth_pw_changed_ok">கடவுச்சொல் வெற்றிகரமாக மாற்றப்பட்டது</string>
+    <string name="auth_pw_different">உங்களுக்கு அனுப்பப்பட்ட கடவுச்சொல்லிலிருந்து வேறுபட்ட ஒன்றைத் தேர்ந்தெடுக்கவும்.</string>
+    <string name="auth_pw_digit">ஒரு எண் இருக்க வேண்டும்.</string>
+    <string name="auth_pw_len">கடவுச்சொல் 8–72 எழுத்துகள் இருக்க வேண்டும்.</string>
+    <string name="auth_pw_lower">ஒரு சிறிய எழுத்து இருக்க வேண்டும்.</string>
+    <string name="auth_pw_mismatch">கடவுச்சொற்கள் பொருந்தவில்லை.</string>
+    <string name="auth_pw_upper">ஒரு பெரிய எழுத்து இருக்க வேண்டும்.</string>
+    <string name="auth_server_unreachable">சேவையகத்தை அணுக முடியவில்லை. உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="auth_your_school">உங்கள் பள்ளி</string>
+    <string name="generic_just_now">இப்போதுதான்</string>
+    <string name="lib_all_clear_msg">நீங்கள் முற்றிலும் தெளிவாக உள்ளீர்கள்! புத்தகங்களைச் சரியான நேரத்தில் திருப்பித் தாருங்கள்</string>
+    <string name="lib_history_here">உங்கள் இரவல் வரலாறு இங்கே தோன்றும்</string>
+    <string name="lib_library_fine">நூலக அபராதம்</string>
+    <string name="lib_my_books">என் புத்தகங்கள்</string>
+    <string name="lib_no_student_id">மாணவர் ID இல்லை</string>
+    <string name="lib_try_different_term">வேறு தேடல் சொல்லை முயற்சிக்கவும்</string>
+    <string name="lib_type_2_chars">தேட குறைந்தது 2 எழுத்துகள் தட்டச்சு செய்யவும்</string>
+    <string name="lib_unknown_author">தெரியாத ஆசிரியர்</string>
+    <string name="lib_untitled_book">தலைப்பில்லாத புத்தகம்</string>
+    <string name="lib_visit_to_borrow">புத்தகங்கள் இரவல் பெற பள்ளி நூலகத்திற்குச் செல்லுங்கள்</string>
+    <string name="msg_delete_conv_failed">உரையாடலை நீக்க முடியவில்லை</string>
+    <string name="msg_delete_msg_failed">செய்தியை நீக்க முடியவில்லை</string>
+    <string name="msg_delete_only_yours">இது உங்கள் இன்பாக்ஸிலிருந்து மட்டுமே நீக்கப்படும் — மற்றவருக்கு இது இன்னும் தெரியும்.</string>
+    <string name="msg_load_chat_failed">அரட்டையை ஏற்ற முடியவில்லை</string>
+    <string name="msg_load_failed">செய்திகளை ஏற்ற முடியவில்லை</string>
+    <string name="msg_lost_connection">நேரடி இணைப்பு துண்டிக்கப்பட்டது</string>
+    <string name="msg_observe_inbox_failed">இன்பாக்ஸை ஏற்ற முடியவில்லை</string>
+    <string name="msg_open_chat_failed">அரட்டையைத் திறக்க முடியவில்லை</string>
+    <string name="msg_react_failed">எதிர்வினை செய்ய முடியவில்லை</string>
+    <string name="msg_realtime_unavailable">நேரடி புதுப்பிப்புகள் இல்லை</string>
+    <string name="msg_send_failed">செய்தியை அனுப்ப முடியவில்லை</string>
+    <string name="msg_send_media_failed">ஊடகத்தை அனுப்ப முடியவில்லை</string>
+    <string name="msg_upload_failed">பதிவேற்றம் தோல்வி</string>
+
+    <string name="lib_due_on_date">%1$s அன்று நிலுவை</string>
+    <plurals name="lib_days_overdue">
+        <item quantity="one">%d நாள் தாமதம்</item>
+        <item quantity="other">%d நாட்கள் தாமதம்</item>
+    </plurals>
+    <plurals name="lib_due_in_days">
+        <item quantity="one">%d நாளில் நிலுவை</item>
+        <item quantity="other">%d நாட்களில் நிலுவை</item>
+    </plurals>
+
+    <string name="lib_tab_catalog">பட்டியல்</string>
+    <string name="lib_tab_fines">அபராதங்கள்</string>
+    <string name="lib_tab_history">வரலாறு</string>
+
+</resources>

@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.payment
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -78,13 +80,12 @@ fun PaymentSuccessScreen(
     val clipboard = LocalClipboardManager.current
 
     val title = when {
-        details.alreadyPaid -> "Already paid"
-        details.isPartial -> "Partial payment received"
-        else -> "Payment successful"
+        details.alreadyPaid -> stringResource(R.string.pay_already_paid)
+        details.isPartial -> stringResource(R.string.pay_partial_received)
+        else -> stringResource(R.string.pay_successful)
     }
     val timestampStr = remember(details.timestamp) {
-        SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
-            .format(Date(details.timestamp))
+        com.schoolsync.parent.util.DisplayFormat.dateTime(Date(details.timestamp))
     }
 
     // Touch-blocking Box: a Compose Box with just a background colour
@@ -162,19 +163,19 @@ fun PaymentSuccessScreen(
             // we can render accurate per-month status here.
             val subtitle = when {
                 details.alreadyPaid ->
-                    "This payment was already verified earlier."
+                    stringResource(R.string.pay_already_verified)
                 !details.confirmedFromBackend ->
-                    "Receipt is being prepared by the school. You can safely close this screen."
+                    stringResource(R.string.pay_receipt_preparing)
                 details.isPartial && details.remainingByMonth.isNotEmpty() -> {
                     val parts = details.remainingByMonth.entries.joinToString(" · ") { (m, bal) ->
                         "$m: Rs ${"%,.0f".format(bal)} remaining"
                     }
                     parts
                 }
-                details.isPartial -> "Some balance still remaining."
+                details.isPartial -> stringResource(R.string.pay_balance_remaining)
                 details.months.isNotEmpty() ->
                     "${details.months.joinToString(", ")} fee cleared"
-                else -> "Fees cleared"
+                else -> stringResource(R.string.pay_fees_cleared)
             }
             Text(
                 subtitle,
@@ -196,7 +197,7 @@ fun PaymentSuccessScreen(
             ) {
                 if (details.receiptNo.isNotBlank()) {
                     DetailRow(
-                        label = "Receipt no.",
+                        label = stringResource(R.string.pay_receipt_no),
                         value = "#${details.receiptKey}",
                         copyable = true,
                         onCopy = {
@@ -205,7 +206,7 @@ fun PaymentSuccessScreen(
                     )
                 }
                 DetailRow(
-                    label = "Transaction ID",
+                    label = stringResource(R.string.fees_txn_id),
                     value = details.transactionId,
                     copyable = true,
                     monospace = true,
@@ -214,7 +215,7 @@ fun PaymentSuccessScreen(
                     }
                 )
                 DetailRow(
-                    label = "Paid at",
+                    label = stringResource(R.string.pay_paid_at),
                     value = timestampStr
                 )
             }
@@ -241,7 +242,7 @@ fun PaymentSuccessScreen(
                     Icon(Icons.Filled.Receipt, null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "View Receipt",
+                        stringResource(R.string.pay_view_receipt),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -258,7 +259,7 @@ fun PaymentSuccessScreen(
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Text(
-                    "Done",
+                    stringResource(R.string.common_done),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold
                 )

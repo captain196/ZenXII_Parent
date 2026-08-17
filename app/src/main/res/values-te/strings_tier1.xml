@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- తెలుగు · Telugu
+     Tier 1 — notification channel names/descriptions, FriendlyError,
+     and PaymentSession failure copy.
+     Channel IDs and the push `type` keys in channelForType() are WIRE
+     VALUES and stay English; only what Android Settings shows to the
+     user is translated. "Razorpay" is a brand. -->
+<resources>
+    <string name="err_cannot_reach_server">పాఠశాల సర్వర్‌ను చేరుకోలేకపోయాము. దయచేసి మీ కనెక్షన్ తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.</string>
+    <string name="err_no_internet">ఇంటర్నెట్ కనెక్షన్ లేదు. దయచేసి మళ్లీ కనెక్ట్ చేసి ప్రయత్నించండి.</string>
+    <string name="err_not_found">దాన్ని సర్వర్‌లో కనుగొనలేకపోయాము. దయచేసి రిఫ్రెష్ చేసి మళ్లీ ప్రయత్నించండి.</string>
+    <string name="err_payments_paused">పాఠశాల కొత్త చెల్లింపులను తాత్కాలికంగా నిలిపివేసింది (సంవత్సరాంతపు ముగింపు లేదా వ్యవధి లాక్). దయచేసి కొద్దిసేపటిలో మళ్లీ ప్రయత్నించండి లేదా పాఠశాల కార్యాలయాన్ని సంప్రదించండి.</string>
+    <string name="err_server_timeout">పాఠశాల సర్వర్ స్పందించడానికి ఎక్కువ సమయం తీసుకుంది. దయచేసి కొద్దిసేపటిలో మళ్లీ ప్రయత్నించండి.</string>
+    <string name="err_server_unavailable">పాఠశాల సర్వర్ తాత్కాలికంగా అందుబాటులో లేదు. దయచేసి కొద్దిసేపటిలో మళ్లీ ప్రయత్నించండి.</string>
+    <string name="err_session_expired">మీ సెషన్ ముగిసింది. దయచేసి లాగ్ అవుట్ చేసి మళ్లీ లాగిన్ చేయండి.</string>
+    <string name="notif_ch_alerts">హెచ్చరికలు</string>
+    <string name="notif_ch_alerts_desc">ఉపాధ్యాయులు లేవనెత్తిన ముఖ్యమైన హెచ్చరికలు</string>
+    <string name="notif_ch_attendance">హాజరు</string>
+    <string name="notif_ch_attendance_desc">మీ పిల్లల హాజరు నవీకరణలు</string>
+    <string name="notif_ch_events">కార్యక్రమాలు</string>
+    <string name="notif_ch_events_desc">పాఠశాల కార్యక్రమాలు</string>
+    <string name="notif_ch_exams">పరీక్షలు &amp; ఫలితాలు</string>
+    <string name="notif_ch_exams_desc">పరీక్ష షెడ్యూల్‌లు మరియు ప్రచురించిన ఫలితాలు</string>
+    <string name="notif_ch_fees">రుసుము</string>
+    <string name="notif_ch_fees_desc">రుసుము రిమైండర్‌లు మరియు చెల్లింపు నిర్ధారణలు</string>
+    <string name="notif_ch_gallery">గ్యాలరీ</string>
+    <string name="notif_ch_gallery_desc">కొత్త ఫోటోలు మరియు ఆల్బమ్‌లు</string>
+    <string name="notif_ch_general">సాధారణ</string>
+    <string name="notif_ch_general_desc">ZenXii నుండి సాధారణ నోటిఫికేషన్‌లు</string>
+    <string name="notif_ch_homework">ఇంటి పని</string>
+    <string name="notif_ch_homework_desc">కొత్త మరియు మూల్యాంకనం చేసిన ఇంటి పని</string>
+    <string name="notif_ch_leave">సెలవు</string>
+    <string name="notif_ch_leave_desc">సెలవు దరఖాస్తు నవీకరణలు</string>
+    <string name="notif_ch_notices">ప్రకటనలు &amp; సర్క్యులర్లు</string>
+    <string name="notif_ch_notices_desc">కొత్త ప్రకటనలు మరియు సర్క్యులర్లు</string>
+    <string name="notif_ch_stories">స్టోరీ</string>
+    <string name="notif_ch_stories_desc">కొత్త పాఠశాల స్టోరీలు</string>
+    <string name="pay_cannot_record">ఈ చెల్లింపును నమోదు చేయడానికి పాఠశాల సర్వర్‌ను చేరుకోలేకపోయాము.</string>
+    <string name="pay_captured_pending_fmt">చెల్లింపును Razorpay స్వీకరించింది. %1$s పాఠశాల సర్వర్ స్పందించిన వెంటనే రసీదు మీ రుసుము జాబితాలో కనిపిస్తుంది.</string>
+    <string name="pay_session_expired_verify">ధృవీకరణ సమయంలో సెషన్ ముగిసింది — దయచేసి మళ్లీ లాగిన్ చేసి రుసుము జాబితా చూడండి.</string>
+    <string name="pay_verification_failed">ధృవీకరణ విఫలమైంది.</string>
+
+</resources>

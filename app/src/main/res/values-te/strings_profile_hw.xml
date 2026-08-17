@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- తెలుగు · Telugu
+     W4 — profile + homework. FAQ answers are single resources, joined
+     from concatenated Kotlin fragments: adjacent literals cannot be
+     reordered and word order differs in every language here.
+     Subject-tip KEYS ("mathematics", "science", …) stay English —
+     they are matched against server subject names. -->
+<resources>
+    <string name="faq_a_attendance">హాజరును ఉపాధ్యాయులు నమోదు చేస్తారు, సాధారణంగా అదే రోజు మధ్యాహ్నం 2 తర్వాత కనిపిస్తుంది. ఒక రోజు కనిపించకపోతే, హాజరు స్క్రీన్ రిఫ్రెష్ చేయడానికి కిందకి లాగండి — అప్పటికీ ఖాళీగా ఉంటే తరగతి ఉపాధ్యాయుడిని సంప్రదించండి.</string>
+    <string name="faq_a_fees">దిగువ బార్ నుండి రుసుము ట్యాబ్ తెరిచి, పెండింగ్ రుసుముపై ట్యాప్ చేసి, Razorpay సురక్షిత చెక్అవుట్ కోసం చెల్లించు ఎంచుకోండి. చెల్లింపు విజయవంతమైన వెంటనే రసీదులు చెల్లించిన రుసుము కింద కనిపిస్తాయి.</string>
+    <string name="faq_a_homework">దిగువ బార్‌లో వర్గాలు ట్యాబ్‌పై ట్యాప్ చేయండి — ఇంటి పని, ఫలితాలు, సమయ పట్టిక మరియు పరీక్ష షెడ్యూల్ అన్నీ అక్కడే ఉన్నాయి.</string>
+    <string name="faq_a_password">ఈ ప్రొఫైల్ ట్యాబ్‌లో పైకి వెళ్లి, \"పాస్‌వర్డ్ మార్చండి\" తెరిచి, మీ ప్రస్తుత పాస్‌వర్డ్ మరియు 6+ అక్షరాల కొత్తది నమోదు చేసి, నవీకరించు నొక్కండి.</string>
+    <string name="faq_a_push">సెట్టింగ్‌లు → నోటిఫికేషన్‌లలో నోటిఫికేషన్‌లు ఆన్‌లో ఉన్నాయని నిర్ధారించుకోండి. పుష్ మిస్ అయినా పాఠశాల ప్రకటనలు ప్రకటనల ట్యాబ్‌లో కనిపిస్తాయి.</string>
+    <string name="faq_q_attendance">నా పిల్లల హాజరు ఎందుకు నవీకరించబడటం లేదు?</string>
+    <string name="faq_q_fees">పాఠశాల రుసుము ఎలా చెల్లించాలి?</string>
+    <string name="faq_q_homework">ఇంటి పని మరియు ఫలితాలు ఎక్కడ చూడాలి?</string>
+    <string name="faq_q_password">నా పాస్‌వర్డ్ ఎలా మార్చాలి?</string>
+    <string name="faq_q_push">నాకు ఒక ప్రకటనకు పుష్ నోటిఫికేషన్ రాలేదు.</string>
+    <string name="hw_describe_optional">మీరు ఏమి పూర్తి చేశారో వివరించండి (ఐచ్ఛికం):</string>
+    <string name="hw_due_soon">త్వరలో గడువు</string>
+    <string name="hw_load_failed_plain">ఇంటి పని లోడ్ కాలేదు</string>
+    <string name="hw_network_problem">నెట్‌వర్క్ సమస్య — మీ కనెక్షన్ తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.</string>
+    <string name="hw_no_school_linked">సమర్పించలేరు — మీ ఖాతాకు పాఠశాల లింక్ కాలేదు. లాగ్ అవుట్ చేసి మళ్లీ లాగిన్ చేయండి.</string>
+    <string name="hw_not_found">ఇంటి పని కనుగొనబడలేదు — అది తొలగించబడి ఉండవచ్చు.</string>
+    <string name="hw_permission_blocked">అనుమతుల కారణంగా సమర్పణ నిరోధించబడింది. లాగ్ అవుట్ చేసి మళ్లీ లాగిన్ చేసి ప్రయత్నించండి.</string>
+    <string name="hw_state_not_started">ఇంకా ప్రారంభించలేదు</string>
+    <string name="hw_state_ready">పూర్తయింది, సమర్పించడానికి సిద్ధం</string>
+    <string name="hw_state_reviewed">ఉపాధ్యాయుడు సమీక్షించారు</string>
+    <string name="hw_state_started">పని ప్రారంభమైంది కానీ పూర్తి కాలేదు</string>
+    <string name="hw_state_submitted">సమర్పించారు - సమీక్ష పెండింగ్</string>
+    <string name="hw_submit">ఇంటి పని సమర్పించండి</string>
+    <string name="hw_tip_english">ముఖ్య పదజాలాన్ని అండర్‌లైన్ చేసి, సమర్పించే ముందు వ్యాకరణం తనిఖీ చేయండి.</string>
+    <string name="hw_tip_generic">సూచనలు జాగ్రత్తగా చదివి, మీ సమయాన్ని బాగా నిర్వహించండి.</string>
+    <string name="hw_tip_geography">ప్రశ్న అనుమతించిన చోట మ్యాప్‌లు మరియు డేటాను ప్రస్తావించండి.</string>
+    <string name="hw_tip_hindi">చక్కగా రాయడం సాధన చేయండి, సమర్పించే ముందు మాత్రల తప్పులు తనిఖీ చేయండి.</string>
+    <string name="hw_tip_history">మీ సమాధానాలు బలపరచడానికి తేదీలు మరియు ముఖ్య వ్యక్తుల పేర్లు వాడండి.</string>
+    <string name="hw_tip_maths">అన్ని దశలను స్పష్టంగా రాయండి — తుది సమాధానం తప్పైనా పద్ధతికి పాక్షిక మార్కులు లభిస్తాయి.</string>
+    <string name="hw_tip_science">సాధ్యమైన చోట లేబుల్ చేసిన చిత్రాలు గీయండి. వాటికి సాధారణంగా విడిగా మార్కులు ఉంటాయి.</string>
+    <string name="hw_under_review">సమీక్షలో</string>
+    <string name="profile_about_notices">ప్రకటనలు, కార్యక్రమాలు మరియు పుట్టినరోజు శుభాకాంక్షలు</string>
+    <string name="profile_about_payments">Razorpay ద్వారా సురక్షిత రుసుము చెల్లింపు</string>
+    <string name="profile_about_privacy">Firebase ప్రాజెక్ట్, మూడవ పక్షాలతో ఎప్పుడూ పంచుకోబడదు</string>
+    <string name="profile_about_realtime">రియల్-టైమ్ హాజరు, ఫలితాలు మరియు ఇంటి పని</string>
+    <string name="profile_all_done">అన్నీ పూర్తయ్యాయి</string>
+    <string name="profile_call_or_email">కాల్ చేయండి లేదా ఇమెయిల్ చేయండి</string>
+    <string name="profile_common_questions">సాధారణ ప్రశ్నలు</string>
+    <string name="profile_loading_contact">సంప్రదింపు వివరాలు లోడ్ అవుతున్నాయి…</string>
+    <string name="profile_manage_alerts">హెచ్చరికలు నిర్వహించండి</string>
+    <string name="profile_no_contact">సంప్రదింపు వివరాలు నమోదు కాలేదు. దయచేసి పాఠశాల కార్యాలయాన్ని నేరుగా లేదా పాఠశాల వెబ్‌సైట్ ద్వారా సంప్రదించండి.</string>
+    <string name="profile_update_credentials">ఆధారాలు నవీకరించండి</string>
+    <string name="profile_update_password">పాస్‌వర్డ్ నవీకరించండి</string>
+
+    <string name="hw_due_on">%1$s న గడువు</string>
+    <string name="hw_due_today_at">ఈరోజు గడువు (%1$s)</string>
+
+</resources>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- हिन्दी · Hindi
+     W3 — PTM + dashboard. Terminology per tools/i18n/glossary.md.
+     "PTM" stays as the abbreviation in every locale (glossary). -->
+<resources>
+    <string name="dash_all_cleared">सब चुकता</string>
+    <string name="dash_below_75">75% से कम — विद्यालय प्रायः 75%+ अपेक्षित करते हैं</string>
+    <string name="dash_couldnt_load">लोड नहीं हो सका</string>
+    <string name="dash_currently_viewing">वर्तमान में देख रहे हैं</string>
+    <string name="dash_due_today">आज देय</string>
+    <string name="dash_due_tomorrow">कल देय</string>
+    <string name="dash_fees_due_caps">देय शुल्क</string>
+    <string name="dash_from_school_tap">विद्यालय से · पढ़ने के लिए टैप करें</string>
+    <string name="dash_no_pending_today">आज कोई लंबित कार्य नहीं</string>
+    <string name="dash_pay_fees">शुल्क भरें</string>
+    <string name="dash_recent_exam">हालिया परीक्षा</string>
+    <string name="dash_review_today">आज अपने बच्चे के साथ दोहराएँ</string>
+    <string name="dash_school_event">विद्यालय कार्यक्रम</string>
+    <string name="dash_switch_failed">बदला नहीं जा सका।</string>
+    <string name="dash_tap_for_details">विवरण के लिए टैप करें</string>
+    <string name="dash_tap_pay_securely">सुरक्षित भुगतान के लिए टैप करें</string>
+    <string name="dash_tap_to_pay">भुगतान के लिए टैप करें</string>
+    <string name="dash_up_next">अगला</string>
+    <string name="dash_view_all_arrow">सभी देखें ›</string>
+    <string name="ptm_add_note">टिप्पणी जोड़ें (वैकल्पिक)</string>
+    <string name="ptm_already_applied_refresh">आपने पहले ही आवेदन किया है — अपना कतार क्रमांक देखने के लिए रिफ़्रेश करें।</string>
+    <string name="ptm_apply_failed">आवेदन नहीं हो सका।</string>
+    <string name="ptm_decline_failed">अस्वीकार नहीं हो सका।</string>
+    <string name="ptm_in_queue">आप कतार में हैं।</string>
+    <string name="ptm_load_failed_dot">लोड नहीं हो सका।</string>
+    <string name="ptm_load_failed_plural">PTM लोड नहीं हो सकीं।</string>
+    <string name="ptm_marked_delivered">आपके कक्षा शिक्षक ने आपकी बैठक पूर्ण चिह्नित की है।</string>
+    <string name="ptm_meeting_completed">बैठक पूर्ण</string>
+    <string name="ptm_meeting_title">अभिभावक-शिक्षक बैठक</string>
+    <string name="ptm_no_show">अनुपस्थित</string>
+    <string name="ptm_none_yet">अभी कोई अभिभावक-शिक्षक बैठक नहीं</string>
+    <string name="ptm_none_yet_subtitle">जब आपका विद्यालय PTM निर्धारित करेगा, वह यहाँ दिखाई देगी।</string>
+    <string name="ptm_not_found_dot">PTM नहीं मिला।</string>
+    <string name="ptm_not_your_section">इस PTM में आपका सेक्शन शामिल नहीं है।</string>
+    <string name="ptm_rsvp_now">अभी उत्तर दें</string>
+    <string name="ptm_school_informed">हमने विद्यालय को बता दिया है कि आप नहीं आ सकते।</string>
+    <string name="ptm_thanks_letting_know">बताने के लिए धन्यवाद।</string>
+    <string name="ptm_you_applied">आपने इस PTM के लिए आवेदन किया है</string>
+    <string name="ptm_you_declined">आपने इस PTM को अस्वीकार किया</string>
+    <string name="ptm_your_class_teacher">आपके सेक्शन के कक्षा शिक्षक</string>
+
+</resources>

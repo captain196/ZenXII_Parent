@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- తెలుగు · Telugu
+     W3 — PTM + dashboard. Terminology per tools/i18n/glossary.md.
+     "PTM" stays as the abbreviation in every locale (glossary). -->
+<resources>
+    <string name="dash_all_cleared">అన్నీ క్లియర్</string>
+    <string name="dash_below_75">75% కంటే తక్కువ — పాఠశాలలు సాధారణంగా 75%+ ఆశిస్తాయి</string>
+    <string name="dash_couldnt_load">లోడ్ కాలేదు</string>
+    <string name="dash_currently_viewing">ప్రస్తుతం చూస్తున్నారు</string>
+    <string name="dash_due_today">ఈరోజు గడువు</string>
+    <string name="dash_due_tomorrow">రేపు గడువు</string>
+    <string name="dash_fees_due_caps">చెల్లించాల్సిన రుసుము</string>
+    <string name="dash_from_school_tap">పాఠశాల నుండి · చదవడానికి ట్యాప్ చేయండి</string>
+    <string name="dash_no_pending_today">ఈరోజు పెండింగ్ పనులు లేవు</string>
+    <string name="dash_pay_fees">రుసుము చెల్లించండి</string>
+    <string name="dash_recent_exam">ఇటీవలి పరీక్ష</string>
+    <string name="dash_review_today">ఈరోజు మీ పిల్లలతో సమీక్షించండి</string>
+    <string name="dash_school_event">పాఠశాల కార్యక్రమం</string>
+    <string name="dash_switch_failed">మార్చలేకపోయాము.</string>
+    <string name="dash_tap_for_details">వివరాల కోసం ట్యాప్ చేయండి</string>
+    <string name="dash_tap_pay_securely">సురక్షితంగా చెల్లించడానికి ట్యాప్ చేయండి</string>
+    <string name="dash_tap_to_pay">చెల్లించడానికి ట్యాప్ చేయండి</string>
+    <string name="dash_up_next">తదుపరి</string>
+    <string name="dash_view_all_arrow">అన్నీ చూడండి ›</string>
+    <string name="ptm_add_note">గమనిక జోడించండి (ఐచ్ఛికం)</string>
+    <string name="ptm_already_applied_refresh">మీరు ఇప్పటికే దరఖాస్తు చేశారు — మీ క్యూ నంబర్ చూడటానికి రిఫ్రెష్ చేయండి.</string>
+    <string name="ptm_apply_failed">దరఖాస్తు చేయలేకపోయాము.</string>
+    <string name="ptm_decline_failed">తిరస్కరించలేకపోయాము.</string>
+    <string name="ptm_in_queue">మీరు క్యూలో ఉన్నారు.</string>
+    <string name="ptm_load_failed_dot">లోడ్ కాలేదు.</string>
+    <string name="ptm_load_failed_plural">PTM లోడ్ కాలేదు.</string>
+    <string name="ptm_marked_delivered">మీ తరగతి ఉపాధ్యాయుడు మీ సమావేశాన్ని పూర్తిగా గుర్తించారు.</string>
+    <string name="ptm_meeting_completed">సమావేశం పూర్తయింది</string>
+    <string name="ptm_meeting_title">తల్లిదండ్రుల-ఉపాధ్యాయుల సమావేశం</string>
+    <string name="ptm_no_show">హాజరుకాలేదు</string>
+    <string name="ptm_none_yet">ఇంకా తల్లిదండ్రుల-ఉపాధ్యాయుల సమావేశాలు లేవు</string>
+    <string name="ptm_none_yet_subtitle">మీ పాఠశాల PTM షెడ్యూల్ చేసినప్పుడు ఇక్కడ కనిపిస్తుంది.</string>
+    <string name="ptm_not_found_dot">PTM కనుగొనబడలేదు.</string>
+    <string name="ptm_not_your_section">ఈ PTM మీ విభాగాన్ని కలిగి లేదు.</string>
+    <string name="ptm_rsvp_now">ఇప్పుడే స్పందించండి</string>
+    <string name="ptm_school_informed">మీరు రాలేరని పాఠశాలకు తెలియజేశాము.</string>
+    <string name="ptm_thanks_letting_know">తెలియజేసినందుకు ధన్యవాదాలు.</string>
+    <string name="ptm_you_applied">మీరు ఈ PTM కోసం దరఖాస్తు చేశారు</string>
+    <string name="ptm_you_declined">మీరు ఈ PTM ను తిరస్కరించారు</string>
+    <string name="ptm_your_class_teacher">మీ విభాగం తరగతి ఉపాధ్యాయుడు</string>
+
+</resources>

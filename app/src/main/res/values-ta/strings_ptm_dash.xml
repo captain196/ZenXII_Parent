@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- தமிழ் · Tamil
+     W3 — PTM + dashboard. Terminology per tools/i18n/glossary.md.
+     "PTM" stays as the abbreviation in every locale (glossary). -->
+<resources>
+    <string name="dash_all_cleared">அனைத்தும் தீர்க்கப்பட்டது</string>
+    <string name="dash_below_75">75% க்கும் குறைவு — பள்ளிகள் பொதுவாக 75%+ எதிர்பார்க்கின்றன</string>
+    <string name="dash_couldnt_load">ஏற்ற முடியவில்லை</string>
+    <string name="dash_currently_viewing">தற்போது பார்க்கிறீர்கள்</string>
+    <string name="dash_due_today">இன்று நிலுவை</string>
+    <string name="dash_due_tomorrow">நாளை நிலுவை</string>
+    <string name="dash_fees_due_caps">நிலுவைக் கட்டணம்</string>
+    <string name="dash_from_school_tap">பள்ளியிலிருந்து · படிக்க தட்டவும்</string>
+    <string name="dash_no_pending_today">இன்று நிலுவை எதுவும் இல்லை</string>
+    <string name="dash_pay_fees">கட்டணம் செலுத்து</string>
+    <string name="dash_recent_exam">சமீபத்திய தேர்வு</string>
+    <string name="dash_review_today">இன்று உங்கள் குழந்தையுடன் மீள்பார்வை செய்யுங்கள்</string>
+    <string name="dash_school_event">பள்ளி நிகழ்வு</string>
+    <string name="dash_switch_failed">மாற்ற முடியவில்லை.</string>
+    <string name="dash_tap_for_details">விவரங்களுக்கு தட்டவும்</string>
+    <string name="dash_tap_pay_securely">பாதுகாப்பாகச் செலுத்த தட்டவும்</string>
+    <string name="dash_tap_to_pay">செலுத்த தட்டவும்</string>
+    <string name="dash_up_next">அடுத்தது</string>
+    <string name="dash_view_all_arrow">அனைத்தையும் காண்க ›</string>
+    <string name="ptm_add_note">குறிப்பு சேர்க்கவும் (விருப்பம்)</string>
+    <string name="ptm_already_applied_refresh">நீங்கள் ஏற்கனவே விண்ணப்பித்துவிட்டீர்கள் — வரிசை எண்ணைப் பார்க்க புதுப்பிக்கவும்.</string>
+    <string name="ptm_apply_failed">விண்ணப்பிக்க முடியவில்லை.</string>
+    <string name="ptm_decline_failed">மறுக்க முடியவில்லை.</string>
+    <string name="ptm_in_queue">நீங்கள் வரிசையில் உள்ளீர்கள்.</string>
+    <string name="ptm_load_failed_dot">ஏற்ற முடியவில்லை.</string>
+    <string name="ptm_load_failed_plural">PTM ஐ ஏற்ற முடியவில்லை.</string>
+    <string name="ptm_marked_delivered">உங்கள் வகுப்பு ஆசிரியர் உங்கள் கூட்டத்தை முடிந்ததாகக் குறித்துள்ளார்.</string>
+    <string name="ptm_meeting_completed">கூட்டம் முடிந்தது</string>
+    <string name="ptm_meeting_title">பெற்றோர்-ஆசிரியர் கூட்டம்</string>
+    <string name="ptm_no_show">வரவில்லை</string>
+    <string name="ptm_none_yet">இதுவரை பெற்றோர்-ஆசிரியர் கூட்டங்கள் இல்லை</string>
+    <string name="ptm_none_yet_subtitle">உங்கள் பள்ளி PTM திட்டமிடும்போது இங்கே தோன்றும்.</string>
+    <string name="ptm_not_found_dot">PTM கிடைக்கவில்லை.</string>
+    <string name="ptm_not_your_section">இந்த PTM உங்கள் பிரிவை உள்ளடக்கவில்லை.</string>
+    <string name="ptm_rsvp_now">இப்போது பதிலளிக்கவும்</string>
+    <string name="ptm_school_informed">நீங்கள் வர முடியாது என்பதைப் பள்ளியிடம் தெரிவித்துள்ளோம்.</string>
+    <string name="ptm_thanks_letting_know">தெரிவித்ததற்கு நன்றி.</string>
+    <string name="ptm_you_applied">இந்த PTM க்கு விண்ணப்பித்துள்ளீர்கள்</string>
+    <string name="ptm_you_declined">இந்த PTM ஐ மறுத்துள்ளீர்கள்</string>
+    <string name="ptm_your_class_teacher">உங்கள் பிரிவின் வகுப்பு ஆசிரியர்</string>
+
+</resources>

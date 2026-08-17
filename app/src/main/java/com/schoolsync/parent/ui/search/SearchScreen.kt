@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.search
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -80,7 +82,7 @@ fun SearchScreen(
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.cd_back),
                         tint = c.textPrimary,
                         modifier = Modifier.size(22.dp)
                     )
@@ -99,7 +101,7 @@ fun SearchScreen(
                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                         if (uiState.query.isEmpty()) {
                             Text(
-                                "Search anything…",
+                                stringResource(R.string.search_placeholder_any),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = c.textTertiary
                             )
@@ -125,7 +127,7 @@ fun SearchScreen(
                                 .clickable { viewModel.clearQuery() },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.Close, "Clear", tint = c.textTertiary, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Filled.Close, stringResource(R.string.cd_clear), tint = c.textTertiary, modifier = Modifier.size(16.dp))
                         }
                     }
                 }
@@ -152,7 +154,7 @@ fun SearchScreen(
                     if (query.isEmpty()) {
                         item("hint") {
                             Text(
-                                "Search homework, notices, events, teachers, results, or jump to any section.",
+                                stringResource(R.string.search_hint_long),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = c.textTertiary,
                                 modifier = Modifier.padding(vertical = 10.dp)
@@ -251,7 +253,7 @@ private fun EmptyState(query: String) {
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            "Try a subject, teacher, notice title, or a section name.",
+            stringResource(R.string.search_try_different),
             style = MaterialTheme.typography.bodySmall,
             color = c.textTertiary
         )

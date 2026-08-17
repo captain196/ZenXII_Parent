@@ -2,6 +2,8 @@
 
 package com.schoolsync.parent.ui.events
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -105,12 +107,12 @@ fun EventDetailScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = c.textPrimary
                 )
             }
             Text(
-                text = detailState.event?.title ?: "Event Details",
+                text = detailState.event?.title ?: stringResource(R.string.events_details),
                 style = MaterialTheme.typography.titleLarge,
                 color = c.textPrimary,
                 fontWeight = FontWeight.Bold,
@@ -149,13 +151,13 @@ fun EventDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Couldn't load this event",
+                            text = stringResource(R.string.events_one_load_failed),
                             style = MaterialTheme.typography.titleLarge,
                             color = c.textSecondary
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Check your connection and try again.",
+                            text = stringResource(R.string.gal_check_connection),
                             style = MaterialTheme.typography.bodyMedium,
                             color = c.textTertiary,
                             textAlign = TextAlign.Center
@@ -177,7 +179,7 @@ fun EventDetailScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Retry",
+                                text = stringResource(R.string.action_retry),
                                 style = TextStyle(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -205,7 +207,7 @@ fun EventDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Event not found",
+                            text = stringResource(R.string.events_not_found),
                             style = MaterialTheme.typography.titleLarge,
                             color = c.textSecondary
                         )
@@ -240,7 +242,7 @@ fun EventDetailScreen(
                         ) {
                             AsyncImage(
                                 model = cover,
-                                contentDescription = event.title.ifBlank { "Event photo" },
+                                contentDescription = event.title.ifBlank { stringResource(R.string.events_photo) },
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -330,7 +332,7 @@ fun EventDetailScreen(
                         if (event.startDate.isNotBlank()) {
                             DetailInfoRow(
                                 icon = Icons.Filled.CalendarMonth,
-                                label = "Date",
+                                label = stringResource(R.string.field_date),
                                 value = buildString {
                                     append(event.startDate)
                                     if (event.endDate.isNotBlank() && event.endDate != event.startDate) {
@@ -346,7 +348,7 @@ fun EventDetailScreen(
                         if (event.location.isNotBlank()) {
                             DetailInfoRow(
                                 icon = Icons.Filled.LocationOn,
-                                label = "Location",
+                                label = stringResource(R.string.field_location),
                                 value = event.location,
                                 iconColor = c.coral
                             )
@@ -356,7 +358,7 @@ fun EventDetailScreen(
                         if (event.organizer.isNotBlank()) {
                             DetailInfoRow(
                                 icon = Icons.Filled.Groups,
-                                label = "Organizer",
+                                label = stringResource(R.string.field_organizer),
                                 value = event.organizer,
                                 iconColor = c.info
                             )
@@ -386,7 +388,7 @@ fun EventDetailScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = if (album.mediaCount > 0)
-                                    "View Photos (${album.mediaCount})" else "View Photos",
+                                    "View Photos (${album.mediaCount})" else stringResource(R.string.events_view_photos),
                                 style = TextStyle(
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -405,7 +407,7 @@ fun EventDetailScreen(
                                 .padding(16.dp)
                         ) {
                             Text(
-                                text = "Description",
+                                text = stringResource(R.string.field_description),
                                 style = TextStyle(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -429,7 +431,7 @@ fun EventDetailScreen(
                     if (event.mediaUrls.isNotEmpty()) {
                         Column {
                             Text(
-                                text = "Media",
+                                text = stringResource(R.string.field_media),
                                 style = TextStyle(
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -562,7 +564,7 @@ private fun MediaItem(media: EventMedia, onClick: () -> Unit = {}) {
             if (!posterUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = posterUrl,
-                    contentDescription = "Event media",
+                    contentDescription = stringResource(R.string.events_media),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -578,7 +580,7 @@ private fun MediaItem(media: EventMedia, onClick: () -> Unit = {}) {
                 ) {
                     Icon(
                         imageVector = Icons.Filled.PlayCircle,
-                        contentDescription = "Play video",
+                        contentDescription = stringResource(R.string.gal_play_video),
                         tint = Color.White.copy(alpha = 0.9f),
                         modifier = Modifier.size(48.dp)
                     )

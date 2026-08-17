@@ -1,5 +1,7 @@
 package com.schoolsync.parent.ui.components
 
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -61,7 +63,7 @@ fun ClassTeacherCard(
     // Display name prefers the live staff doc; assignment.teacherName is
     // a snapshot fallback for the rare case the staff lookup failed.
     val displayName = staff?.name?.takeIf { it.isNotBlank() }
-        ?: assignment.teacherName.ifBlank { "Class Teacher" }
+        ?: assignment.teacherName.ifBlank { stringResource(R.string.tch_class_teacher) }
     val photo = staff?.profilePic.orEmpty()
     val phoneRaw = staff?.phone.orEmpty().trim()
 
@@ -120,7 +122,7 @@ fun ClassTeacherCard(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "CLASS TEACHER",
+                text = stringResource(R.string.comp_class_teacher_caps),
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 color = c.accent,
@@ -152,18 +154,18 @@ fun ClassTeacherCard(
             ClassTeacherIconAction(
                 icon = Icons.Filled.Call,
                 filled = false,
-                label = "Call",
+                label = stringResource(R.string.common_call),
                 onClick = {
                     val isActive = staff?.status?.equals("Active", ignoreCase = true) == true
                     if (!isActive) {
-                        Toast.makeText(context, "Class teacher is not currently active.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.comp_class_teacher_inactive), Toast.LENGTH_SHORT).show()
                         return@ClassTeacherIconAction
                     }
                     try {
                         val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phoneRaw))
                         context.startActivity(intent)
                     } catch (_: Exception) {
-                        Toast.makeText(context, "Could not open dialer.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.comp_dialer_failed), Toast.LENGTH_SHORT).show()
                     }
                 },
             )
@@ -172,13 +174,13 @@ fun ClassTeacherCard(
         ClassTeacherIconAction(
             icon = Icons.Filled.Chat,
             filled = true,
-            label = "Message",
+            label = stringResource(R.string.common_message),
             onClick = {
                 val isActive = staff?.status?.equals("Active", ignoreCase = true) == true
                 if (isActive) {
                     onMessage()
                 } else {
-                    Toast.makeText(context, "Class teacher is not currently active.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.comp_class_teacher_inactive), Toast.LENGTH_SHORT).show()
                 }
             },
         )

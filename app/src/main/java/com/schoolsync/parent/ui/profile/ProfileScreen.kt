@@ -25,8 +25,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.app.Activity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Visibility
@@ -50,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -68,6 +71,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.schoolsync.parent.R
+import com.schoolsync.parent.service.NotificationChannels
+import com.schoolsync.parent.util.LocaleManager
 import com.schoolsync.parent.ui.components.ClassTeacherCard
 import com.schoolsync.parent.ui.components.bouncyClickable
 import com.schoolsync.parent.ui.theme.AppColors
@@ -154,7 +160,7 @@ fun ProfileScreen(
                             if (!user?.profilePic.isNullOrBlank()) {
                                 AsyncImage(
                                     model = user?.profilePic,
-                                    contentDescription = "Profile",
+                                    contentDescription = stringResource(R.string.drawer_profile),
                                     modifier = Modifier
                                         .size(80.dp)
                                         .clip(CircleShape),
@@ -228,14 +234,14 @@ fun ProfileScreen(
                         }
                         StatPill(
                             value = attendanceValue,
-                            label = "Attendance",
+                            label = stringResource(R.string.drawer_attendance),
                             valueColor = c.success,
                             bgColor = c.successBg,
                             modifier = Modifier.weight(1f)
                         )
                         StatPill(
                             value = "#4",
-                            label = "Rank",
+                            label = stringResource(R.string.field_rank),
                             valueColor = c.info,
                             bgColor = c.infoBg,
                             modifier = Modifier.weight(1f)
@@ -243,7 +249,7 @@ fun ProfileScreen(
                         val pending = uiState.pendingHomeworkCount
                         val homeworkValue = when {
                             !uiState.homeworkLoaded -> "\u2014"
-                            pending == 0 -> "All done"
+                            pending == 0 -> stringResource(R.string.profile_all_done)
                             else -> pending.toString()
                         }
                         StatPill(
@@ -317,32 +323,32 @@ fun ProfileScreen(
                         AnimatedVisibility(visible = profileExpanded, enter = expandVertically(), exit = shrinkVertically()) {
                             Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
                                 // Personal Information
-                                ProfileSectionHeader(text = "Personal Information", color = c.accent)
-                                ProfileDetailRow(label = "Date of Birth", value = user?.dob, color = c)
-                                ProfileDetailRow(label = "Gender", value = user?.gender, color = c)
-                                ProfileDetailRow(label = "Admission Date", value = user?.admissionDate, color = c)
-                                ProfileDetailRow(label = "Student ID", value = user?.userId, color = c)
+                                ProfileSectionHeader(text = stringResource(R.string.profile_section_personal), color = c.accent)
+                                ProfileDetailRow(label = stringResource(R.string.profile_dob), value = user?.dob, color = c)
+                                ProfileDetailRow(label = stringResource(R.string.field_gender), value = user?.gender, color = c)
+                                ProfileDetailRow(label = stringResource(R.string.profile_admission_date), value = user?.admissionDate, color = c)
+                                ProfileDetailRow(label = stringResource(R.string.auth_student_id), value = user?.userId, color = c)
 
                                 Spacer(modifier = Modifier.height(10.dp))
 
                                 // Contact Information
-                                ProfileSectionHeader(text = "Contact Information", color = c.accent)
-                                ProfileDetailRow(label = "Phone", value = user?.phone, color = c)
-                                ProfileDetailRow(label = "Email", value = user?.email, color = c)
+                                ProfileSectionHeader(text = stringResource(R.string.profile_section_contact), color = c.accent)
+                                ProfileDetailRow(label = stringResource(R.string.field_phone), value = user?.phone, color = c)
+                                ProfileDetailRow(label = stringResource(R.string.field_email), value = user?.email, color = c)
 
                                 Spacer(modifier = Modifier.height(10.dp))
 
                                 // Family Information
-                                ProfileSectionHeader(text = "Family Information", color = c.accent)
-                                ProfileDetailRow(label = "Father's Name", value = user?.fatherName, color = c)
-                                ProfileDetailRow(label = "Mother's Name", value = user?.motherName, color = c)
+                                ProfileSectionHeader(text = stringResource(R.string.profile_section_family), color = c.accent)
+                                ProfileDetailRow(label = stringResource(R.string.profile_father_name), value = user?.fatherName, color = c)
+                                ProfileDetailRow(label = stringResource(R.string.profile_mother_name), value = user?.motherName, color = c)
 
                                 Spacer(modifier = Modifier.height(10.dp))
 
                                 // School Information
-                                ProfileSectionHeader(text = "School Information", color = c.accent)
-                                ProfileDetailRow(label = "School", value = user?.schoolDisplayName, color = c)
-                                ProfileDetailRow(label = "Session", value = user?.session, color = c)
+                                ProfileSectionHeader(text = stringResource(R.string.profile_section_school), color = c.accent)
+                                ProfileDetailRow(label = stringResource(R.string.field_school), value = user?.schoolDisplayName, color = c)
+                                ProfileDetailRow(label = stringResource(R.string.field_session), value = user?.session, color = c)
 
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
@@ -379,8 +385,8 @@ fun ProfileScreen(
                         // settings page so the parent can toggle channels.
                         SettingsRow(
                             emoji = "\uD83D\uDD14",
-                            label = "Notifications",
-                            subtitle = "Manage alerts",
+                            label = stringResource(R.string.section_notifications),
+                            subtitle = stringResource(R.string.profile_manage_alerts),
                             onClick = {
                                 val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
                                     putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
@@ -404,7 +410,7 @@ fun ProfileScreen(
                         // Appearance row
                         SettingsRow(
                             emoji = "\uD83C\uDFA8",
-                            label = "Appearance",
+                            label = stringResource(R.string.section_appearance),
                             subtitle = when (uiState.themeMode) {
                                 "light" -> "Light"
                                 "dark" -> "Dark"
@@ -424,6 +430,45 @@ fun ProfileScreen(
                                 onModeChange = viewModel::setThemeMode
                             )
                         }
+
+                        SettingsDivider()
+
+                        // Language row. The subtitle shows the CURRENT language in
+                        // its own script, so it is readable to the person who set it.
+                        SettingsRow(
+                            emoji = "🌐",
+                            label = stringResource(R.string.settings_language),
+                            subtitle = LocaleManager.labelFor(
+                                LocaleManager.effectiveTag(context)
+                            ),
+                            onClick = { viewModel.toggleLanguage() }
+                        )
+
+                        AnimatedVisibility(
+                            visible = uiState.showLanguage,
+                            enter = expandVertically(),
+                            exit = shrinkVertically()
+                        ) {
+                            LanguagePicker(
+                                currentTag = LocaleManager.effectiveTag(context),
+                                onSelect = { tag ->
+                                    if (tag != LocaleManager.effectiveTag(context)) {
+                                        // 1. Persist locally with commit() — recreate()
+                                        //    is about to read this back synchronously.
+                                        LocaleManager.setLanguage(context, tag)
+                                        // 2. Re-create the notification channels so their
+                                        //    names/descriptions come back in the new
+                                        //    language; the OS caches the strings it was
+                                        //    given at creation time.
+                                        NotificationChannels.ensureChannels(context)
+                                        // 3. Tell the server, without waiting for it.
+                                        viewModel.mirrorLanguage(tag)
+                                        // 4. Re-run attachBaseContext with the new tag.
+                                        (context as? Activity)?.recreate()
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
 
@@ -437,8 +482,8 @@ fun ProfileScreen(
                         // Change password row
                         SettingsRow(
                             emoji = "\uD83D\uDD12",
-                            label = "Change password",
-                            subtitle = "Update credentials",
+                            label = stringResource(R.string.profile_action_change_password),
+                            subtitle = stringResource(R.string.profile_update_credentials),
                             onClick = { viewModel.toggleChangePassword() }
                         )
 
@@ -467,8 +512,8 @@ fun ProfileScreen(
                         // Help & FAQ row — expands with common questions.
                         SettingsRow(
                             emoji = "\u2753",
-                            label = "Help & FAQ",
-                            subtitle = "Common questions",
+                            label = stringResource(R.string.profile_action_help_faq),
+                            subtitle = stringResource(R.string.profile_common_questions),
                             onClick = { helpExpanded = !helpExpanded }
                         )
                         AnimatedVisibility(
@@ -485,8 +530,8 @@ fun ProfileScreen(
                         // and quick call/email actions.
                         SettingsRow(
                             emoji = "\uD83D\uDCDE",
-                            label = "Contact school",
-                            subtitle = user?.schoolDisplayName?.takeIf { it.isNotBlank() } ?: "Call or email",
+                            label = stringResource(R.string.profile_action_contact_school),
+                            subtitle = user?.schoolDisplayName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.profile_call_or_email),
                             onClick = { contactExpanded = !contactExpanded }
                         )
                         AnimatedVisibility(
@@ -517,8 +562,8 @@ fun ProfileScreen(
                         // About row — expands with app information.
                         SettingsRow(
                             emoji = "\uD83D\uDCC4",
-                            label = "About",
-                            subtitle = "ZenXii Parent v1.0",
+                            label = stringResource(R.string.section_about),
+                            subtitle = stringResource(R.string.profile_app_version),
                             onClick = { aboutExpanded = !aboutExpanded }
                         )
                         AnimatedVisibility(
@@ -549,7 +594,7 @@ fun ProfileScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Log out",
+                            text = stringResource(R.string.profile_action_log_out),
                             style = TextStyle(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
@@ -562,7 +607,7 @@ fun ProfileScreen(
                 // ── 9. Version ──────────────────────────────────────────
                 item {
                     Text(
-                        text = "ZenXii Parent v1.0",
+                        text = stringResource(R.string.profile_app_version),
                         style = TextStyle(fontSize = 11.sp, color = c.textTertiary),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -788,6 +833,75 @@ private fun ThemePicker(
     }
 }
 
+/**
+ * Language picker.
+ *
+ * A vertical list, not the 3-across [ThemePicker] row: six options in Tamil,
+ * Telugu and Devanagari will not fit side by side on a 5-inch screen, and this
+ * is exactly the clipping this program has to avoid rather than create.
+ *
+ * Every option is labelled by its **endonym** — its name in its own language.
+ * A parent who reads only Gujarati cannot find the word "Gujarati" in a list,
+ * but can find "ગુજરાતી". For the same reason the labels are NOT translated
+ * strings: they are identical in every locale.
+ */
+@Composable
+private fun LanguagePicker(
+    currentTag: String,
+    onSelect: (String) -> Unit
+) {
+    val c = LocalAppColors.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        LocaleManager.SUPPORTED.forEach { (tag, endonym) ->
+            val isSelected = currentTag == tag
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .then(
+                        if (isSelected) {
+                            Modifier
+                                .background(c.accentBg)
+                                .border(1.dp, c.accent, RoundedCornerShape(14.dp))
+                        } else {
+                            Modifier
+                                .background(Color.Transparent)
+                                .border(1.dp, c.divider, RoundedCornerShape(14.dp))
+                        }
+                    )
+                    .clickable { onSelect(tag) }
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = endonym,
+                    modifier = Modifier.weight(1f),
+                    style = TextStyle(
+                        fontSize = 13.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) c.accent else c.textPrimary
+                    )
+                )
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = c.accent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
 // ─── Change Password Form ────────────────────────────────────────────────────
 
 @Composable
@@ -812,7 +926,7 @@ private fun ChangePasswordForm(
         PasswordField(
             value = currentPassword,
             onValueChange = onCurrentPasswordChange,
-            label = "Current Password",
+            label = stringResource(R.string.profile_current_password),
             visible = currentPwdVisible,
             onToggleVisibility = { currentPwdVisible = !currentPwdVisible }
         )
@@ -820,7 +934,7 @@ private fun ChangePasswordForm(
         PasswordField(
             value = newPassword,
             onValueChange = onNewPasswordChange,
-            label = "New Password",
+            label = stringResource(R.string.profile_new_password),
             visible = newPwdVisible,
             onToggleVisibility = { newPwdVisible = !newPwdVisible }
         )
@@ -828,7 +942,7 @@ private fun ChangePasswordForm(
         PasswordField(
             value = confirmPassword,
             onValueChange = onConfirmPasswordChange,
-            label = "Confirm Password",
+            label = stringResource(R.string.profile_confirm_password),
             visible = newPwdVisible,
             onToggleVisibility = { newPwdVisible = !newPwdVisible }
         )
@@ -843,7 +957,7 @@ private fun ChangePasswordForm(
         }
         if (passwordChangeSuccess) {
             Text(
-                text = "Password changed successfully",
+                text = stringResource(R.string.profile_msg_password_changed),
                 style = TextStyle(fontSize = 12.sp, color = c.success, fontWeight = FontWeight.Medium),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
@@ -867,7 +981,7 @@ private fun ChangePasswordForm(
                 )
             } else {
                 Text(
-                    "Update Password",
+                    stringResource(R.string.profile_update_password),
                     style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 )
             }
@@ -954,7 +1068,7 @@ private fun LogoutDialog(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Log out?",
+                text = stringResource(R.string.profile_dialog_log_out_title),
                 style = TextStyle(
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
@@ -993,7 +1107,7 @@ private fun LogoutDialog(
                     contentPadding = PaddingValues(vertical = 12.dp)
                 ) {
                     Text(
-                        text = "Cancel",
+                        text = stringResource(R.string.common_cancel),
                         style = TextStyle(
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
@@ -1021,7 +1135,7 @@ private fun LogoutDialog(
                         )
                     } else {
                         Text(
-                            text = "Log out",
+                            text = stringResource(R.string.profile_action_log_out),
                             style = TextStyle(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -1078,25 +1192,14 @@ private fun ProfileDetailRow(label: String, value: String?, color: AppColors) {
 @Composable
 private fun HelpFaqContent() {
     val c = LocalAppColors.current
+    // Each answer is ONE resource, not concatenated fragments: adjacent literals
+    // cannot be reordered, and word order differs in every target language.
     val faqs = listOf(
-        "How do I pay school fees?" to
-            "Open the Fees tab from the bottom bar, tap any pending fee head and " +
-            "select Pay to launch Razorpay secure checkout. Receipts appear under " +
-            "Paid Fees the moment payment succeeds.",
-        "Why is my child's attendance not updating?" to
-            "Attendance is marked by teachers and usually appears the same day " +
-            "after 2 PM. If a day looks missing, pull down to refresh the " +
-            "Attendance screen \u2014 if it's still blank, contact the class teacher.",
-        "Where can I see homework and results?" to
-            "Tap the Academics tab in the bottom bar \u2014 Homework, Results, " +
-            "Timetable and Exam schedule all live there.",
-        "I didn't receive a push notification for a notice." to
-            "Make sure Notifications are enabled in Settings \u2192 Notifications. " +
-            "Notices from your school also appear in the Notices tab even if " +
-            "the push was missed.",
-        "How do I change my password?" to
-            "Scroll up on this Profile tab, open \"Change password\", enter your " +
-            "current password and a new one of 6+ characters, then tap Update."
+        stringResource(R.string.faq_q_fees) to stringResource(R.string.faq_a_fees),
+        stringResource(R.string.faq_q_attendance) to stringResource(R.string.faq_a_attendance),
+        stringResource(R.string.faq_q_homework) to stringResource(R.string.faq_a_homework),
+        stringResource(R.string.faq_q_push) to stringResource(R.string.faq_a_push),
+        stringResource(R.string.faq_q_password) to stringResource(R.string.faq_a_password)
     )
     Column(
         modifier = Modifier
@@ -1178,14 +1281,13 @@ private fun ContactSchoolContent(
         when {
             loading -> {
                 Text(
-                    "Loading contact details…",
+                    stringResource(R.string.profile_loading_contact),
                     style = TextStyle(fontSize = 11.sp, color = c.textTertiary)
                 )
             }
             phone.isBlank() && email.isBlank() -> {
                 Text(
-                    "Contact details aren't on file. Please reach the school " +
-                        "office in person or via the school website.",
+                    stringResource(R.string.profile_no_contact),
                     style = TextStyle(fontSize = 11.sp, color = c.textSecondary, lineHeight = 15.sp)
                 )
             }
@@ -1193,7 +1295,7 @@ private fun ContactSchoolContent(
                 if (phone.isNotBlank()) {
                     ContactActionRow(
                         emoji = "\uD83D\uDCDE",
-                        label = "Call office",
+                        label = stringResource(R.string.profile_action_call_office),
                         value = phone,
                         onClick = { onCall(phone) }
                     )
@@ -1202,7 +1304,7 @@ private fun ContactSchoolContent(
                 if (email.isNotBlank()) {
                     ContactActionRow(
                         emoji = "\u2709\uFE0F",
-                        label = "Email office",
+                        label = stringResource(R.string.profile_action_email_office),
                         value = email,
                         onClick = { onEmail(email) }
                     )
@@ -1262,7 +1364,7 @@ private fun AboutContent() {
             .padding(bottom = 14.dp)
     ) {
         Text(
-            text = "ZenXii Parent",
+            text = stringResource(R.string.profile_app_name),
             style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
         )
         Spacer(modifier = Modifier.height(2.dp))
@@ -1272,17 +1374,15 @@ private fun AboutContent() {
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "ZenXii is your direct line to your child's school. Track " +
-                "attendance, pay fees securely, view homework and results, read " +
-                "circulars, and stay informed of every event \u2014 all in one place.",
+            text = stringResource(R.string.profile_about_tagline),
             style = TextStyle(fontSize = 11.sp, color = c.textSecondary, lineHeight = 16.sp)
         )
         Spacer(modifier = Modifier.height(10.dp))
-        AboutLine("\uD83D\uDCDD", "Real-time attendance, results & homework")
-        AboutLine("\uD83D\uDCB3", "Secure fee payments via Razorpay")
-        AboutLine("\uD83D\uDCE2", "Notices, events & birthday wishes")
+        AboutLine("\uD83D\uDCDD", stringResource(R.string.profile_about_realtime))
+        AboutLine("\uD83D\uDCB3", stringResource(R.string.profile_about_payments))
+        AboutLine("\uD83D\uDCE2", stringResource(R.string.profile_about_notices))
         AboutLine("\uD83D\uDD10", "Private \u2014 data stored on your school's " +
-            "Firebase project, never shared with third parties")
+            stringResource(R.string.profile_about_privacy))
         Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = "\u00A9 2026 ZenXii. Built for Indian schools.",

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- मराठी · Marathi
+     W7 — shared single-word UI labels (Back/Cancel/Retry/field names).
+     These were missed by an earlier heuristic that ignored single words;
+     several are reused on 20+ screens, hence common_*. -->
+<resources>
+    <string name="common_all">सर्व</string>
+    <string name="common_call">कॉल</string>
+    <string name="common_cancel">रद्द करा</string>
+    <string name="common_copied">कॉपी झाले</string>
+    <string name="common_copy">कॉपी करा</string>
+    <string name="common_delete">हटवा</string>
+    <string name="common_dismiss">बंद करा</string>
+    <string name="common_done">झाले</string>
+    <string name="common_download">डाउनलोड</string>
+    <string name="common_keep">ठेवा</string>
+    <string name="common_message">संदेश</string>
+    <string name="common_ok">ठीक आहे</string>
+    <string name="common_open">उघडा</string>
+    <string name="common_save">जतन करा</string>
+    <string name="common_search">शोधा</string>
+    <string name="common_share">शेअर करा</string>
+    <string name="common_skip">वगळा</string>
+    <string name="common_submit">सादर करा</string>
+    <string name="fees_module_hostel">वसतिगृह</string>
+    <string name="fees_module_library">ग्रंथालय</string>
+    <string name="fees_module_transport">वाहतूक</string>
+    <string name="fees_scholarship">शिष्यवृत्ती</string>
+    <string name="field_admin">अ‍ॅडमिन</string>
+    <string name="field_date">दिनांक</string>
+    <string name="field_day">दिवस</string>
+    <string name="field_description">वर्णन</string>
+    <string name="field_discount">सवलत</string>
+    <string name="field_email">ईमेल</string>
+    <string name="field_fine">दंड</string>
+    <string name="field_from">पासून</string>
+    <string name="field_gender">लिंग</string>
+    <string name="field_grade">श्रेणी</string>
+    <string name="field_location">ठिकाण</string>
+    <string name="field_marks">गुण</string>
+    <string name="field_media">मीडिया</string>
+    <string name="field_organizer">आयोजक</string>
+    <string name="field_password">पासवर्ड</string>
+    <string name="field_percentage">टक्केवारी</string>
+    <string name="field_phone">फोन</string>
+    <string name="field_rank">क्रमांक</string>
+    <string name="field_reason">कारण</string>
+    <string name="field_remarks">शेरा</string>
+    <string name="field_room">खोली</string>
+    <string name="field_school">शाळा</string>
+    <string name="field_score">गुण</string>
+    <string name="field_session">सत्र</string>
+    <string name="field_student_caps">विद्यार्थी</string>
+    <string name="field_teacher">शिक्षक</string>
+    <string name="field_time">वेळ</string>
+    <string name="field_to">पर्यंत</string>
+    <string name="field_whatsapp">WhatsApp</string>
+    <string name="filter_active">सक्रिय</string>
+    <string name="filter_event">कार्यक्रम</string>
+    <string name="filter_next">पुढील</string>
+    <string name="filter_past">मागील</string>
+    <string name="filter_pending">प्रलंबित</string>
+    <string name="filter_resolved">निराकरण झाले</string>
+    <string name="filter_upcoming">आगामी</string>
+    <string name="nav_home">होम</string>
+    <string name="nav_stories">स्टोरी</string>
+    <string name="section_about">माहिती</string>
+    <string name="section_appearance">स्वरूप</string>
+    <string name="section_attendance_caps">उपस्थिती</string>
+    <string name="section_highlights">ठळक मुद्दे</string>
+    <string name="section_instructions">सूचना</string>
+    <string name="section_notifications">अधिसूचना</string>
+    <string name="section_overview">आढावा</string>
+    <string name="section_submission">सादरीकरण</string>
+
+    <plurals name="fees_unreturned_books">
+        <item quantity="one">%d पुस्तक परत नाही</item>
+        <item quantity="other">%d पुस्तके परत नाहीत</item>
+    </plurals>
+
+    <string name="attendance_status_vacation">सुट्टी</string>
+    <string name="dash_today_status_fmt">आज: %1$s</string>
+
+    <string name="hw_tab_graded">तपासलेले</string>
+    <string name="hw_tab_incomplete">अपूर्ण</string>
+    <string name="hw_tab_submitted">सादर केले</string>
+
+    <string name="lang_setup_continue">पुढे जा</string>
+    <string name="lang_setup_subtitle">तुम्ही हे प्रोफाइलमध्ये कधीही बदलू शकता</string>
+    <string name="lang_setup_title">तुमची भाषा निवडा</string>
+    <string name="lang_sheet_title">भाषा</string>
+
+</resources>

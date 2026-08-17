@@ -1,5 +1,8 @@
 package com.schoolsync.parent.ui.fees
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.schoolsync.parent.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -263,7 +266,7 @@ fun FeesScreen(
     ) {
         // ── Rich Summary Header ──
         Text(
-            text = "Fees",
+            text = stringResource(R.string.drawer_fees),
             style = MaterialTheme.typography.headlineLarge,
             color = c.textPrimary,
             fontWeight = FontWeight.Bold,
@@ -283,19 +286,19 @@ fun FeesScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             FeeSummaryChip(
-                label = "Total Fees",
+                label = stringResource(R.string.fees_total),
                 value = "Rs. ${fmtRupee(totalFees)}",
                 color = c.accent,
                 modifier = Modifier.weight(1f)
             )
             FeeSummaryChip(
-                label = "Paid",
+                label = stringResource(R.string.fees_status_paid),
                 value = "Rs. ${fmtRupee(overview.totalPaid)}",
                 color = c.success,
                 modifier = Modifier.weight(1f)
             )
             FeeSummaryChip(
-                label = "Due",
+                label = stringResource(R.string.fees_status_due),
                 value = "Rs. ${fmtRupee(overview.pendingFees.totalPending)}",
                 color = if (overview.pendingFees.totalPending > 0) c.error else c.success,
                 modifier = Modifier.weight(1f)
@@ -311,7 +314,7 @@ fun FeesScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FeeSummaryChip(
-                    label = "Scholarship",
+                    label = stringResource(R.string.fees_scholarship),
                     value = "Rs. ${"%,.0f".format(overview.scholarshipAmount)}",
                     color = Color(0xFF9C27B0),
                     modifier = Modifier.weight(1f)
@@ -389,7 +392,7 @@ fun FeesScreen(
                     onClick = { viewModel.selectTab(tab) },
                     text = {
                         Text(
-                            text = tab.title,
+                            text = stringResource(tab.titleRes),
                             style = MaterialTheme.typography.labelLarge,
                             color = if (active) c.accent else c.textSecondary,
                             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
@@ -424,7 +427,7 @@ fun FeesScreen(
                     ) {
                         if (uiState.demandsError != null) {
                             FeeSectionError(
-                                title = "Couldn't load your pending fees",
+                                title = stringResource(R.string.fees_pending_failed),
                                 message = uiState.demandsError!!,
                                 onRetry = { viewModel.pullRefresh() }
                             )
@@ -451,7 +454,7 @@ fun FeesScreen(
                     ) {
                         if (uiState.paymentsError != null) {
                             FeeSectionError(
-                                title = "Couldn't load payment history",
+                                title = stringResource(R.string.fees_history_failed),
                                 message = uiState.paymentsError!!,
                                 onRetry = { viewModel.pullRefresh() }
                             )
@@ -532,7 +535,7 @@ private fun FeesPendingSyncBanner(
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
         ) {
             Text(
-                "OK",
+                stringResource(R.string.common_ok),
                 style = MaterialTheme.typography.labelMedium,
                 color = c.warning,
                 fontWeight = FontWeight.SemiBold
@@ -580,7 +583,7 @@ private fun FeesErrorBanner(
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
         ) {
             Text(
-                "Dismiss",
+                stringResource(R.string.common_dismiss),
                 style = MaterialTheme.typography.labelMedium,
                 color = c.error,
                 fontWeight = FontWeight.SemiBold
@@ -592,7 +595,7 @@ private fun FeesErrorBanner(
 @Composable
 private fun FeeStructureContent(items: List<FeeHead>) {
     if (items.isEmpty()) {
-        EmptyFeesState(message = "Fee structure not available")
+        EmptyFeesState(message = stringResource(R.string.fees_structure_unavailable))
         return
     }
 
@@ -716,15 +719,15 @@ private fun PendingFeesContent(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Filled.CheckCircle, null, tint = c.success, modifier = Modifier.size(64.dp))
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("All Fees Paid!", style = MaterialTheme.typography.titleLarge, color = c.success, fontWeight = FontWeight.Bold)
-                Text("No pending fees.", style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
+                Text(stringResource(R.string.fees_all_paid), style = MaterialTheme.typography.titleLarge, color = c.success, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.fees_none_pending), style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
             }
         }
         return
     }
 
-    val unpaidMonths = pendingMonths.filter { it.status != "Paid" }
-    val paidMonths = pendingMonths.filter { it.status == "Paid" }
+    val unpaidMonths = pendingMonths.filter { it.status != stringResource(R.string.fees_status_paid) }
+    val paidMonths = pendingMonths.filter { it.status == stringResource(R.string.fees_status_paid) }
     val unpaidMonthNames = unpaidMonths.map { it.month }
     // Selection driven from VM state — survives recomposition AND can
     // be cleared by `pullRefresh()`.
@@ -759,7 +762,7 @@ private fun PendingFeesContent(
                         shape = RoundedCornerShape(10.dp),
                         border = BorderStroke(1.dp, c.accent)
                     ) {
-                        Text("Select All", color = c.accent, style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.fees_select_all), color = c.accent, style = MaterialTheme.typography.labelMedium)
                     }
                     OutlinedButton(
                         onClick = { onClearSelection() },
@@ -767,7 +770,7 @@ private fun PendingFeesContent(
                         shape = RoundedCornerShape(10.dp),
                         border = BorderStroke(1.dp, c.textTertiary)
                     ) {
-                        Text("Clear", color = c.textSecondary, style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.cd_clear), color = c.textSecondary, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
@@ -776,7 +779,7 @@ private fun PendingFeesContent(
             if (unpaidMonths.isNotEmpty()) {
                 item {
                     Text(
-                        text = "UNPAID (${unpaidMonths.size} months)",
+                        text = pluralStringResource(R.plurals.fees_unpaid_months, unpaidMonths.size, unpaidMonths.size),
                         style = MaterialTheme.typography.labelMedium,
                         color = c.error,
                         fontWeight = FontWeight.Bold,
@@ -806,7 +809,7 @@ private fun PendingFeesContent(
             if (paidMonths.isNotEmpty()) {
                 item(key = "paid_header") {
                     Text(
-                        text = "PAID (${paidMonths.size} months)",
+                        text = pluralStringResource(R.plurals.fees_paid_months, paidMonths.size, paidMonths.size),
                         style = MaterialTheme.typography.labelMedium,
                         color = c.success,
                         fontWeight = FontWeight.Bold,
@@ -886,7 +889,7 @@ private fun PendingFeesContent(
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    text = "Total Payable",
+                                    text = stringResource(R.string.fees_total_payable),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = c.textTertiary
                                 )
@@ -935,7 +938,7 @@ private fun PendingFeesContent(
                             Icon(Icons.Filled.Payment, null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                "Pay Selected",
+                                stringResource(R.string.fees_pay_selected),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )
@@ -959,7 +962,7 @@ private fun PendingFeesContent(
                         border = BorderStroke(1.5.dp, c.accent)
                     ) {
                         Text(
-                            "Pay Full Year",
+                            stringResource(R.string.fees_pay_full_year),
                             style = MaterialTheme.typography.labelLarge,
                             color = c.accent,
                             fontWeight = FontWeight.Bold
@@ -1010,7 +1013,7 @@ private fun PendingFeesContent(
             onDismissRequest = { showPayFullYearConfirm = false },
             title = {
                 Text(
-                    "Pay full year?",
+                    stringResource(R.string.fees_pay_full_year_q),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -1033,7 +1036,7 @@ private fun PendingFeesContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "Total Payable",
+                            stringResource(R.string.fees_total_payable),
                             style = MaterialTheme.typography.labelMedium,
                             color = c.textSecondary
                         )
@@ -1046,7 +1049,7 @@ private fun PendingFeesContent(
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "You can cancel anytime before completing the payment.",
+                        stringResource(R.string.fees_cancel_anytime),
                         style = MaterialTheme.typography.labelSmall,
                         color = c.textTertiary
                     )
@@ -1062,7 +1065,7 @@ private fun PendingFeesContent(
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = c.accent)
                 ) {
                     Text(
-                        "Yes, pay full year",
+                        stringResource(R.string.fees_yes_pay_full_year),
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
@@ -1072,7 +1075,7 @@ private fun PendingFeesContent(
                 androidx.compose.material3.TextButton(
                     onClick = { showPayFullYearConfirm = false }
                 ) {
-                    Text("Cancel", color = c.textSecondary)
+                    Text(stringResource(R.string.common_cancel), color = c.textSecondary)
                 }
             },
             shape = RoundedCornerShape(18.dp)
@@ -1109,7 +1112,7 @@ private fun PendingFeeCard(
 ) {
     val c = LocalAppColors.current
     var expanded by remember { mutableStateOf(false) }
-    val isPaid = month.status.equals("Paid", true)
+    val isPaid = month.status.equals(stringResource(R.string.fees_status_paid), true)
     val isPartial = month.status.equals("Partial", true)
     val statusColor = when {
         isProcessing -> c.accent
@@ -1199,7 +1202,9 @@ private fun PendingFeeCard(
                     val isYearly = month.month == "Yearly Fees"
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = if (isYearly) "Annual Fee" else month.month,
+                            text = if (isYearly) stringResource(R.string.fees_annual_fee)
+                                   else com.schoolsync.parent.util.CanonicalLabels
+                                       .month(LocalContext.current, month.month),
                             style = MaterialTheme.typography.titleSmall,
                             color = c.textPrimary,
                             fontWeight = FontWeight.SemiBold
@@ -1218,8 +1223,9 @@ private fun PendingFeeCard(
                                     .padding(horizontal = 7.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = if (month.overdueDays == 1) "Overdue · 1d"
-                                           else "Overdue · ${month.overdueDays}d",
+                                    text = androidx.compose.ui.res.pluralStringResource(
+                                        R.plurals.fees_overdue_days,
+                                        month.overdueDays, month.overdueDays),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = c.error,
                                     fontWeight = FontWeight.Bold,
@@ -1229,11 +1235,11 @@ private fun PendingFeeCard(
                         }
                     }
                     val statusLabel = when {
-                        isProcessing -> "Processing${rememberAnimatedDots()}"
-                        isPaid -> "Paid"
-                        isPartial -> "Partially Paid"
-                        isYearly -> "One-time · Due"
-                        else -> "Due"
+                        isProcessing -> stringResource(R.string.fees_processing) + rememberAnimatedDots()
+                        isPaid -> stringResource(R.string.fees_status_paid)
+                        isPartial -> stringResource(R.string.fees_partially_paid)
+                        isYearly -> stringResource(R.string.fees_one_time_due)
+                        else -> stringResource(R.string.fees_status_due)
                     }
                     Text(
                         text = statusLabel,
@@ -1347,7 +1353,7 @@ private fun PendingFeeCard(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Paid", style = MaterialTheme.typography.labelMedium, color = c.success)
+                        Text(stringResource(R.string.fees_status_paid), style = MaterialTheme.typography.labelMedium, color = c.success)
                         Text(
                             "Rs. ${"%,.0f".format(month.paidAmount)}",
                             style = MaterialTheme.typography.labelMedium,
@@ -1367,7 +1373,7 @@ private fun PaymentHistoryContent(
     onOpenReceipt: (String) -> Unit = {}
 ) {
     if (payments.isEmpty()) {
-        EmptyFeesState(message = "No payment history found")
+        EmptyFeesState(message = stringResource(R.string.fees_no_history))
         return
     }
 
@@ -1418,7 +1424,7 @@ private fun PaymentRecordCard(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Receipt #${record.receiptNo}",
+                    text = stringResource(R.string.fees_receipt_hash, record.receiptNo),
                     style = MaterialTheme.typography.titleSmall,
                     color = c.textPrimary,
                     fontWeight = FontWeight.SemiBold
@@ -1446,7 +1452,7 @@ private fun PaymentRecordCard(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Paid",
+                    text = stringResource(R.string.fees_status_paid),
                     style = MaterialTheme.typography.labelSmall,
                     color = c.success,
                     fontWeight = FontWeight.Medium
@@ -1455,7 +1461,7 @@ private fun PaymentRecordCard(
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 imageVector = Icons.Filled.ChevronRight,
-                contentDescription = "Open receipt",
+                contentDescription = stringResource(R.string.fees_open_receipt),
                 tint = c.textTertiary,
                 modifier = Modifier.size(18.dp)
             )
@@ -1474,7 +1480,7 @@ private fun ModuleFeesContent(
     val c = LocalAppColors.current
     val hasContent = transportFee != null || hostelFee != null || libraryFines.isNotEmpty()
     if (!hasContent) {
-        EmptyFeesState(message = "No module fees applicable")
+        EmptyFeesState(message = stringResource(R.string.fees_no_module_fees))
         return
     }
 
@@ -1489,7 +1495,7 @@ private fun ModuleFeesContent(
                     icon = Icons.Filled.DirectionsBus,
                     iconBg = c.infoBg,
                     iconTint = c.info,
-                    title = "Transport Fee",
+                    title = stringResource(R.string.fees_transport),
                     subtitle = transportFee.routeName.ifBlank { "Route: ${transportFee.routeId}" },
                     amount = transportFee.amount,
                     detail = transportFee.period,
@@ -1505,7 +1511,7 @@ private fun ModuleFeesContent(
                     icon = Icons.Filled.Home,
                     iconBg = c.purpleBg,
                     iconTint = c.purple,
-                    title = "Hostel Fee",
+                    title = stringResource(R.string.fees_hostel),
                     subtitle = "${hostelFee.building} - Room ${hostelFee.room}",
                     amount = hostelFee.amount + hostelFee.messCharges,
                     detail = if (hostelFee.messCharges > 0)
@@ -1520,7 +1526,7 @@ private fun ModuleFeesContent(
         if (libraryFines.isNotEmpty()) {
             item {
                 Text(
-                    text = "Library Fines",
+                    text = stringResource(R.string.fees_library_fines),
                     style = MaterialTheme.typography.titleSmall,
                     color = c.textSecondary,
                     fontWeight = FontWeight.SemiBold,
@@ -1629,7 +1635,7 @@ private fun ModuleFeeCard(
 private fun ClearanceContent(clearanceStatus: ClearanceStatus?) {
     val c = LocalAppColors.current
     if (clearanceStatus == null) {
-        EmptyFeesState(message = "Clearance status not available")
+        EmptyFeesState(message = stringResource(R.string.fees_clearance_unavailable))
         return
     }
 
@@ -1656,21 +1662,21 @@ private fun ClearanceContent(clearanceStatus: ClearanceStatus?) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = if (clearanceStatus.allClear) "All Clear" else "Dues Pending",
+                        text = if (clearanceStatus.allClear) stringResource(R.string.fees_all_clear) else stringResource(R.string.fees_dues_pending),
                         style = MaterialTheme.typography.titleMedium,
                         color = if (clearanceStatus.allClear) c.success else c.error,
                         fontWeight = FontWeight.Bold
                     )
                     if (!clearanceStatus.allClear) {
                         Text(
-                            text = "Total Dues: Rs. ${"%,.0f".format(clearanceStatus.totalDues)}",
+                            text = stringResource(R.string.fees_total_dues_fmt, "%,.0f".format(clearanceStatus.totalDues)),
                             style = MaterialTheme.typography.bodySmall,
                             color = c.error
                         )
                     }
                     if (clearanceStatus.checkedAt.isNotBlank()) {
                         Text(
-                            text = "Checked: ${clearanceStatus.checkedAt}",
+                            text = stringResource(R.string.fees_checked_at, clearanceStatus.checkedAt),
                             style = MaterialTheme.typography.labelSmall,
                             color = c.textTertiary
                         )
@@ -1682,31 +1688,34 @@ private fun ClearanceContent(clearanceStatus: ClearanceStatus?) {
         // Per-module breakdown
         item {
             ClearanceItemRow(
-                label = "Tuition Fees",
+                label = stringResource(R.string.fees_tuition),
                 isClear = clearanceStatus.feesClear,
                 dues = clearanceStatus.feesDues
             )
         }
         item {
             ClearanceItemRow(
-                label = "Library",
+                label = stringResource(R.string.fees_module_library),
                 isClear = clearanceStatus.libraryClear,
                 dues = clearanceStatus.libraryDues,
                 extra = if (clearanceStatus.libraryUnreturnedBooks > 0)
-                    "${clearanceStatus.libraryUnreturnedBooks} unreturned book(s)"
+                    androidx.compose.ui.res.pluralStringResource(
+                        R.plurals.fees_unreturned_books,
+                        clearanceStatus.libraryUnreturnedBooks,
+                        clearanceStatus.libraryUnreturnedBooks)
                 else null
             )
         }
         item {
             ClearanceItemRow(
-                label = "Hostel",
+                label = stringResource(R.string.fees_module_hostel),
                 isClear = clearanceStatus.hostelClear,
                 dues = clearanceStatus.hostelDues
             )
         }
         item {
             ClearanceItemRow(
-                label = "Transport",
+                label = stringResource(R.string.fees_module_transport),
                 isClear = clearanceStatus.transportClear,
                 dues = clearanceStatus.transportDues
             )
@@ -1774,7 +1783,7 @@ private fun ClearanceItemRow(
         }
         if (isClear) {
             Text(
-                text = "Clear",
+                text = stringResource(R.string.cd_clear),
                 style = MaterialTheme.typography.labelLarge,
                 color = c.success,
                 fontWeight = FontWeight.SemiBold
@@ -1845,11 +1854,11 @@ private fun FeeSectionError(
         ) {
             Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Retry", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.action_retry), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(10.dp))
         Text(
-            text = "Pull down to refresh also works.",
+            text = stringResource(R.string.fees_pull_refresh),
             style = MaterialTheme.typography.labelSmall,
             color = c.textTertiary,
             textAlign = TextAlign.Center,
@@ -2002,7 +2011,7 @@ private fun PartialPaymentDialog(
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Pay a custom amount",
+                            stringResource(R.string.fees_pay_custom),
                             style = MaterialTheme.typography.titleMedium,
                             color = c.textPrimary,
                             fontWeight = FontWeight.Bold
@@ -2133,8 +2142,8 @@ private fun PartialPaymentDialog(
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        BreakdownRow("Paying now", "Rs. ${"%,.0f".format(parsed)}", c.accent, bold = true)
-                        BreakdownRow("Remaining due", "Rs. ${"%,.0f".format(remainingAfter)}",
+                        BreakdownRow(stringResource(R.string.fees_paying_now), "Rs. ${"%,.0f".format(parsed)}", c.accent, bold = true)
+                        BreakdownRow(stringResource(R.string.fees_remaining_due), "Rs. ${"%,.0f".format(remainingAfter)}",
                             if (remainingAfter > 0) c.warning else c.success)
                     }
                 }
@@ -2152,7 +2161,7 @@ private fun PartialPaymentDialog(
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.5.dp, c.textTertiary.copy(alpha = 0.5f))
                     ) {
-                        Text("Cancel", color = c.textSecondary, fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.common_cancel), color = c.textSecondary, fontWeight = FontWeight.Medium)
                     }
                     Button(
                         onClick = { parsed?.let(onConfirm) },
@@ -2165,7 +2174,7 @@ private fun PartialPaymentDialog(
                         Spacer(Modifier.width(6.dp))
                         Text(
                             if (parsed != null && valid) "Pay Rs. ${"%,.0f".format(parsed)}"
-                            else "Enter amount",
+                            else stringResource(R.string.fees_enter_amount),
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -2206,11 +2215,11 @@ private fun PaymentFailureDialog(
     val c = LocalAppColors.current
     // Razorpay code 0 = cancelled by user, 2 = network, 3 = invalid options
     val isCancelled = failure.code == com.razorpay.Checkout.PAYMENT_CANCELED
-    val headline = if (isCancelled) "Payment cancelled" else "Payment failed"
+    val headline = if (isCancelled) stringResource(R.string.fees_payment_cancelled) else stringResource(R.string.fees_payment_failed)
     val body = when {
-        isCancelled -> "You cancelled the payment. No money was deducted."
+        isCancelled -> stringResource(R.string.fees_cancelled_no_deduction)
         failure.description.isNotBlank() -> failure.description
-        else -> "Something went wrong while processing the payment. No money was deducted."
+        else -> stringResource(R.string.fees_failed_no_deduction)
     }
 
     androidx.compose.material3.AlertDialog(
@@ -2247,12 +2256,12 @@ private fun PaymentFailureDialog(
         },
         confirmButton = {
             androidx.compose.material3.TextButton(onClick = onRetry) {
-                Text("Try again", fontWeight = FontWeight.Bold, color = c.accent)
+                Text(stringResource(R.string.fees_try_again), fontWeight = FontWeight.Bold, color = c.accent)
             }
         },
         dismissButton = {
             androidx.compose.material3.TextButton(onClick = onDismiss) {
-                Text("Dismiss")
+                Text(stringResource(R.string.common_dismiss))
             }
         }
     )
@@ -2274,7 +2283,7 @@ private fun DiscountsContent(
     ) {
         item("section_header") {
             Text(
-                "DISCOUNTS & ADJUSTMENTS",
+                stringResource(R.string.fees_discounts_header),
                 style = MaterialTheme.typography.labelMedium,
                 color = c.textTertiary,
                 fontWeight = FontWeight.Bold
@@ -2286,8 +2295,8 @@ private fun DiscountsContent(
                 DiscountTile(
                     icon = Icons.Filled.School,
                     iconColor = c.success,
-                    title = "Scholarship",
-                    subtitle = "Awarded for the current session",
+                    title = stringResource(R.string.fees_scholarship),
+                    subtitle = stringResource(R.string.fees_awarded_session),
                     amountText = "−Rs. ${"%,.0f".format(scholarshipAmount)}",
                     amountColor = c.success
                 )
@@ -2299,8 +2308,8 @@ private fun DiscountsContent(
                 DiscountTile(
                     icon = Icons.Filled.Warning,
                     iconColor = c.warning,
-                    title = "Carry-forward dues",
-                    subtitle = "Outstanding fees rolled over from last session",
+                    title = stringResource(R.string.fees_carry_forward),
+                    subtitle = stringResource(R.string.fees_rolled_over),
                     amountText = "+Rs. ${"%,.0f".format(carryForwardDues)}",
                     amountColor = c.warning
                 )
@@ -2325,7 +2334,7 @@ private fun DiscountsContent(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "No discounts or adjustments",
+                            stringResource(R.string.fees_no_discounts),
                             style = MaterialTheme.typography.bodyMedium,
                             color = c.textSecondary
                         )
@@ -2350,7 +2359,7 @@ private fun DiscountsContent(
                     .padding(14.dp)
             ) {
                 Text(
-                    "Need a fee concession?",
+                    stringResource(R.string.fees_need_concession),
                     style = MaterialTheme.typography.titleSmall,
                     color = c.textPrimary,
                     fontWeight = FontWeight.SemiBold
