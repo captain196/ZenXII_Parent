@@ -55,8 +55,11 @@ class StoryFirestoreRepository @Inject constructor(
      * Filtering rules (mirrored on every client):
      *   - schoolId == this parent's school
      *   - expiresAt > now (server-side range query)
-     *   - status == 'active' (client-side filter — covers admin
-     *     moderation actions that propagate via the same listener)
+     *   - status == 'active' — enforced in the QUERY (required: it is part of
+     *     the read rule for non-staff since F-R4.9) AND kept as a client-side
+     *     filter below, which is not redundant: the client filter also applies
+     *     the expiry cutoff and still holds if the query constraint is ever
+     *     relaxed.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeActiveStories(): Flow<List<StoryDoc>> {
@@ -122,6 +125,19 @@ class StoryFirestoreRepository @Inject constructor(
                                         .StorySharedConfig.AUDIENCE_ALL).distinct()
                                 firestoreService.observeQuery(COLLECTION) { ref ->
                                     ref.whereEqualTo("schoolId", schoolForQuery)
+                                        // F-R4.9: status is now part of the READ RULE for
+                                        // non-staff, so it must also constrain the QUERY.
+                                        // The audience filter above exists for exactly this
+                                        // reason — "the query can only request docs the rule
+                                        // will allow, one deny would fail the whole query" —
+                                        // and adding a rule condition the query does not
+                                        // mirror reopens that hole: a single flagged or
+                                        // removed story inside a parent's audience would
+                                        // fail the ENTIRE listener and blank the tray.
+                                        // Needs composite index
+                                        // (schoolId, status, audienceClassKeys) — deploy it
+                                        // BEFORE this build ships.
+                                        .whereEqualTo("status", "active")
                                         .whereArrayContainsAny("audienceClassKeys", audienceFilter)
                                 }.map { snap ->
                                     com.schoolsync.parent.util.debugLog(
