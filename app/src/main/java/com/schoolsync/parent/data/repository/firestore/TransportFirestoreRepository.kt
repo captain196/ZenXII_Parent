@@ -12,8 +12,12 @@ import com.schoolsync.parent.data.model.firestore.TransportAttendanceDoc
 import com.schoolsync.parent.data.model.firestore.TransportEventDoc
 import com.schoolsync.parent.data.model.firestore.TripLogDoc
 import com.schoolsync.parent.data.model.firestore.VehicleDoc
+import com.schoolsync.parent.data.model.firestore.VehicleLivePositionDoc
 import com.schoolsync.parent.util.Constants
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -48,15 +52,40 @@ class TransportFirestoreRepository @Inject constructor(
     //  Existing reads (pre-F10, kept unchanged)
     // ═════════════════════════════════════════════════════════════════════
 
+    /**
+     * TRN-SESS-B (2026-08-15) — the CURRENT transport assignment, converging on
+     * the backend's canonical definition.
+     *
+     * This used to filter on schoolId + studentId only, with limit(1) and no
+     * ordering. An unordered limit(1) returns an ARBITRARY matching row, so a
+     * student carrying a prior-session or deactivated studentRoutes document
+     * could be shown the wrong route and wrong stop — a parent told to send
+     * their child to a stop the bus no longer serves.
+     *
+     * The backend has always been stricter (Transport_service.php:6914-6921):
+     *     [studentId == X, status == 'Active']  then  session == sessionYear
+     * so this query adopts that definition rather than inventing a second one.
+     * The session comes from the existing TokenManager path, which mirrors
+     * schools/{schoolId}.currentSession — no new session source.
+     *
+     * FAIL CLOSED on a blank session: the same decision, for the same reason,
+     * HomeworkFirestoreRepository already makes. Running the session-less query
+     * as a fallback would surface every session's data; an un-sessioned parent
+     * must see nothing rather than the wrong bus.
+     */
     suspend fun getStudentRoute(studentId: String): Result<StudentRouteDoc?> {
         val schoolCode = getSchoolCode()
             ?: return Result.failure(Exception("School code not available"))
+        val session = tokenManager.user.firstOrNull()?.session.orEmpty()
+        if (session.isBlank()) return Result.failure(SessionNotSetException())
         return try {
             val docs = firestoreService.queryDocumentsAs<StudentRouteDoc>(
                 Constants.Firestore.STUDENT_ROUTES
             ) { ref ->
                 ref.whereEqualTo("schoolId", schoolCode)
                     .whereEqualTo("studentId", studentId)
+                    .whereEqualTo("status", "Active")
+                    .whereEqualTo("session", session)
                     .limit(1)
             }
             Result.success(docs.firstOrNull())
@@ -239,6 +268,40 @@ class TransportFirestoreRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    // ── F13.1 M4 — live bus position ────────────────────────────────────────
+
+    /**
+     * Stream the live position of one vehicle.
+     *
+     * A snapshot listener on exactly ONE document — never a query — which is
+     * what holds the parent read cost to one document per position change. The
+     * driver app overwrites that document at most once every 15 seconds, so
+     * this emits at most that often.
+     *
+     * Emits `null` when the document does not exist. That is the normal state
+     * for most of the day: the server creates it at trip start and DELETES it
+     * on completion or cancellation, so absence is how "no trip running" is
+     * represented. It is also what a parent sees when they are not on the
+     * vehicle's authorized-viewer list, because the rule denies the read —
+     * indistinguishable by design, so absence must never be shown as an error.
+     *
+     * The caller owns the subscription lifetime: attach only while the trip is
+     * InProgress and the map is on screen, and drop it otherwise.
+     */
+    fun observeLivePosition(vehicleId: String): Flow<VehicleLivePositionDoc?> = flow {
+        val schoolCode = getSchoolCode()
+        if (schoolCode.isNullOrBlank() || vehicleId.isBlank()) {
+            emit(null)
+            return@flow
+        }
+        emitAll(
+            firestoreService.observeDocumentAs<VehicleLivePositionDoc>(
+                VehicleLivePositionDoc.COLLECTION,
+                VehicleLivePositionDoc.docId(schoolCode, vehicleId)
+            )
+        )
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
