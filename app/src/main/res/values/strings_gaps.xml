@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings hidden from the audit by the escape-sequence / conditional detector holes. -->
+<resources>
+    <string name="common_hide">Hide</string>
+    <string name="common_show">Show</string>
+    <string name="common_collapse">Collapse</string>
+    <string name="common_expand">Expand</string>
+    <string name="dash_wishing_year">Wishing you a wonderful year ahead 🎉</string>
+    <string name="fees_cleared">Cleared</string>
+    <string name="fees_dues_fmt">Dues: %1$s</string>
+    <string name="hw_redo_resubmit">Redo &amp; resubmit ↻</string>
+    <string name="hw_mark_done">Mark as done ✓</string>
+    <string name="common_pending">Pending</string>
+    <string name="profile_logout_msg">You\'ll need to sign in again next time.</string>
+    <string name="profile_version_fmt">Version %1$s · Build %2$s</string>
+    <string name="profile_copyright">© 2026 ZenXii. Built for Indian schools.</string>
+    <string name="wt_desc_monitor">Monitor your child\'s attendance, grades,\nand academic performance in real-time.</string>
+    <string name="wt_desc_notify">Receive instant notifications about notices,\nhomework, and school events.</string>
+    <string name="wt_desc_fees">View fee details, track payments,\nand never miss a deadline.</string>
+    <string name="wt_next">Next</string>
+    <string name="story_unmute">Unmute</string>
+    <string name="story_mute">Mute</string>
+    <string name="tt_lunch">Lunch</string>
+    <string name="tt_break">Break</string>
+    <string name="tt_week">Week</string>
+    <string name="tt_live">Live</string>
+    <string name="tt_completed">Completed</string>
+    <string name="tt_quote">“Come prepared with your assignments.”</string>
+</resources>

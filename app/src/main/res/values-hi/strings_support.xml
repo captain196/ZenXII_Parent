@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- हिन्दी · Hindi
+     Support Desk (parent→school ticketing). Terminology follows the existing
+     locale files; format arguments (%1$d) are preserved EXACTLY.
+
+     ⚠ support_anon_note is legally sensitive. It must say that the NAME IS NOT
+     SHOWN TO SCHOOL STAFF — never "anonymous". The reporter's identity is
+     stored (the school must be able to reply, and abuse must be rate-limited),
+     so a translation implying true anonymity would be a misrepresentation.
+
+     MACHINE-ASSISTED, PENDING NATIVE REVIEW. -->
+<resources>
+    <string name="support_add_photo">फ़ोटो जोड़ें</string>
+    <string name="support_anon_note">इस रिपोर्ट पर आपका नाम विद्यालय के कर्मचारियों को नहीं दिखाया जाता।</string>
+    <string name="support_awaiting_school">विद्यालय की प्रतीक्षा</string>
+    <string name="support_awaiting_you">आपकी प्रतीक्षा</string>
+    <string name="support_body">विद्यालय को बताएं कि क्या हुआ</string>
+    <string name="support_body_hint">ऐसा कुछ भी लिखें जिससे उन्हें ढूँढने में मदद मिले — रसीद संख्या, तिथि, बस मार्ग।</string>
+    <string name="support_cat_academics">शिक्षण और गृहकार्य</string>
+    <string name="support_cat_app">ऐप और लॉगिन</string>
+    <string name="support_cat_attendance">उपस्थिति</string>
+    <string name="support_cat_certificates">प्रमाणपत्र और दस्तावेज़</string>
+    <string name="support_cat_conduct">कर्मचारी आचरण</string>
+    <string name="support_cat_exams">परीक्षा और परिणाम</string>
+    <string name="support_cat_fees">शुल्क और भुगतान</string>
+    <string name="support_cat_health">स्वास्थ्य और सुरक्षा</string>
+    <string name="support_cat_other">अन्य</string>
+    <string name="support_cat_transport">परिवहन</string>
+    <string name="support_closed_banner">यह टिकट बंद है। यदि अब भी सहायता चाहिए तो नया टिकट दर्ज करें।</string>
+    <string name="support_empty_body">शुल्क, परिवहन, गृहकार्य या किसी भी अन्य सहायता के लिए टिकट दर्ज करें।</string>
+    <string name="support_empty_title">अभी कोई टिकट नहीं</string>
+    <string name="support_err_body_short">कृपया पहले समस्या बताएं।</string>
+    <string name="support_err_generic">कुछ गड़बड़ हुई। कृपया पुनः प्रयास करें।</string>
+    <string name="support_err_no_category">चुनें कि यह किस बारे में है।</string>
+    <string name="support_from_school">विद्यालय</string>
+    <string name="support_from_you">आप</string>
+    <string name="support_loading">आपके टिकट लोड हो रहे हैं…</string>
+    <string name="support_msg_count">%1$d संदेश</string>
+    <string name="support_msg_count_one">1 संदेश</string>
+    <string name="support_my_tickets">मेरे टिकट</string>
+    <string name="support_new_ticket">नया टिकट</string>
+    <string name="support_no_messages">अभी कोई संदेश नहीं।</string>
+    <string name="support_photos_hint">अधिकतम 3 फ़ोटो। भेजने से पहले संपीड़ित की जाती हैं।</string>
+    <string name="support_pick_category">यह किस बारे में है?</string>
+    <string name="support_raise">टिकट दर्ज करें</string>
+    <string name="support_remove_photo">फ़ोटो हटाएँ</string>
+    <string name="support_reply_hint">उत्तर लिखें…</string>
+    <string name="support_resolved_banner">यह टिकट हल हो चुका है। उत्तर देने पर यह फिर खुल जाएगा।</string>
+    <string name="support_retry">पुनः प्रयास करें</string>
+    <string name="support_send">विद्यालय को भेजें</string>
+    <string name="support_send_reply">भेजें</string>
+    <string name="support_sending">भेजा जा रहा है…</string>
+    <string name="support_sent">भेज दिया गया। विद्यालय यहीं उत्तर देगा।</string>
+    <string name="support_status_assigned">प्रगति पर</string>
+    <string name="support_status_closed">बंद</string>
+    <string name="support_status_open">खुला</string>
+    <string name="support_status_reopened">पुनः खोला गया</string>
+    <string name="support_status_resolved">हल हुआ</string>
+    <string name="support_subject">विषय (वैकल्पिक)</string>
+    <string name="support_subject_hint">संक्षिप्त सारांश</string>
+    <string name="support_system_note">अद्यतन</string>
+    <string name="support_thread_title">टिकट</string>
+    <string name="support_ticket_number">#%1$d</string>
+    <string name="support_title">सहायता</string>
+</resources>

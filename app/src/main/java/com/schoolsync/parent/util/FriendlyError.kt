@@ -34,6 +34,12 @@ import java.net.UnknownHostException
  *   - FeesViewModel.loadFeesAsync      — fee-structure load failure
  */
 fun friendlyErrorMessage(ctx: Context, t: Throwable, fallback: String): String {
+    // FirebaseNetworkException is neither a FirebaseAuthException nor an
+    // IOException, so without this it falls through to `fallback` and a
+    // connectivity failure reads as whatever the call site guessed.
+    if (t is com.google.firebase.FirebaseNetworkException) {
+        return ctx.getString(R.string.err_no_internet)
+    }
     return when (t) {
         is UnknownHostException ->
             ctx.getString(R.string.err_no_internet)

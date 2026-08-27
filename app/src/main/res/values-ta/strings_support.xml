@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- தமிழ் · Tamil
+     Support Desk (parent→school ticketing). Terminology follows the existing
+     locale files; format arguments (%1$d) are preserved EXACTLY.
+
+     ⚠ support_anon_note is legally sensitive. It must say that the NAME IS NOT
+     SHOWN TO SCHOOL STAFF — never "anonymous". The reporter's identity is
+     stored (the school must be able to reply, and abuse must be rate-limited),
+     so a translation implying true anonymity would be a misrepresentation.
+
+     MACHINE-ASSISTED, PENDING NATIVE REVIEW. -->
+<resources>
+    <string name="support_add_photo">படம் சேர்</string>
+    <string name="support_anon_note">இந்தப் புகாரில் உங்கள் பெயர் பள்ளி ஊழியர்களுக்குக் காட்டப்படாது.</string>
+    <string name="support_awaiting_school">பள்ளியின் பதிலுக்குக் காத்திருப்பு</string>
+    <string name="support_awaiting_you">உங்கள் பதிலுக்குக் காத்திருப்பு</string>
+    <string name="support_body">நடந்ததைப் பள்ளியிடம் தெரிவிக்கவும்</string>
+    <string name="support_body_hint">கண்டறிய உதவும் எதையும் சேர்க்கவும் — ரசீது எண், தேதி, பேருந்து வழி.</string>
+    <string name="support_cat_academics">கல்வி மற்றும் வீட்டுப்பாடம்</string>
+    <string name="support_cat_app">செயலி மற்றும் உள்நுழைவு</string>
+    <string name="support_cat_attendance">வருகை</string>
+    <string name="support_cat_certificates">சான்றிதழ்கள் மற்றும் ஆவணங்கள்</string>
+    <string name="support_cat_conduct">ஊழியர் நடத்தை</string>
+    <string name="support_cat_exams">தேர்வு மற்றும் முடிவுகள்</string>
+    <string name="support_cat_fees">கட்டணம் மற்றும் செலுத்துதல்</string>
+    <string name="support_cat_health">உடல்நலம் மற்றும் பாதுகாப்பு</string>
+    <string name="support_cat_other">மற்றவை</string>
+    <string name="support_cat_transport">போக்குவரத்து</string>
+    <string name="support_closed_banner">இந்த டிக்கெட் மூடப்பட்டது. இன்னும் உதவி தேவைப்பட்டால் புதிய டிக்கெட் பதிவு செய்யுங்கள்.</string>
+    <string name="support_empty_body">கட்டணம், போக்குவரத்து, வீட்டுப்பாடம் அல்லது வேறு எந்த உதவிக்கும் டிக்கெட் பதிவு செய்யுங்கள்.</string>
+    <string name="support_empty_title">இதுவரை டிக்கெட் இல்லை</string>
+    <string name="support_err_body_short">முதலில் சிக்கலை விவரிக்கவும்.</string>
+    <string name="support_err_generic">ஏதோ தவறு நடந்தது. மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="support_err_no_category">இது எதைப் பற்றியது எனத் தேர்ந்தெடுக்கவும்.</string>
+    <string name="support_from_school">பள்ளி</string>
+    <string name="support_from_you">நீங்கள்</string>
+    <string name="support_loading">உங்கள் டிக்கெட்டுகள் ஏற்றப்படுகின்றன…</string>
+    <string name="support_msg_count">%1$d செய்திகள்</string>
+    <string name="support_msg_count_one">1 செய்தி</string>
+    <string name="support_my_tickets">என் டிக்கெட்டுகள்</string>
+    <string name="support_new_ticket">புதிய டிக்கெட்</string>
+    <string name="support_no_messages">இதுவரை செய்திகள் இல்லை.</string>
+    <string name="support_photos_hint">அதிகபட்சம் 3 படங்கள். அனுப்பும் முன் சுருக்கப்படும்.</string>
+    <string name="support_pick_category">இது எதைப் பற்றியது?</string>
+    <string name="support_raise">டிக்கெட் பதிவு செய்</string>
+    <string name="support_remove_photo">படத்தை நீக்கு</string>
+    <string name="support_reply_hint">பதில் எழுதுங்கள்…</string>
+    <string name="support_resolved_banner">இந்த டிக்கெட் தீர்க்கப்பட்டது. பதிலளித்தால் மீண்டும் திறக்கும்.</string>
+    <string name="support_retry">மீண்டும் முயற்சி</string>
+    <string name="support_send">பள்ளிக்கு அனுப்பு</string>
+    <string name="support_send_reply">அனுப்பு</string>
+    <string name="support_sending">அனுப்பப்படுகிறது…</string>
+    <string name="support_sent">அனுப்பப்பட்டது. பள்ளி இங்கேயே பதிலளிக்கும்.</string>
+    <string name="support_status_assigned">நடைபெறுகிறது</string>
+    <string name="support_status_closed">மூடப்பட்டது</string>
+    <string name="support_status_open">திறந்துள்ளது</string>
+    <string name="support_status_reopened">மீண்டும் திறக்கப்பட்டது</string>
+    <string name="support_status_resolved">தீர்க்கப்பட்டது</string>
+    <string name="support_subject">தலைப்பு (விருப்பத்திற்குரியது)</string>
+    <string name="support_subject_hint">சுருக்கமான சுருக்கம்</string>
+    <string name="support_system_note">புதுப்பிப்பு</string>
+    <string name="support_thread_title">டிக்கெட்</string>
+    <string name="support_ticket_number">#%1$d</string>
+    <string name="support_title">உதவி</string>
+</resources>

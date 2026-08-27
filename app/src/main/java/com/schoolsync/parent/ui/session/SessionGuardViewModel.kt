@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.schoolsync.parent.R
 
 /**
  * Mid-session enforcement for credential changes.
@@ -55,6 +58,9 @@ class SessionGuardViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val firebaseAuthManager: FirebaseAuthManager,
     private val firestoreService: FirestoreService,
+    // Resolves user-facing copy in the app's chosen language; the
+    // application Context is locale-wrapped by LocaleManager.
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     companion object { private const val TAG = "SessionGuard" }
@@ -80,7 +86,7 @@ class SessionGuardViewModel @Inject constructor(
                     ended = false            // fresh sign-in — re-arm the guard
                 } else if (tokenManager.isLoggedIn.first()) {
                     Log.w(TAG, "Firebase dropped currentUser while still signed in — ending session")
-                    end("Your session has ended. Please sign in again.")
+                    end(appContext.getString(R.string.vm_session_ended))
                 }
             }
         }
@@ -105,7 +111,7 @@ class SessionGuardViewModel @Inject constructor(
                 } catch (e: FirebaseAuthInvalidUserException) {
                     // Revoked / disabled / deleted — unrecoverable, end it.
                     Log.w(TAG, "token refresh rejected — ending session", e)
-                    end("Your session has ended. Please sign in again.")
+                    end(appContext.getString(R.string.vm_session_ended))
                     return@launch
                 } catch (e: Exception) {
                     // Offline or transient: keep the session rather than inventing
@@ -138,7 +144,7 @@ class SessionGuardViewModel @Inject constructor(
 
                 if (claimMustChange || docMustChange) {
                     Log.w(TAG, "password reset detected mid-session — ending session")
-                    end("Your password was reset by your school. Please sign in with your new password.")
+                    end(appContext.getString(R.string.vm_password_reset_by_school))
                 }
             } finally {
                 running = false

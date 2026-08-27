@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Support Desk — parent→school ticketing.
+
+  TRANSLATIONS OUTSTANDING. This app ships five locales (values-hi, -gu, -mr,
+  -ta, -te), each with 14 string files. None of them carry these keys yet.
+  Android falls back to values/ per-key, so nothing breaks — an untranslated
+  string simply appears in English — but a parent using the app in Marathi will
+  see an English support screen until a translator supplies the rest.
+
+  One string below is NOT a candidate for casual rewording: support_anon_note.
+  "Anonymous" would be a misrepresentation. The reporter's identity IS stored —
+  it has to be, or the school cannot reply and abuse cannot be rate-limited.
+  The promise being made is narrower: the name is not shown to school staff.
+  Say that, and only that.
+-->
+<resources>
+
+    <!-- ── navigation / titles ── -->
+    <string name="support_title">Support</string>
+    <string name="support_my_tickets">My tickets</string>
+    <string name="support_new_ticket">New ticket</string>
+    <string name="support_raise">Raise a ticket</string>
+    <string name="support_thread_title">Ticket</string>
+
+    <!-- ── list ── -->
+    <string name="support_empty_title">No tickets yet</string>
+    <string name="support_empty_body">Raise one if you need help with fees, transport, homework or anything else.</string>
+    <string name="support_loading">Loading your tickets…</string>
+    <string name="support_ticket_number">#%1$d</string>
+    <string name="support_awaiting_school">Waiting on the school</string>
+    <string name="support_awaiting_you">Waiting on you</string>
+    <string name="support_msg_count">%1$d messages</string>
+    <string name="support_msg_count_one">1 message</string>
+
+    <!-- ── status ── -->
+    <string name="support_status_open">Open</string>
+    <string name="support_status_assigned">In progress</string>
+    <string name="support_status_reopened">Reopened</string>
+    <string name="support_status_resolved">Resolved</string>
+    <string name="support_status_closed">Closed</string>
+
+    <!-- ── categories ── -->
+    <string name="support_cat_fees">Fees &amp; Payments</string>
+    <string name="support_cat_transport">Transport</string>
+    <string name="support_cat_academics">Academics &amp; Homework</string>
+    <string name="support_cat_attendance">Attendance</string>
+    <string name="support_cat_exams">Exams &amp; Results</string>
+    <string name="support_cat_certificates">Certificates &amp; Documents</string>
+    <string name="support_cat_health">Health &amp; Safety</string>
+    <string name="support_cat_app">App &amp; Login</string>
+    <string name="support_cat_conduct">Staff Conduct</string>
+    <string name="support_cat_other">Other</string>
+
+    <!-- ── compose ── -->
+    <string name="support_pick_category">What is this about?</string>
+    <string name="support_subject">Subject (optional)</string>
+    <string name="support_subject_hint">A short summary</string>
+    <string name="support_body">Tell the school what happened</string>
+    <string name="support_body_hint">Include anything that would help them find it — a receipt number, a date, a bus route.</string>
+    <string name="support_add_photo">Add photo</string>
+    <string name="support_photos_hint">Up to 3 photos. They are compressed before sending.</string>
+    <string name="support_remove_photo">Remove photo</string>
+    <string name="support_send">Send to school</string>
+    <string name="support_sending">Sending…</string>
+    <string name="support_sent">Sent. The school will reply here.</string>
+
+    <!-- See the header note. Do not shorten this to "anonymous". -->
+    <string name="support_anon_note">Your name is not shown to school staff on this report.</string>
+
+    <!-- ── thread ── -->
+    <string name="support_reply_hint">Write a reply…</string>
+    <string name="support_send_reply">Send</string>
+    <string name="support_from_school">School</string>
+    <string name="support_from_you">You</string>
+    <string name="support_system_note">Update</string>
+    <string name="support_resolved_banner">This ticket was resolved. Replying will reopen it.</string>
+    <string name="support_closed_banner">This ticket is closed. Raise a new one if you still need help.</string>
+    <string name="support_no_messages">No messages yet.</string>
+
+    <!-- ── errors ── -->
+    <string name="support_err_generic">Something went wrong. Please try again.</string>
+    <string name="support_err_body_short">Please describe the problem first.</string>
+    <string name="support_err_no_category">Choose what this is about.</string>
+    <string name="support_retry">Try again</string>
+
+</resources>

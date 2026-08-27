@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings hidden from the audit by the escape-sequence / conditional detector holes. -->
+<resources>
+    <string name="common_hide">છુપાવો</string>
+    <string name="common_show">બતાવો</string>
+    <string name="common_collapse">સંકોચો</string>
+    <string name="common_expand">વિસ્તારો</string>
+    <string name="dash_wishing_year">તમારા આવનારા વર્ષ માટે શુભકામનાઓ 🎉</string>
+    <string name="fees_cleared">ચૂકવાયું</string>
+    <string name="fees_dues_fmt">બાકી: %1$s</string>
+    <string name="hw_redo_resubmit">ફરી કરો અને મોકલો ↻</string>
+    <string name="hw_mark_done">પૂર્ણ તરીકે ચિહ્નિત કરો ✓</string>
+    <string name="common_pending">બાકી</string>
+    <string name="profile_logout_msg">આગલી વખતે તમારે ફરીથી સાઇન ઇન કરવું પડશે.</string>
+    <string name="profile_version_fmt">સંસ્કરણ %1$s · બિલ્ડ %2$s</string>
+    <string name="profile_copyright">© 2026 ZenXii. ભારતીય શાળાઓ માટે બનાવ્યું.</string>
+    <string name="wt_desc_monitor">તમારા બાળકની હાજરી, ગ્રેડ અને\nશૈક્ષણિક પ્રદર્શન રિયલ-ટાઇમમાં જુઓ.</string>
+    <string name="wt_desc_notify">સૂચનાઓ, ગૃહકાર્ય અને શાળાના\nકાર્યક્રમોની તરત જાણ મેળવો.</string>
+    <string name="wt_desc_fees">ફી વિગતો જુઓ, ચુકવણી ટ્રૅક કરો\nઅને કોઈ સમયમર્યાદા ચૂકશો નહીં.</string>
+    <string name="wt_next">આગળ</string>
+    <string name="story_unmute">અવાજ ચાલુ કરો</string>
+    <string name="story_mute">અવાજ બંધ કરો</string>
+    <string name="tt_lunch">ભોજન વિરામ</string>
+    <string name="tt_break">વિરામ</string>
+    <string name="tt_week">અઠવાડિયું</string>
+    <string name="tt_live">ચાલુ</string>
+    <string name="tt_completed">પૂર્ણ</string>
+    <string name="tt_quote">“તમારાં કામ તૈયાર કરીને આવો.”</string>
+</resources>

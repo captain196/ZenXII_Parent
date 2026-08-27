@@ -116,6 +116,7 @@ import com.schoolsync.parent.ui.theme.AppColors
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
+import com.schoolsync.parent.util.DisplayFormat
 
 /**
  * Smart rupee formatter — prints whole rupees without trailing zeros
@@ -1768,7 +1769,10 @@ private fun ClearanceItemRow(
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = if (isClear) "Cleared" else "Dues: Rs. ${"%,.0f".format(dues)}",
+                    text = // Currency goes through DisplayFormat so it renders as the app formats
+                        // every other amount — not a raw "Rs." with a %,.0f.
+                        if (isClear) stringResource(R.string.fees_cleared)
+                        else stringResource(R.string.fees_dues_fmt, DisplayFormat.currencyWhole(dues)),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (isClear) c.success else c.error
                 )
@@ -2339,7 +2343,7 @@ private fun DiscountsContent(
                             color = c.textSecondary
                         )
                         Text(
-                            "Scholarships, fee concessions and previous-year balances will appear here when applicable.",
+                            stringResource(R.string.fees_concessions_empty),
                             style = MaterialTheme.typography.labelSmall,
                             color = c.textTertiary,
                             textAlign = TextAlign.Center
@@ -2366,7 +2370,7 @@ private fun DiscountsContent(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Sibling discounts, hardship concessions and government scholarships are managed by the school office. Visit them with the supporting documents to apply.",
+                    stringResource(R.string.fees_concessions_info),
                     style = MaterialTheme.typography.labelMedium,
                     color = c.textSecondary
                 )

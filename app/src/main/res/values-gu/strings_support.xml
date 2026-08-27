@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ગુજરાતી · Gujarati
+     Support Desk (parent→school ticketing). Terminology follows the existing
+     locale files; format arguments (%1$d) are preserved EXACTLY.
+
+     ⚠ support_anon_note is legally sensitive. It must say that the NAME IS NOT
+     SHOWN TO SCHOOL STAFF — never "anonymous". The reporter's identity is
+     stored (the school must be able to reply, and abuse must be rate-limited),
+     so a translation implying true anonymity would be a misrepresentation.
+
+     MACHINE-ASSISTED, PENDING NATIVE REVIEW. -->
+<resources>
+    <string name="support_add_photo">ફોટો ઉમેરો</string>
+    <string name="support_anon_note">આ રિપોર્ટમાં તમારું નામ શાળાના સ્ટાફને દેખાડવામાં આવતું નથી.</string>
+    <string name="support_awaiting_school">શાળાની રાહ</string>
+    <string name="support_awaiting_you">તમારી રાહ</string>
+    <string name="support_body">શાળાને જણાવો કે શું થયું</string>
+    <string name="support_body_hint">જે કંઈ મદદરૂપ થાય તે લખો — રસીદ નંબર, તારીખ, બસ રૂટ.</string>
+    <string name="support_cat_academics">અભ્યાસ અને ગૃહકાર્ય</string>
+    <string name="support_cat_app">એપ અને લોગિન</string>
+    <string name="support_cat_attendance">હાજરી</string>
+    <string name="support_cat_certificates">પ્રમાણપત્રો અને દસ્તાવેજો</string>
+    <string name="support_cat_conduct">સ્ટાફ વર્તન</string>
+    <string name="support_cat_exams">પરીક્ષા અને પરિણામ</string>
+    <string name="support_cat_fees">ફી અને ચુકવણી</string>
+    <string name="support_cat_health">આરોગ્ય અને સલામતી</string>
+    <string name="support_cat_other">અન્ય</string>
+    <string name="support_cat_transport">પરિવહન</string>
+    <string name="support_closed_banner">આ ટિકિટ બંધ છે. હજી મદદ જોઈતી હોય તો નવી ટિકિટ નોંધાવો.</string>
+    <string name="support_empty_body">ફી, પરિવહન, ગૃહકાર્ય કે અન્ય કોઈ મદદ માટે ટિકિટ નોંધાવો.</string>
+    <string name="support_empty_title">હજી કોઈ ટિકિટ નથી</string>
+    <string name="support_err_body_short">કૃપા કરીને પહેલા સમસ્યા જણાવો.</string>
+    <string name="support_err_generic">કંઈક ખોટું થયું. કૃપા કરીને ફરી પ્રયાસ કરો.</string>
+    <string name="support_err_no_category">આ શેના વિશે છે તે પસંદ કરો.</string>
+    <string name="support_from_school">શાળા</string>
+    <string name="support_from_you">તમે</string>
+    <string name="support_loading">તમારી ટિકિટો લોડ થઈ રહી છે…</string>
+    <string name="support_msg_count">%1$d સંદેશા</string>
+    <string name="support_msg_count_one">1 સંદેશ</string>
+    <string name="support_my_tickets">મારી ટિકિટો</string>
+    <string name="support_new_ticket">નવી ટિકિટ</string>
+    <string name="support_no_messages">હજી કોઈ સંદેશ નથી.</string>
+    <string name="support_photos_hint">વધુમાં વધુ 3 ફોટા. મોકલતા પહેલા સંકુચિત થાય છે.</string>
+    <string name="support_pick_category">આ શેના વિશે છે?</string>
+    <string name="support_raise">ટિકિટ નોંધાવો</string>
+    <string name="support_remove_photo">ફોટો દૂર કરો</string>
+    <string name="support_reply_hint">જવાબ લખો…</string>
+    <string name="support_resolved_banner">આ ટિકિટ ઉકેલાઈ ગઈ છે. જવાબ આપશો તો તે ફરી ખૂલશે.</string>
+    <string name="support_retry">ફરી પ્રયાસ કરો</string>
+    <string name="support_send">શાળાને મોકલો</string>
+    <string name="support_send_reply">મોકલો</string>
+    <string name="support_sending">મોકલાઈ રહ્યું છે…</string>
+    <string name="support_sent">મોકલાઈ ગયું. શાળા અહીં જ જવાબ આપશે.</string>
+    <string name="support_status_assigned">પ્રગતિમાં</string>
+    <string name="support_status_closed">બંધ</string>
+    <string name="support_status_open">ખુલ્લી</string>
+    <string name="support_status_reopened">ફરી ખોલી</string>
+    <string name="support_status_resolved">ઉકેલાઈ</string>
+    <string name="support_subject">વિષય (વૈકલ્પિક)</string>
+    <string name="support_subject_hint">ટૂંકો સારાંશ</string>
+    <string name="support_system_note">અપડેટ</string>
+    <string name="support_thread_title">ટિકિટ</string>
+    <string name="support_ticket_number">#%1$d</string>
+    <string name="support_title">સહાય</string>
+</resources>

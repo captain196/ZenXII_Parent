@@ -314,7 +314,8 @@ class TimetableViewModel @Inject constructor(
             // Lunch heuristic: gap >= 20 min AND crosses 12pm, or gap >= 25 min.
             val crossesNoon = thisEnd.isBefore(LocalTime.NOON) && nextStart.isAfter(LocalTime.of(11, 30))
             val isLunchLike = gapMin >= 25 || (gapMin >= 20 && crossesNoon)
-            val label = if (isLunchLike) "Lunch" else "Break"
+            val label = if (isLunchLike) appContext.getString(R.string.tt_lunch)
+                        else appContext.getString(R.string.tt_break)
 
             val timeLabel = "${formatTimeLabel(thisEnd)} - ${formatTimeLabel(nextStart)}"
             result.add(

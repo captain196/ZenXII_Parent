@@ -838,7 +838,7 @@ private fun TopChrome(
                         IconButton(onClick = onToggleMute) {
                             Icon(
                                 imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                                contentDescription = if (isMuted) "Unmute" else "Mute",
+                                contentDescription = if (isMuted) stringResource(R.string.story_unmute) else stringResource(R.string.story_mute),
                                 tint = Color.White,
                                 modifier = Modifier.size(22.dp)
                             )

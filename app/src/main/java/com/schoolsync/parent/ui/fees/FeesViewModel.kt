@@ -449,7 +449,12 @@ class FeesViewModel @Inject constructor(
     private fun parsePaymentDate(dateStr: String): Long {
         if (dateStr.isBlank()) return 0L
         return try {
-            java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+            // Locale.ROOT, NOT getDefault(): dateStr is a SERVER-supplied
+            // "15 Mar 2026". Parsed under a Tamil/Telugu/Devanagari locale the
+            // month name does not match, parse() fails, and this returns 0L —
+            // so the row silently sinks to the bottom and the payment history
+            // sorts wrongly, with no error anywhere. A parse is always ROOT.
+            java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.ROOT)
                 .parse(dateStr)?.time ?: 0L
         } catch (_: Exception) {
             0L

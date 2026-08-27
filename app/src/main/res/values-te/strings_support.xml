@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- తెలుగు · Telugu
+     Support Desk (parent→school ticketing). Terminology follows the existing
+     locale files; format arguments (%1$d) are preserved EXACTLY.
+
+     ⚠ support_anon_note is legally sensitive. It must say that the NAME IS NOT
+     SHOWN TO SCHOOL STAFF — never "anonymous". The reporter's identity is
+     stored (the school must be able to reply, and abuse must be rate-limited),
+     so a translation implying true anonymity would be a misrepresentation.
+
+     MACHINE-ASSISTED, PENDING NATIVE REVIEW. -->
+<resources>
+    <string name="support_add_photo">ఫోటో జోడించు</string>
+    <string name="support_anon_note">ఈ ఫిర్యాదులో మీ పేరు పాఠశాల సిబ్బందికి చూపబడదు.</string>
+    <string name="support_awaiting_school">పాఠశాల కోసం వేచి ఉంది</string>
+    <string name="support_awaiting_you">మీ కోసం వేచి ఉంది</string>
+    <string name="support_body">ఏమి జరిగిందో పాఠశాలకు తెలియజేయండి</string>
+    <string name="support_body_hint">కనుగొనడానికి సహాయపడే ఏదైనా రాయండి — రసీదు నంబర్, తేదీ, బస్సు మార్గం.</string>
+    <string name="support_cat_academics">చదువు మరియు ఇంటిపని</string>
+    <string name="support_cat_app">యాప్ మరియు లాగిన్</string>
+    <string name="support_cat_attendance">హాజరు</string>
+    <string name="support_cat_certificates">ధృవపత్రాలు మరియు పత్రాలు</string>
+    <string name="support_cat_conduct">సిబ్బంది ప్రవర్తన</string>
+    <string name="support_cat_exams">పరీక్షలు మరియు ఫలితాలు</string>
+    <string name="support_cat_fees">రుసుము మరియు చెల్లింపులు</string>
+    <string name="support_cat_health">ఆరోగ్యం మరియు భద్రత</string>
+    <string name="support_cat_other">ఇతరం</string>
+    <string name="support_cat_transport">రవాణా</string>
+    <string name="support_closed_banner">ఈ టికెట్ మూసివేయబడింది. ఇంకా సహాయం కావాలంటే కొత్త టికెట్ నమోదు చేయండి.</string>
+    <string name="support_empty_body">రుసుము, రవాణా, ఇంటిపని లేదా ఇతర ఏ సహాయానికైనా టికెట్ నమోదు చేయండి.</string>
+    <string name="support_empty_title">ఇంకా టికెట్లు లేవు</string>
+    <string name="support_err_body_short">ముందుగా సమస్యను వివరించండి.</string>
+    <string name="support_err_generic">ఏదో తప్పు జరిగింది. దయచేసి మళ్లీ ప్రయత్నించండి.</string>
+    <string name="support_err_no_category">ఇది దేని గురించో ఎంచుకోండి.</string>
+    <string name="support_from_school">పాఠశాల</string>
+    <string name="support_from_you">మీరు</string>
+    <string name="support_loading">మీ టికెట్లు లోడ్ అవుతున్నాయి…</string>
+    <string name="support_msg_count">%1$d సందేశాలు</string>
+    <string name="support_msg_count_one">1 సందేశం</string>
+    <string name="support_my_tickets">నా టికెట్లు</string>
+    <string name="support_new_ticket">కొత్త టికెట్</string>
+    <string name="support_no_messages">ఇంకా సందేశాలు లేవు.</string>
+    <string name="support_photos_hint">గరిష్ఠంగా 3 ఫోటోలు. పంపే ముందు కుదించబడతాయి.</string>
+    <string name="support_pick_category">ఇది దేని గురించి?</string>
+    <string name="support_raise">టికెట్ నమోదు చేయండి</string>
+    <string name="support_remove_photo">ఫోటో తొలగించు</string>
+    <string name="support_reply_hint">బదులు రాయండి…</string>
+    <string name="support_resolved_banner">ఈ టికెట్ పరిష్కరించబడింది. బదులిస్తే మళ్లీ తెరవబడుతుంది.</string>
+    <string name="support_retry">మళ్లీ ప్రయత్నించండి</string>
+    <string name="support_send">పాఠశాలకు పంపు</string>
+    <string name="support_send_reply">పంపు</string>
+    <string name="support_sending">పంపుతోంది…</string>
+    <string name="support_sent">పంపబడింది. పాఠశాల ఇక్కడే బదులిస్తుంది.</string>
+    <string name="support_status_assigned">పురోగతిలో</string>
+    <string name="support_status_closed">మూసివేయబడింది</string>
+    <string name="support_status_open">తెరిచి ఉంది</string>
+    <string name="support_status_reopened">మళ్లీ తెరవబడింది</string>
+    <string name="support_status_resolved">పరిష్కరించబడింది</string>
+    <string name="support_subject">విషయం (ఐచ్ఛికం)</string>
+    <string name="support_subject_hint">సంక్షిప్త సారాంశం</string>
+    <string name="support_system_note">నవీకరణ</string>
+    <string name="support_thread_title">టికెట్</string>
+    <string name="support_ticket_number">#%1$d</string>
+    <string name="support_title">సహాయం</string>
+</resources>

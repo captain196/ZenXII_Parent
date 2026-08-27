@@ -708,7 +708,7 @@ private fun CollapseToggle(expanded: Boolean, onToggle: () -> Unit) {
     ) {
         Icon(
             Icons.Filled.KeyboardArrowDown,
-            contentDescription = if (expanded) "Collapse" else "Expand",
+            contentDescription = if (expanded) stringResource(R.string.common_collapse) else stringResource(R.string.common_expand),
             tint = c.textTertiary,
             modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = rotation }
         )
@@ -3297,7 +3297,7 @@ private fun BirthdayBanner(wardName: String) {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Wishing you a wonderful year ahead \uD83C\uDF89",
+                    text = stringResource(R.string.dash_wishing_year),
                     color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f),
                     fontSize = 12.sp
                 )

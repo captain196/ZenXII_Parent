@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings hidden from the audit by the escape-sequence / conditional detector holes. -->
+<resources>
+    <string name="common_hide">மறை</string>
+    <string name="common_show">காட்டு</string>
+    <string name="common_collapse">சுருக்கு</string>
+    <string name="common_expand">விரிவாக்கு</string>
+    <string name="dash_wishing_year">வரும் ஆண்டு சிறக்க வாழ்த்துக்கள் 🎉</string>
+    <string name="fees_cleared">செலுத்தப்பட்டது</string>
+    <string name="fees_dues_fmt">நிலுவை: %1$s</string>
+    <string name="hw_redo_resubmit">மீண்டும் செய்து சமர்ப்பி ↻</string>
+    <string name="hw_mark_done">முடிந்ததாகக் குறி ✓</string>
+    <string name="common_pending">நிலுவையில்</string>
+    <string name="profile_logout_msg">அடுத்த முறை மீண்டும் உள்நுழைய வேண்டும்.</string>
+    <string name="profile_version_fmt">பதிப்பு %1$s · பில்ட் %2$s</string>
+    <string name="profile_copyright">© 2026 ZenXii. இந்தியப் பள்ளிகளுக்காக உருவாக்கப்பட்டது.</string>
+    <string name="wt_desc_monitor">உங்கள் குழந்தையின் வருகை, தரங்கள்,\nகல்வித் திறனை நேரலையில் கண்காணிக்கவும்.</string>
+    <string name="wt_desc_notify">அறிவிப்புகள், வீட்டுப்பாடம், பள்ளி\nநிகழ்வுகள் குறித்து உடனடித் தகவல் பெறுங்கள்.</string>
+    <string name="wt_desc_fees">கட்டண விவரங்களைப் பார்த்து, செலுத்துதலைக் கண்காணித்து,\nஎந்தக் கெடுவையும் தவறவிடாதீர்கள்.</string>
+    <string name="wt_next">அடுத்து</string>
+    <string name="story_unmute">ஒலியை இயக்கு</string>
+    <string name="story_mute">ஒலியை அணை</string>
+    <string name="tt_lunch">மதிய உணவு</string>
+    <string name="tt_break">இடைவேளை</string>
+    <string name="tt_week">வாரம்</string>
+    <string name="tt_live">நடப்பில்</string>
+    <string name="tt_completed">முடிந்தது</string>
+    <string name="tt_quote">“உங்கள் பணிகளைத் தயாராக்கி வாருங்கள்.”</string>
+</resources>

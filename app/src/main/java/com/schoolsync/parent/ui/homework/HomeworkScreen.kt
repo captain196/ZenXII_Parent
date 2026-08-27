@@ -1405,7 +1405,7 @@ private fun HomeworkDetailPage(
                         // as a resubmit so the intent is unmistakable.
                         val isRedo = homework.studentStatus.lowercase().trim() == "incomplete"
                         Text(
-                            text = if (isRedo) "Redo & resubmit \u21bb" else "Mark as done \u2713",
+                            text = if (isRedo) stringResource(R.string.hw_redo_resubmit) else stringResource(R.string.hw_mark_done),
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )

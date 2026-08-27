@@ -23,7 +23,7 @@ import javax.inject.Inject
 
 data class MyLessonsUiState(
     val date: String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()),
-    val dayLabel: String = SimpleDateFormat("EEEE, d MMM", Locale.US).format(Date()),
+    val dayLabel: String = SimpleDateFormat("EEEE, d MMM"  /* i18n-ignore: date pattern */, Locale.US).format(Date()),
     val className: String = "",
     val section: String = "",
     val lessons: List<LessonPlanDoc> = emptyList(),
@@ -85,7 +85,7 @@ class MyLessonsViewModel @Inject constructor(
         if (iso == _ui.value.date) return
         val pretty = try {
             val d = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(iso) ?: Date()
-            SimpleDateFormat("EEEE, d MMM", Locale.US).format(d)
+            SimpleDateFormat("EEEE, d MMM"  /* i18n-ignore: date pattern */, Locale.US).format(d)
         } catch (_: Exception) { iso }
         _ui.update { it.copy(date = iso, dayLabel = pretty) }
         load()

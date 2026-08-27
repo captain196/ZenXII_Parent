@@ -308,6 +308,25 @@ object Constants {
 
         // Phase B (RTDB elimination): Student Red Flags
         const val STUDENT_FLAGS = "studentFlags"
+
+        // Support Desk P0 (2026-08-25) - parent-raised tickets.
+        // Doc key: {schoolId}_{ticketId}, e.g. SCH_D94FE8F7AD_TKT_01J8F2K9.
+        const val SUPPORT_TICKETS = "supportTickets"
+
+        // Thread messages. Firestore AUTO-IDs, ordered by createdAt -- a client
+        // cannot allocate a sequence number without a read-then-write race, and
+        // two people replying in the same second would silently overwrite.
+        const val SUPPORT_MESSAGES = "supportMessages"
+
+        // The three collections below are DENIED to every client by rules and are
+        // named here only so nobody re-invents them as string literals:
+        //   supportNotes            staff-internal notes; a separate collection
+        //                           rather than a private flag, so a rules mistake
+        //                           cannot expose staff commentary to the parent
+        //                           it is about.
+        //   supportCounters         ticketNo sequence + per-parent open count.
+        //   supportReporterIdentity reporter identity for anonymous lanes.
+        // The Parent app must never query them.
     }
 
     /** Attendance status character codes */

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings the position-based audit could not reach. -->
+<resources>
+    <string name="fees_concessions_empty">உதவித்தொகை, கட்டணச் சலுகைகள், முந்தைய ஆண்டு நிலுவை பொருந்தும்போது இங்கே தோன்றும்.</string>
+    <string name="fees_concessions_info">உடன்பிறப்பு தள்ளுபடி, சிரம சலுகை, அரசு உதவித்தொகை ஆகியவை பள்ளி அலுவலகத்தால் நிர்வகிக்கப்படுகின்றன. விண்ணப்பிக்க ஆவணங்களுடன் அங்கு செல்லவும்.</string>
+    <string name="pay_verify_back_note">நீங்கள் திரும்பிச் செல்லலாம் — சரிபார்ப்பு முடிந்ததும் உங்கள் ரசீது கட்டணப் பட்டியலில் தோன்றும்.</string>
+    <string name="pay_verify_safe_note">உங்கள் பணம் Razorpay-யுடன் பாதுகாப்பாக உள்ளது. பள்ளி சேவையகம் பதிலளித்ததும் ரசீது தோன்றும்.</string>
+    <string name="profile_about_private_prefix">தனிப்பட்டது — உங்கள் பள்ளியின் %1$s இல் சேமிக்கப்பட்ட தரவு</string>
+    <string name="vm_session_ended">உங்கள் அமர்வு முடிந்தது. மீண்டும் உள்நுழையவும்.</string>
+    <string name="vm_password_reset_by_school">உங்கள் கடவுச்சொல்லை உங்கள் பள்ளி மீட்டமைத்தது. புதிய கடவுச்சொல்லுடன் உள்நுழையவும்.</string>
+</resources>

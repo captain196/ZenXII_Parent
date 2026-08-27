@@ -400,7 +400,7 @@ private fun ViewModeToggle(
     ) {
         TimetableViewMode.entries.forEach { mode ->
             val isActive = mode == currentMode
-            val label = if (mode == TimetableViewMode.DAY) stringResource(R.string.field_day) else "Week"
+            val label = if (mode == TimetableViewMode.DAY) stringResource(R.string.field_day) else stringResource(R.string.tt_week)
 
             Box(
                 modifier = Modifier
@@ -786,7 +786,7 @@ private fun BreakRow(slot: TimetableSlot) {
             slot.breakLabel.equals("Lunch", ignoreCase = true) ||
             slot.subject.equals("Lunch", ignoreCase = true)
     val emoji = if (isLunch) "\uD83C\uDF71" else "\u2615"  // lunch box or coffee
-    val label = if (isLunch) "Lunch" else slot.breakLabel.ifBlank { "Break" }
+    val label = if (isLunch) stringResource(R.string.tt_lunch) else slot.breakLabel.ifBlank { stringResource(R.string.tt_break) }
     // Warm amber tint — distinct from subject colors but not loud.
     val breakTint = c.warning
     val bgTint = breakTint.copy(alpha = 0.10f)
@@ -948,7 +948,7 @@ private fun WeekGridView(
                         it.subject.equals("Lunch", ignoreCase = true)
                 }
                 val emoji = if (isLunch) "\uD83C\uDF71" else "\u2615"
-                val label = if (isLunch) "Lunch" else "Break"
+                val label = if (isLunch) stringResource(R.string.tt_lunch) else stringResource(R.string.tt_break)
                 val breakTint = c.warning
                 Row(
                     modifier = Modifier
@@ -1144,7 +1144,7 @@ private fun TimetableDetailPage(
                         Spacer(modifier = Modifier.width(6.dp))
                     }
                     Text(
-                        text = if (isLive) "Live" else "Completed",
+                        text = if (isLive) stringResource(R.string.tt_live) else stringResource(R.string.tt_completed),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (isLive) c.success else c.textSecondary
@@ -1273,7 +1273,7 @@ private fun TimetableDetailPage(
 
         // Teacher note (placeholder)
         Text(
-            text = "\"Come prepared with your assignments.\"",
+            text = stringResource(R.string.tt_quote),
             fontSize = 12.sp,
             fontStyle = FontStyle.Italic,
             color = c.textTertiary,

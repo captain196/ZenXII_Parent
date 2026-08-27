@@ -46,7 +46,9 @@ data class WalkthroughPage(
      * language the process happened to start in and survive recreate().
      */
     @StringRes val titleRes: Int,
-    val description: String
+    // Same reasoning as titleRes above — this list is a top-level val, so the
+    // description must be a resource id too, not a resolved String.
+    @StringRes val descriptionRes: Int
 )
 
 val parentPages = listOf(
@@ -54,19 +56,19 @@ val parentPages = listOf(
         icon = Icons.Filled.TrendingUp,
         iconBgBuilder = { c -> listOf(c.success, Color(0xFF16A34A)) },
         titleRes = R.string.splash_track_progress,
-        description = "Monitor your child's attendance, grades,\nand academic performance in real-time."
+        descriptionRes = R.string.wt_desc_monitor
     ),
     WalkthroughPage(
         icon = Icons.Filled.Notifications,
         iconBgBuilder = { c -> listOf(c.accent, c.accentSecondary) },
         titleRes = R.string.splash_stay_informed,
-        description = "Receive instant notifications about notices,\nhomework, and school events."
+        descriptionRes = R.string.wt_desc_notify
     ),
     WalkthroughPage(
         icon = Icons.Filled.AccountBalanceWallet,
         iconBgBuilder = { c -> listOf(c.purple, Color(0xFF7C3AED)) },
         titleRes = R.string.splash_manage_fees,
-        description = "View fee details, track payments,\nand never miss a deadline."
+        descriptionRes = R.string.wt_desc_fees
     )
 )
 
@@ -166,7 +168,7 @@ fun WalkthroughScreen(
                     contentPadding = PaddingValues(horizontal = 28.dp, vertical = 14.dp)
                 ) {
                     Text(
-                        text = if (isLastPage) stringResource(R.string.splash_get_started) else "Next",
+                        text = if (isLastPage) stringResource(R.string.splash_get_started) else stringResource(R.string.wt_next),
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp
                     )
@@ -232,7 +234,7 @@ private fun WalkthroughPageContent(page: WalkthroughPage, colors: AppColors) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = page.description,
+            text = stringResource(page.descriptionRes),
             fontSize = 16.sp,
             color = colors.textSecondary,
             textAlign = TextAlign.Center,

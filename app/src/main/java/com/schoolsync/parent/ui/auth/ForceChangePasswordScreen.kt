@@ -178,7 +178,7 @@ fun ForceChangePasswordScreen(
                         IconButton(onClick = viewModel::toggleNewVisibility) {
                             Icon(
                                 imageVector = if (uiState.newVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                contentDescription = if (uiState.newVisible) "Hide" else "Show",
+                                contentDescription = if (uiState.newVisible) stringResource(R.string.common_hide) else stringResource(R.string.common_show),
                                 tint = c.textSecondary,
                             )
                         }
@@ -206,7 +206,7 @@ fun ForceChangePasswordScreen(
                         IconButton(onClick = viewModel::toggleConfirmVisibility) {
                             Icon(
                                 imageVector = if (uiState.confirmVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                contentDescription = if (uiState.confirmVisible) "Hide" else "Show",
+                                contentDescription = if (uiState.confirmVisible) stringResource(R.string.common_hide) else stringResource(R.string.common_show),
                                 tint = c.textSecondary,
                             )
                         }

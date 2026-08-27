@@ -253,6 +253,12 @@ class SearchViewModel @Inject constructor(
                 "teachers", "teacher", "staff", "faculty", "contact"),
             feature(appContext.getString(R.string.rf_title), "🚩", Route.RedFlags.route,
                 "red flags", "flags", "discipline", "warning", "behaviour", "behavior"),
+            // Support Desk. Synonyms are deliberately wide: a parent looking for
+            // this will search for the PROBLEM ("complaint", "wrong fee") far
+            // more often than for the feature's name.
+            feature(appContext.getString(R.string.support_title), "🎫", Route.Support.route,
+                "support", "help", "helpdesk", "ticket", "tickets", "complaint",
+                "complain", "grievance", "issue", "problem", "query", "contact school"),
         )
     }
 }

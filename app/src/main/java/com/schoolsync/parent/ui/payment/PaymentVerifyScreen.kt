@@ -242,9 +242,9 @@ fun PaymentVerifyScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         if (allowBackEscape)
-                            "You can press back to leave — your receipt will appear in the Fees list once verification completes."
+                            stringResource(R.string.pay_verify_back_note)
                         else
-                            "Your payment is safe with Razorpay. The receipt will appear once the school server responds.",
+                            stringResource(R.string.pay_verify_safe_note),
                         style = MaterialTheme.typography.bodySmall,
                         color = c.textSecondary,
                         textAlign = TextAlign.Center,

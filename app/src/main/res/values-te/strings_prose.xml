@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings the position-based audit could not reach. -->
+<resources>
+    <string name="fees_concessions_empty">స్కాలర్‌షిప్‌లు, ఫీజు రాయితీలు, గత సంవత్సరపు బకాయిలు వర్తించినప్పుడు ఇక్కడ కనిపిస్తాయి.</string>
+    <string name="fees_concessions_info">తోబుట్టువుల రాయితీ, కష్ట రాయితీ, ప్రభుత్వ స్కాలర్‌షిప్‌లు పాఠశాల కార్యాలయం నిర్వహిస్తుంది. దరఖాస్తు కోసం పత్రాలతో అక్కడికి వెళ్లండి.</string>
+    <string name="pay_verify_back_note">మీరు వెనక్కి వెళ్లవచ్చు — ధృవీకరణ పూర్తయ్యాక మీ రసీదు ఫీజు జాబితాలో కనిపిస్తుంది.</string>
+    <string name="pay_verify_safe_note">మీ చెల్లింపు Razorpay తో సురక్షితం. పాఠశాల సర్వర్ స్పందించాక రసీదు కనిపిస్తుంది.</string>
+    <string name="profile_about_private_prefix">ప్రైవేట్ — మీ పాఠశాల %1$s లో నిల్వ చేసిన డేటా</string>
+    <string name="vm_session_ended">మీ సెషన్ ముగిసింది. దయచేసి మళ్లీ సైన్ ఇన్ చేయండి.</string>
+    <string name="vm_password_reset_by_school">మీ పాస్‌వర్డ్‌ను మీ పాఠశాల రీసెట్ చేసింది. దయచేసి కొత్త పాస్‌వర్డ్‌తో సైన్ ఇన్ చేయండి.</string>
+</resources>

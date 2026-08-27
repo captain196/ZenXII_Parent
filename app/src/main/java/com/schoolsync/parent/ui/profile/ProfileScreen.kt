@@ -254,7 +254,7 @@ fun ProfileScreen(
                         }
                         StatPill(
                             value = homeworkValue,
-                            label = if (uiState.homeworkLoaded && pending > 0) "Pending" else "Homework",
+                            label = if (uiState.homeworkLoaded && pending > 0) stringResource(R.string.common_pending) else stringResource(R.string.drawer_homework),
                             valueColor = c.purple,
                             bgColor = c.purpleBg,
                             modifier = Modifier.weight(1f),
@@ -313,7 +313,7 @@ fun ProfileScreen(
                             }
                             Icon(
                                 imageVector = if (profileExpanded) Icons.Filled.Visibility else Icons.Filled.ChevronRight,
-                                contentDescription = if (profileExpanded) "Collapse" else "Expand",
+                                contentDescription = if (profileExpanded) stringResource(R.string.common_collapse) else stringResource(R.string.common_expand),
                                 tint = c.textTertiary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -1079,7 +1079,7 @@ private fun LogoutDialog(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "You\u2019ll need to sign in again next time.",
+                text = stringResource(R.string.profile_logout_msg),
                 style = TextStyle(
                     fontSize = 13.sp,
                     color = c.textSecondary,
@@ -1369,7 +1369,7 @@ private fun AboutContent() {
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
-            text = "Version 1.0 \u00B7 Build 2026.04",
+            text = stringResource(R.string.profile_version_fmt, "1.0", "2026.04"),
             style = TextStyle(fontSize = 10.sp, color = c.textTertiary, letterSpacing = 0.3.sp)
         )
         Spacer(modifier = Modifier.height(10.dp))
@@ -1381,11 +1381,10 @@ private fun AboutContent() {
         AboutLine("\uD83D\uDCDD", stringResource(R.string.profile_about_realtime))
         AboutLine("\uD83D\uDCB3", stringResource(R.string.profile_about_payments))
         AboutLine("\uD83D\uDCE2", stringResource(R.string.profile_about_notices))
-        AboutLine("\uD83D\uDD10", "Private \u2014 data stored on your school's " +
-            stringResource(R.string.profile_about_privacy))
+        AboutLine("\uD83D\uDD10", stringResource(R.string.profile_about_private_prefix, stringResource(R.string.profile_about_privacy)))
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "\u00A9 2026 ZenXii. Built for Indian schools.",
+            text = stringResource(R.string.profile_copyright),
             style = TextStyle(fontSize = 10.sp, color = c.textTertiary)
         )
     }

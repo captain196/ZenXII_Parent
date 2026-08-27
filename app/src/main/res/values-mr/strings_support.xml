@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- मराठी · Marathi
+     Support Desk (parent→school ticketing). Terminology follows the existing
+     locale files; format arguments (%1$d) are preserved EXACTLY.
+
+     ⚠ support_anon_note is legally sensitive. It must say that the NAME IS NOT
+     SHOWN TO SCHOOL STAFF — never "anonymous". The reporter's identity is
+     stored (the school must be able to reply, and abuse must be rate-limited),
+     so a translation implying true anonymity would be a misrepresentation.
+
+     MACHINE-ASSISTED, PENDING NATIVE REVIEW. -->
+<resources>
+    <string name="support_add_photo">फोटो जोडा</string>
+    <string name="support_anon_note">या तक्रारीत तुमचे नाव शाळेच्या कर्मचाऱ्यांना दाखवले जात नाही.</string>
+    <string name="support_awaiting_school">शाळेची प्रतीक्षा</string>
+    <string name="support_awaiting_you">तुमची प्रतीक्षा</string>
+    <string name="support_body">शाळेला काय घडले ते सांगा</string>
+    <string name="support_body_hint">शोधण्यास मदत होईल असे काहीही लिहा — पावती क्रमांक, तारीख, बस मार्ग.</string>
+    <string name="support_cat_academics">अभ्यास आणि गृहपाठ</string>
+    <string name="support_cat_app">अ‍ॅप आणि लॉगिन</string>
+    <string name="support_cat_attendance">उपस्थिती</string>
+    <string name="support_cat_certificates">प्रमाणपत्रे आणि कागदपत्रे</string>
+    <string name="support_cat_conduct">कर्मचारी वर्तन</string>
+    <string name="support_cat_exams">परीक्षा आणि निकाल</string>
+    <string name="support_cat_fees">शुल्क आणि भरणा</string>
+    <string name="support_cat_health">आरोग्य आणि सुरक्षा</string>
+    <string name="support_cat_other">इतर</string>
+    <string name="support_cat_transport">वाहतूक</string>
+    <string name="support_closed_banner">हे तिकीट बंद आहे. अजूनही मदत हवी असल्यास नवीन तिकीट नोंदवा.</string>
+    <string name="support_empty_body">शुल्क, वाहतूक, गृहपाठ किंवा इतर कोणत्याही मदतीसाठी तिकीट नोंदवा.</string>
+    <string name="support_empty_title">अजून कोणतेही तिकीट नाही</string>
+    <string name="support_err_body_short">कृपया आधी समस्या सांगा.</string>
+    <string name="support_err_generic">काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा.</string>
+    <string name="support_err_no_category">हे कशाबद्दल आहे ते निवडा.</string>
+    <string name="support_from_school">शाळा</string>
+    <string name="support_from_you">तुम्ही</string>
+    <string name="support_loading">तुमची तिकिटे लोड होत आहेत…</string>
+    <string name="support_msg_count">%1$d संदेश</string>
+    <string name="support_msg_count_one">1 संदेश</string>
+    <string name="support_my_tickets">माझी तिकिटे</string>
+    <string name="support_new_ticket">नवीन तिकीट</string>
+    <string name="support_no_messages">अजून कोणताही संदेश नाही.</string>
+    <string name="support_photos_hint">जास्तीत जास्त 3 फोटो. पाठवण्यापूर्वी संकुचित केले जातात.</string>
+    <string name="support_pick_category">हे कशाबद्दल आहे?</string>
+    <string name="support_raise">तिकीट नोंदवा</string>
+    <string name="support_remove_photo">फोटो काढा</string>
+    <string name="support_reply_hint">उत्तर लिहा…</string>
+    <string name="support_resolved_banner">हे तिकीट सोडवले गेले आहे. उत्तर दिल्यास ते पुन्हा उघडेल.</string>
+    <string name="support_retry">पुन्हा प्रयत्न करा</string>
+    <string name="support_send">शाळेला पाठवा</string>
+    <string name="support_send_reply">पाठवा</string>
+    <string name="support_sending">पाठवत आहे…</string>
+    <string name="support_sent">पाठवले. शाळा येथेच उत्तर देईल.</string>
+    <string name="support_status_assigned">प्रगतीत</string>
+    <string name="support_status_closed">बंद</string>
+    <string name="support_status_open">खुले</string>
+    <string name="support_status_reopened">पुन्हा उघडले</string>
+    <string name="support_status_resolved">सोडवले</string>
+    <string name="support_subject">विषय (ऐच्छिक)</string>
+    <string name="support_subject_hint">थोडक्यात सारांश</string>
+    <string name="support_system_note">अद्यतन</string>
+    <string name="support_thread_title">तिकीट</string>
+    <string name="support_ticket_number">#%1$d</string>
+    <string name="support_title">मदत</string>
+</resources>

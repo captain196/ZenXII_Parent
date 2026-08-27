@@ -82,6 +82,9 @@ import com.schoolsync.parent.ui.attendance.AttendanceScreen
 import com.schoolsync.parent.ui.search.SearchScreen
 import com.schoolsync.parent.ui.dashboard.DashboardScreen
 import com.schoolsync.parent.ui.events.EventDetailScreen
+import com.schoolsync.parent.ui.support.SupportComposeScreen
+import com.schoolsync.parent.ui.support.SupportListScreen
+import com.schoolsync.parent.ui.support.SupportThreadScreen
 import com.schoolsync.parent.ui.events.EventsScreen
 import com.schoolsync.parent.util.DeepLinkBridge
 import com.schoolsync.parent.ui.gallery.GalleryDetailScreen
@@ -109,6 +112,8 @@ import com.schoolsync.parent.ui.splash.WalkthroughScreen
 import com.schoolsync.parent.ui.stories.StoryViewer
 import com.schoolsync.parent.ui.stories.StoryViewModel
 import com.schoolsync.parent.ui.theme.LocalAppColors
+import androidx.compose.ui.platform.LocalContext
+import com.schoolsync.parent.util.LocaleManager
 
 // --- Route definitions ---
 
@@ -185,6 +190,17 @@ sealed class Route(val route: String) {
     /** Permanent entry: list all PTMs (upcoming + past) for the parent's child. */
     data object PtmList : Route("ptm_list")
     data object RedFlags : Route("red_flags")
+
+    // ── Support Desk ──────────────────────────────────────────────────
+    // Three routes: the parent's own tickets, the composer, and one thread.
+    // No student-picker route: this install logs a parent in AS the student,
+    // so there is nothing to choose between.
+    data object Support : Route("support")
+    data object SupportCompose : Route("support_compose")
+    data object SupportThread : Route("support_thread/{ticketId}") {
+        const val ARG_TICKET_ID = "ticketId"
+        fun createRoute(ticketId: String) = "support_thread/$ticketId"
+    }
     data object MyTeachers : Route("my_teachers")
     data object MyLessons : Route("my_lessons")
     data object StoryViewer : Route("story_viewer/{teacherId}") {
@@ -336,6 +352,28 @@ fun AppNavGraph(
             // routes onward and this screen is not shown again. onContinue
             // covers the case where the user keeps the pre-selected language and
             // no recreate happens.
+            // recreate() does NOT restart the graph at Splash: Navigation-Compose
+            // saves and restores its back stack across an Activity recreate, so
+            // this destination comes straight back — in the new language, with
+            // the user having to press Continue a second time to get anywhere.
+            // (Verified on device: first tap re-rendered this screen in Tamil,
+            // second tap finally reached Splash.)
+            //
+            // So detect the post-recreate pass explicitly. On first entry
+            // hasExplicitChoice() is false — Splash only routes here when it is
+            // — and the effect does nothing. After a language change it is true,
+            // and we route onward without asking again.
+            val langCtx = LocalContext.current
+            LaunchedEffect(Unit) {
+                if (LocaleManager.hasExplicitChoice(langCtx)) {
+                    navController.navigate(Route.Splash.route) {
+                        popUpTo(Route.LanguageSetup.route) { inclusive = true }
+                    }
+                }
+            }
+            // onContinue covers the case where the pre-selected language is kept
+            // and no recreate happens — routing back through Splash keeps the
+            // login/onboarding decision in one place.
             com.schoolsync.parent.ui.splash.LanguageSetupScreen(
                 onContinue = {
                     // Back to Splash, not straight to Walkthrough: where the
@@ -779,6 +817,39 @@ fun MainScreen(
                     onPtmClick = { ptmEventId ->
                         navController.navigate(Route.Ptm.createRoute(ptmEventId))
                     }
+                )
+            }
+
+            // ── Support Desk ──────────────────────────────────────────
+            composable(Route.Support.route) {
+                SupportListScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenTicket = { id -> navController.navigate(Route.SupportThread.createRoute(id)) },
+                    onCompose = { navController.navigate(Route.SupportCompose.route) }
+                )
+            }
+
+            composable(Route.SupportCompose.route) {
+                SupportComposeScreen(
+                    onBack = { navController.popBackStack() },
+                    // Replace the composer in the back stack with the thread, so
+                    // Back from a freshly-raised ticket lands on the list rather
+                    // than reopening an empty form.
+                    onSent = { id ->
+                        navController.navigate(Route.SupportThread.createRoute(id)) {
+                            popUpTo(Route.SupportCompose.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            composable(
+                route = Route.SupportThread.route,
+                arguments = listOf(navArgument(Route.SupportThread.ARG_TICKET_ID) { type = NavType.StringType })
+            ) { backStackEntry ->
+                SupportThreadScreen(
+                    ticketId = backStackEntry.arguments?.getString(Route.SupportThread.ARG_TICKET_ID) ?: "",
+                    onBack = { navController.popBackStack() }
                 )
             }
 
