@@ -188,12 +188,19 @@ private fun TicketRow(
             color = c.textPrimary,
             fontWeight = FontWeight.SemiBold
         )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            vm.categoryLabel(t.category),
-            style = MaterialTheme.typography.bodySmall,
-            color = c.textSecondary
-        )
+        // The category line is redundant when the subject IS the category: a
+        // blank subject is backfilled with the category label on create (see
+        // SupportViewModel), deliberately, so the panel's triage queue has no
+        // blank rows. That leaves the card printing the same words twice.
+        val categoryLabel = vm.categoryLabel(t.category)
+        if (!t.subject.equals(categoryLabel, ignoreCase = true)) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                categoryLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = c.textSecondary
+            )
+        }
     }
 }
 
@@ -204,6 +211,11 @@ private fun TicketRow(
  * they are stored separately in the first place.
  */
 private fun isAwaitingSchool(t: SupportTicketDoc): Boolean {
+    // A resolved or closed ticket is not waiting on anybody. Without this the
+    // card told a parent the school still owed them a reply on a ticket that
+    // had already been closed — the timestamps alone cannot say that, because
+    // the parent legitimately spoke last. Caught on device UAT 2026-08-29.
+    if (t.status == "closed" || t.status == "resolved") return false
     val parent = millisOf(t.lastParentReplyAt) ?: return false
     val staff = millisOf(t.lastStaffReplyAt)
     return staff == null || parent > staff

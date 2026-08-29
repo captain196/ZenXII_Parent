@@ -83,12 +83,22 @@ fun SupportThreadScreen(
                         fontWeight = FontWeight.Bold
                     )
                     ticket?.let {
-                        Text(
-                            viewModel.categoryLabel(it.category) +
-                                if (it.ticketNo > 0) "  ·  #${it.ticketNo}" else "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = c.textSecondary
-                        )
+                        // Drop the category when it merely repeats the title: a
+                        // blank subject is backfilled with the category label on
+                        // create, so the header otherwise reads the same words
+                        // twice. The ticket number is still worth showing.
+                        val cat = viewModel.categoryLabel(it.category)
+                        val num = if (it.ticketNo > 0) "#${it.ticketNo}" else ""
+                        val line = if (it.subject.equals(cat, ignoreCase = true)) num
+                                   else if (num.isEmpty()) cat
+                                   else "$cat  ·  $num"
+                        if (line.isNotEmpty()) {
+                            Text(
+                                line,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = c.textSecondary
+                            )
+                        }
                     }
                 }
             }
