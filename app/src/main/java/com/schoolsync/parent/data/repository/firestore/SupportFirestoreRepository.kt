@@ -228,6 +228,7 @@ class SupportFirestoreRepository @Inject constructor(
         index: Int
     ): Result<String> {
         val school = schoolId() ?: return Result.failure(IllegalStateException("Not signed in."))
+        val uid = userId() ?: return Result.failure(IllegalStateException("Not signed in."))
 
         val compressed = ImageCompressor.compress(context, uri).getOrElse { e ->
             return Result.failure(e)
@@ -235,7 +236,13 @@ class SupportFirestoreRepository @Inject constructor(
 
         val fileName = "$index.jpg"
         return try {
-            val ref = storage.reference.child("schools/$school/support/$ticketId/$fileName")
+            // The reporter id is a PATH SEGMENT, not decoration. Attachments are
+            // uploaded BEFORE the ticket document exists, so a storage rule has
+            // no ticket to read ownership from — carrying the owner in the path
+            // is the only way "you may write only your own files" can be stated.
+            // Storage: schools/{schoolId}/support/{reporterId}/{ticketId}/{n}.jpg
+            // The panel rebuilds this same path from the ticket it authorised.
+            val ref = storage.reference.child("schools/$school/support/$uid/$ticketId/$fileName")
             // Content type is set explicitly rather than inferred: the panel
             // validates it server-side, and an unset type reads as
             // application/octet-stream and is refused.
