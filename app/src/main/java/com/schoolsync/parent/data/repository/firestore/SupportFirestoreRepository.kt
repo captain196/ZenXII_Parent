@@ -162,14 +162,23 @@ class SupportFirestoreRepository @Inject constructor(
     /**
      * The thread, oldest first.
      *
-     * Index 4: [schoolId, ticketId, createdAt ASC].
+     * Index 4: [schoolId, ticketId, reporterId, createdAt ASC].
+     *
+     * reporterId is NOT redundant with ticketId. Firestore evaluates a listen
+     * STATICALLY: the supportMessages read rule requires
+     * `resource.data.reporterId == request.auth.uid`, so the query must filter
+     * on reporterId too or Firestore cannot prove every match passes and
+     * rejects the whole listen with PERMISSION_DENIED. Found on device UAT
+     * 2026-08-28: the ticket created fine and the thread stayed empty.
      */
     fun observeMessages(ticketId: String): Flow<List<SupportMessageDoc>> = flow {
         val school = schoolId() ?: run { emit(emptyList()); return@flow }
+        val uid = userId() ?: run { emit(emptyList()); return@flow }
         emitAll(
             firestoreService.observeQuery(Constants.Firestore.SUPPORT_MESSAGES) { ref ->
                 ref.whereEqualTo("schoolId", school)
                     .whereEqualTo("ticketId", ticketId)
+                    .whereEqualTo("reporterId", uid)
                     .orderBy("createdAt", Query.Direction.ASCENDING)
                     .limit(200)
             }.map { snap -> snap.toObjects(SupportMessageDoc::class.java) }
