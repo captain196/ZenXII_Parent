@@ -7,6 +7,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
+import com.google.android.gms.tasks.Task
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
@@ -161,6 +162,35 @@ class FirestoreService @Inject constructor(
      * Creates or overwrites a document. When [merge] is `true` the write
      * behaves as a merge rather than a full overwrite.
      */
+    /**
+     * ENQUEUE a write and return its ack Task WITHOUT suspending.
+     *
+     * `ref.set()` places the mutation in Firestore's local queue synchronously;
+     * the Task it returns reports only the SERVER round-trip, which never
+     * completes while offline. [setDocument] suspends on that Task, so a caller
+     * racing it against a timeout gets a durable write but never reaches its own
+     * next line.
+     *
+     * That is not a hypothetical. The Support Desk composed a ticket by awaiting
+     * the ticket write and then writing the opening message. Offline, the await
+     * never returned, the timeout cancelled the coroutine, and the message was
+     * never ENQUEUED — the ticket synced later carrying none of what the parent
+     * had typed, while the UI reported success.
+     *
+     * Use this when several writes must all be queued before any of them is
+     * awaited. Enqueue order is preserved on sync, which matters when a later
+     * write's security rule depends on an earlier one having landed.
+     */
+    fun enqueueDocument(
+        collection: String,
+        docId: String,
+        data: Any,
+        merge: Boolean = false
+    ): Task<Void> {
+        val ref = firestore.collection(collection).document(docId)
+        return if (merge) ref.set(data, SetOptions.merge()) else ref.set(data)
+    }
+
     suspend fun setDocument(
         collection: String,
         docId: String,

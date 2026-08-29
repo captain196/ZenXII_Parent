@@ -2,6 +2,7 @@ package com.schoolsync.parent.data.repository.firestore
 
 import android.content.Context
 import android.net.Uri
+import com.google.android.gms.tasks.Task
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
@@ -308,17 +309,47 @@ class SupportFirestoreRepository @Inject constructor(
             "lastParentReplyAt" to now
         )
 
+        // Resolved BEFORE either enqueue. userName() suspends, and a suspension
+        // between the two enqueues is precisely what the caller's timeout can
+        // cancel — which would reintroduce the bug this fix exists to remove,
+        // just in a narrower window.
+        val senderName = userName()
+
         return try {
+            // BOTH writes are ENQUEUED before EITHER is awaited. This ordering is
+            // the whole fix, not a style choice.
+            //
+            // ref.set() queues the mutation locally and synchronously; the Task
+            // it returns reports only the server ack, which never arrives while
+            // offline. The previous shape awaited the ticket write and then
+            // wrote the message on the next line — so offline, the caller's 6s
+            // timeout cancelled the coroutine before that line was ever reached.
+            // The ticket synced later carrying none of what the parent typed,
+            // the draft was cleared, and the UI reported success. The parent
+            // believed they had been heard; the desk saw an empty ticket flagged
+            // "awaiting us".
+            //
             // set() with a known key, not add(): the id was minted when the
             // screen opened, so a retry overwrites rather than duplicating.
-            firestoreService.setDocument(
+            //
+            // ORDER MATTERS. The supportMessages create rule requires the ticket
+            // to exist (exists() + get() on it), and Firestore replays queued
+            // mutations in enqueue order. The ticket must therefore be queued
+            // first — which is why this is two explicit calls rather than two
+            // coroutines that could race.
+            val ticketAck = firestoreService.enqueueDocument(
                 Constants.Firestore.SUPPORT_TICKETS,
                 docId(school, ticketId),
                 ticket
             )
             // The opening message carries the body. The ticket holds the
             // subject; the thread holds what was actually said.
-            appendMessage(ticketId, body).getOrThrow()
+            val messageAck = enqueueMessage(school, uid, senderName, ticketId, body)
+
+            // Both are durable from here. Awaiting only reports the server ack;
+            // a caller timing this out still loses nothing.
+            ticketAck.await()
+            messageAck.await()
             Result.success(ticketId)
         } catch (e: Exception) {
             Result.failure(e)
@@ -361,15 +392,47 @@ class SupportFirestoreRepository @Inject constructor(
             // document id, only on its CONTENTS. What matters is that it is not
             // a computed sequence: two people replying in the same second must
             // not land on the same key.
-            firestoreService.setDocument(
+            firestoreService.enqueueDocument(
                 Constants.Firestore.SUPPORT_MESSAGES,
                 newMessageId(),
                 msg
-            )
+            ).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /**
+     * Queue a parent message and hand back its ack Task WITHOUT awaiting.
+     *
+     * Exists so createTicket can get the opening message into the local write
+     * queue before it blocks on anything. Same document shape as
+     * [appendMessage] — see the note there on why the id is random.
+     */
+    private fun enqueueMessage(
+        school: String,
+        uid: String,
+        senderName: String,
+        ticketId: String,
+        body: String
+    ): Task<Void> {
+        val msg = mapOf(
+            "schoolId" to school,
+            "ticketId" to ticketId,
+            "reporterId" to uid,
+            "senderType" to "parent",
+            "senderId" to uid,
+            "senderName" to senderName,
+            "body" to body,
+            "attachments" to emptyList<String>(),
+            "createdAt" to FieldValue.serverTimestamp()
+        )
+        return firestoreService.enqueueDocument(
+            Constants.Firestore.SUPPORT_MESSAGES,
+            newMessageId(),
+            msg
+        )
     }
 
     /** Human label for a category key. */
