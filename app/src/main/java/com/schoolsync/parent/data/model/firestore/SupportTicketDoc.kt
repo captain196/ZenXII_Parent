@@ -1,6 +1,7 @@
 package com.schoolsync.parent.data.model.firestore
 
 import com.google.firebase.firestore.DocumentId
+import com.google.firebase.firestore.PropertyName
 
 /**
  * A support ticket, as the Parent app sees it.
@@ -56,7 +57,15 @@ data class SupportTicketDoc(
      * or the school cannot reply and abuse cannot be rate-limited. This flag
      * only means "do not show my name to school staff", and the app copy must
      * say exactly that rather than the word "anonymous".
+     *
+     * [PropertyName] is load-bearing, exactly as on SubjectAssignmentDoc's
+     * isClassTeacher: Kotlin's `is`-prefix Boolean convention makes Firestore's
+     * CustomClassMapper look for `anonymous`, so the field written as
+     * `isAnonymous` silently reads back as false. Caught on device UAT
+     * 2026-08-28 via `No setter/field for isAnonymous`. Without this the
+     * confidential lane would render a pseudonymous ticket as attributed.
      */
+    @get:PropertyName("isAnonymous")
     val isAnonymous: Boolean = false,
 
     /** open | assigned | reopened | resolved | closed. Server-owned after create. */
