@@ -16,6 +16,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +56,11 @@ fun SupportComposeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val c = LocalAppColors.current
     val scroll = rememberScrollState()
+
+    var showConductRoute by rememberSaveable { mutableStateOf(false) }
+    if (showConductRoute) {
+        ConductRouteDialog(onDismiss = { showConductRoute = false })
+    }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(SupportFirestoreRepository.MAX_ATTACHMENTS)
@@ -119,7 +129,17 @@ fun SupportComposeScreen(
                     selected = uiState.category,
                     label = viewModel::categoryLabel,
                     colors = c,
-                    onSelect = viewModel::updateCategory
+                    onSelect = { key ->
+                        // "conduct" does NOT compose a ticket. v1 has no
+                        // confidential lane, so a report about a staff member
+                        // would land in the ordinary queue, attributed and
+                        // readable by anyone holding the Support module — which
+                        // can include the person being reported. Route to a
+                        // person instead of advertising a discretion we cannot
+                        // provide. See ConductContactViewModel.
+                        if (key == CONDUCT_CATEGORY) showConductRoute = true
+                        else viewModel.updateCategory(key)
+                    }
                 )
 
                 Spacer(Modifier.height(18.dp))
@@ -253,4 +273,122 @@ private fun FlowCategoryPicker(
             }
         }
     }
+}
+
+/** Category id that routes to a person instead of composing a ticket. */
+private const val CONDUCT_CATEGORY = "conduct"
+
+/**
+ * Where a concern about a member of staff actually goes.
+ *
+ * Writes nothing. Height-capped and scrollable so it survives a small screen and
+ * landscape, per the app's local rule about dialogs.
+ */
+@Composable
+private fun ConductRouteDialog(
+    onDismiss: () -> Unit,
+    viewModel: ConductContactViewModel = hiltViewModel()
+) {
+    val c = LocalAppColors.current
+    val context = LocalContext.current
+    val contact by viewModel.contact.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) { viewModel.load() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = c.bgMid,
+        title = {
+            Text(
+                stringResource(R.string.conduct_route_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = c.textPrimary
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 380.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    stringResource(R.string.conduct_route_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = c.textSecondary
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.conduct_route_not_logged),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = c.textSecondary
+                )
+
+                Spacer(Modifier.height(18.dp))
+
+                when {
+                    contact.isLoading -> Text(
+                        stringResource(R.string.conduct_route_loading),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = c.textSecondary
+                    )
+
+                    contact.isEmpty -> Text(
+                        stringResource(R.string.conduct_route_fallback),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = c.textPrimary
+                    )
+
+                    else -> {
+                        Text(
+                            stringResource(R.string.conduct_route_contact_label),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = c.textSecondary
+                        )
+                        if (contact.name.isNotBlank()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                contact.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = c.textPrimary
+                            )
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        Row {
+                            if (contact.phone.isNotBlank()) {
+                                TextButton(onClick = {
+                                    runCatching {
+                                        context.startActivity(
+                                            // fromParts keeps the number OPAQUE — never re-parsed as a URI.
+                                            Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", contact.phone, null))
+                                        )
+                                    }
+                                }) { Text(stringResource(R.string.conduct_route_call)) }
+                            }
+                            if (contact.email.isNotBlank()) {
+                                TextButton(onClick = {
+                                    runCatching {
+                                        context.startActivity(
+                                            // Opaque ssp + a sanitised address: no mailto query params can be smuggled in.
+                                            Intent(Intent.ACTION_SENDTO, Uri.fromParts("mailto", contact.email, null))
+                                                .putExtra(
+                                                    Intent.EXTRA_SUBJECT,
+                                                    context.getString(R.string.conduct_route_email_subject)
+                                                )
+                                        )
+                                    }
+                                }) { Text(stringResource(R.string.conduct_route_email)) }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.conduct_route_close))
+            }
+        }
+    )
 }

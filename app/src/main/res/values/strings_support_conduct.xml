@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Support Desk — the Staff Conduct route.
+
+  These strings back a screen that deliberately does NOT create a ticket.
+
+  Why: a report about a member of staff written into the ordinary support queue
+  is readable by every staff member who holds the Support module — which can
+  include the person being reported. Until the confidential lane exists (rules,
+  panel and the push payload are all already built for it; only the writing half
+  and a restricted triage surface are missing), routing the parent to a named
+  person is the only honest option.
+
+  Two rules for anyone editing this copy:
+
+  1. Do not promise confidentiality. We can say the report does not go into the
+     support queue, because that is a fact about our system. We cannot promise
+     what the school does with a phone call.
+  2. Do not use the word "anonymous". The parent is speaking to a person; they
+     are not anonymous to them. See the same note on support_anon_note.
+
+  SEPARATE FILE ON PURPOSE: strings_support.xml is being edited concurrently by
+  the localisation pass. Android merges every values/*.xml, so keeping these
+  here avoids a collision. Translations still outstanding for the five locales.
+-->
+<resources>
+
+    <string name="conduct_route_title">Reporting a staff member</string>
+
+    <!-- Factual about our system, not a promise about the school's process. -->
+    <string name="conduct_route_body">Concerns about a member of staff are not handled through the support desk. Please speak to the school\'s designated contact directly.</string>
+
+    <string name="conduct_route_not_logged">Nothing here is saved as a support ticket.</string>
+
+    <string name="conduct_route_contact_label">Who to contact</string>
+    <string name="conduct_route_loading">Finding the right contact…</string>
+
+    <!-- Shown when the school has configured no contact and has no phone or
+         email on file. Never leave the parent with a dead end. -->
+    <string name="conduct_route_fallback">Ask at the school office for the principal or the designated grievance officer.</string>
+
+    <string name="conduct_route_call">Call</string>
+    <string name="conduct_route_email">Email</string>
+    <string name="conduct_route_close">Close</string>
+
+    <!-- Prefilled subject when the parent taps Email. Deliberately vague: the
+         subject line of an email is the least private part of it. -->
+    <string name="conduct_route_email_subject">Concern about a staff member</string>
+
+</resources>
