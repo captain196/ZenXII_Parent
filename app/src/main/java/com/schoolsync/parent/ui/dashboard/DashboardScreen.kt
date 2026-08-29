@@ -73,6 +73,7 @@ import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.LocationOn
@@ -182,6 +183,7 @@ fun DashboardScreen(
     onNavigateToPtmList: () -> Unit = {},
     onNavigateToGallery: () -> Unit = {},
     onNavigateToRedFlags: () -> Unit = {},
+    onNavigateToSupport: () -> Unit = {},
     onNavigateToLibrary: () -> Unit = {},
     onNavigateToMyTeachers: () -> Unit = {},
     onNavigateToStoryViewer: (String) -> Unit = {},
@@ -245,6 +247,7 @@ fun DashboardScreen(
                 onLibrary    = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "library"); onNavigateToLibrary() },
                 onMyTeachers = { scope.launch { drawerState.close() }; onNavigateToMyTeachers() },
                 onRedFlags   = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "redflags"); onNavigateToRedFlags() },
+                onSupport    = { scope.launch { drawerState.close() }; recordFeatureUse(context, uiState.user?.userId.orEmpty(), "support"); onNavigateToSupport() },
                 onProfile    = { scope.launch { drawerState.close() }; onNavigateToProfile() }
             )
         }
@@ -2807,6 +2810,7 @@ private fun DrawerContent(
     onLibrary: () -> Unit,
     onMyTeachers: () -> Unit,
     onRedFlags: () -> Unit,
+    onSupport: () -> Unit,
     onProfile: () -> Unit
 ) {
     val c = LocalAppColors.current
@@ -2860,6 +2864,7 @@ private fun DrawerContent(
             Triple(Icons.Filled.LocalLibrary,  stringResource(R.string.drawer_library),    onLibrary),
             Triple(Icons.Filled.School,        stringResource(R.string.drawer_my_teachers),onMyTeachers),
             Triple(Icons.Filled.Flag,          stringResource(R.string.drawer_alerts),     onRedFlags),
+            Triple(Icons.Filled.SupportAgent,  stringResource(R.string.support_title),     onSupport),
             Triple(Icons.Filled.Person,        stringResource(R.string.drawer_profile),    onProfile)
         )
         Column(

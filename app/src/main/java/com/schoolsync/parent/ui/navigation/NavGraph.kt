@@ -593,6 +593,7 @@ fun MainScreen(
                     onNavigateToPtmList = { navController.navigate(Route.PtmList.route) },
                     onNavigateToGallery = { navController.navigate(Route.Gallery.route) },
                     onNavigateToRedFlags = { navController.navigate(Route.RedFlags.route) },
+                    onNavigateToSupport = { navController.navigate(Route.Support.route) },
                     onNavigateToLibrary = { navController.navigate(Route.Library.route) },
                     onNavigateToMyTeachers = { navController.navigate(Route.MyTeachers.route) },
                     onNavigateToStoryViewer = { teacherId -> storyViewerTeacherId = teacherId },
