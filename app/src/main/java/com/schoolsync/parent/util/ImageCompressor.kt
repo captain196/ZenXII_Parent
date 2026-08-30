@@ -88,11 +88,19 @@ object ImageCompressor {
                 }.getOrNull() ?: -1L
 
                 // Pass 1 — bounds only. Nothing is allocated for the pixels.
+                //
+                // The stream must be opened into its own local BEFORE decoding.
+                // Writing this as `openInputStream(uri)?.use { decodeStream(...) }
+                // ?: fail` tests the wrong value: `use` yields the LAMBDA's result,
+                // and with inJustDecodeBounds the decoder returns null BY CONTRACT
+                // even on a perfectly good image — so the elvis fired every time and
+                // every attachment failed with "Could not open that image."
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+                val boundsStream = resolver.openInputStream(uri)
                     ?: return@withContext kotlin.Result.failure(
                         IllegalStateException("Could not open that image.")
                     )
+                boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
                 if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
                     return@withContext kotlin.Result.failure(
                         IllegalStateException("That file is not an image we can read.")
