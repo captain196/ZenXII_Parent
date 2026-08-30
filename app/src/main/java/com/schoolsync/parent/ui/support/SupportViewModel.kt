@@ -34,6 +34,10 @@ data class SupportUiState(
     val activeTicket: SupportTicketDoc? = null,
     val messages: List<SupportMessageDoc> = emptyList(),
     val isThreadLoading: Boolean = false,
+    // Resolved download URLs for THIS ticket's attachments, in the ticket's own
+    // order. Empty until resolved, and stays empty for any that fail — a photo
+    // that will not load must not blank the thread it belongs to.
+    val attachmentUrls: List<String> = emptyList(),
 
     // ── compose ──
     // Captured when the composer opens, NOT read at submit. The app has an
@@ -157,16 +161,53 @@ class SupportViewModel @Inject constructor(
     // ── thread ───────────────────────────────────────────────────────────────
 
     fun openTicket(ticketId: String) {
-        _uiState.update { it.copy(isThreadLoading = true, activeTicket = null, messages = emptyList()) }
+        _uiState.update {
+            it.copy(
+                isThreadLoading = true, activeTicket = null,
+                messages = emptyList(), attachmentUrls = emptyList()
+            )
+        }
+        resolvedFor = null
         viewModelScope.launch {
             repository.observeTicket(ticketId)
                 .catch { e -> _uiState.update { it.copy(isThreadLoading = false, errorMessage = friendly(e)) } }
-                .collect { t -> _uiState.update { it.copy(activeTicket = t, isThreadLoading = false) } }
+                .collect { t ->
+                    _uiState.update { it.copy(activeTicket = t, isThreadLoading = false) }
+                    // observeTicket re-emits on every ticket write (a reply moves
+                    // lastMessageAt). Resolving on each emission would re-sign the
+                    // same objects repeatedly, so key the work to the filename list.
+                    val names = t?.attachments.orEmpty()
+                    val key = ticketId + '|' + names.joinToString(",")
+                    if (names.isNotEmpty() && key != resolvedFor) {
+                        resolvedFor = key
+                        resolveAttachments(ticketId, names)
+                    }
+                }
         }
         viewModelScope.launch {
             repository.observeMessages(ticketId)
                 .catch { e -> _uiState.update { it.copy(errorMessage = friendly(e)) } }
                 .collect { m -> _uiState.update { it.copy(messages = m) } }
+        }
+    }
+
+    /** ticketId + filename list already resolved, so re-emissions are cheap. */
+    private var resolvedFor: String? = null
+
+    /**
+     * Resolve every attachment filename to a URL, keeping ticket order.
+     *
+     * Failures are dropped rather than propagated: an attachment that will not
+     * resolve is a missing thumbnail, not a broken thread. Nothing is surfaced
+     * as an error banner for the same reason — the parent came here to read the
+     * conversation.
+     */
+    private fun resolveAttachments(ticketId: String, names: List<String>) {
+        viewModelScope.launch {
+            val urls = names.mapNotNull { name ->
+                repository.attachmentUrl(ticketId, name).getOrNull()
+            }
+            _uiState.update { it.copy(attachmentUrls = urls) }
         }
     }
 

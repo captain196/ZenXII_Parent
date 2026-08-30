@@ -1,6 +1,9 @@
 package com.schoolsync.parent.ui.support
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,7 +17,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -111,6 +117,16 @@ fun SupportThreadScreen(
             }
             if (resolved) Banner(stringResource(R.string.support_resolved_banner), c.success, c.successBg)
             if (closed) Banner(stringResource(R.string.support_closed_banner), c.textSecondary, c.surfaceDark)
+
+            // What the parent themselves attached. Rendered from the TICKET, which
+            // is where the filenames live — not from the messages. Before this the
+            // sender had no way to see their own evidence had gone anywhere, and
+            // that is precisely what hid the upload being dead for the whole life
+            // of the module: a working upload and a broken one looked identical
+            // from this screen.
+            if (uiState.attachmentUrls.isNotEmpty()) {
+                AttachmentStrip(uiState.attachmentUrls, c)
+            }
 
             when {
                 uiState.isThreadLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
@@ -225,5 +241,55 @@ private fun MessageBubble(m: SupportMessageDoc, c: AppColors) {
                 .background(if (mine) c.accentBg else c.surfaceElevated)
                 .padding(12.dp)
         )
+    }
+}
+
+/**
+ * The parent's own attachments, as tappable thumbnails.
+ *
+ * Deliberately NOT lazy-loaded. The panel's copy of this strip was invisible for
+ * exactly that reason — `loading="lazy"` on images written into a container that
+ * was still hidden, which Chrome never schedules. There are at most three of
+ * these and they sit at the top of the thread, so laziness buys nothing and has
+ * already cost a release.
+ */
+@Composable
+private fun AttachmentStrip(urls: List<String>, c: AppColors) {
+    var zoomed by remember { mutableStateOf<String?>(null) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        urls.forEach { url ->
+            AsyncImage(
+                model = url,
+                contentDescription = stringResource(R.string.support_attachment_cd),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(c.surfaceDark)
+                    .clickable { zoomed = url }
+            )
+        }
+    }
+
+    zoomed?.let { url ->
+        Dialog(onDismissRequest = { zoomed = null }) {
+            AsyncImage(
+                model = url,
+                contentDescription = stringResource(R.string.support_attachment_cd),
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(c.surfaceElevated)
+                    .clickable { zoomed = null }
+            )
+        }
     }
 }

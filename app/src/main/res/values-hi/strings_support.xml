@@ -62,4 +62,5 @@
     <string name="support_thread_title">टिकट</string>
     <string name="support_ticket_number">#%1$d</string>
     <string name="support_title">सहायता</string>
+    <string name="support_attachment_cd">आपने भेजी गई फ़ोटो</string>
 </resources>

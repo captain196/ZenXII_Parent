@@ -62,4 +62,5 @@
     <string name="support_thread_title">టికెట్</string>
     <string name="support_ticket_number">#%1$d</string>
     <string name="support_title">సహాయం</string>
+    <string name="support_attachment_cd">మీరు పంపిన ఫోటో</string>
 </resources>

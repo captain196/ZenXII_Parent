@@ -255,6 +255,30 @@ class SupportFirestoreRepository @Inject constructor(
         }
     }
 
+    /**
+     * Resolve one of THIS ticket's attachment filenames to a download URL.
+     *
+     * The path is rebuilt here from the signed-in identity — school + uid — and
+     * never from anything the ticket document carries, so a tampered
+     * `attachments` entry cannot point the reader at another parent's object.
+     * `fileName` is the bare name the upload returned; the Storage rule then
+     * checks `uid == reporterId` on the path segment, which is what actually
+     * enforces ownership.
+     *
+     * Returns a failure rather than throwing: one unreadable attachment must not
+     * take down a thread the parent needs to read.
+     */
+    suspend fun attachmentUrl(ticketId: String, fileName: String): Result<String> {
+        val school = schoolId() ?: return Result.failure(IllegalStateException("Not signed in."))
+        val uid = userId() ?: return Result.failure(IllegalStateException("Not signed in."))
+        return try {
+            val ref = storage.reference.child("schools/$school/support/$uid/$ticketId/$fileName")
+            Result.success(ref.downloadUrl.await().toString())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // ── writes ───────────────────────────────────────────────────────────────
 
     /**
