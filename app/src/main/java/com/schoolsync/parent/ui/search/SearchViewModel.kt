@@ -227,6 +227,19 @@ class SearchViewModel @Inject constructor(
             haystack = (listOf(title) + keywords).joinToString(" ").lowercase()
         )
         return listOf(
+            // Listed as "AI Assistant" rather than "Ask ZenXii": the Categories
+            // list is a list of nouns, and naming the AI in the label discloses
+            // what it is before anyone opens it. The screen itself says
+            // "Ask ZenXii". Sparkle, not a speech bubble — a bubble would read
+            // as messaging a teacher, which is a different feature.
+            // TODO(locale): use localizedString once that helper lands on main.
+            feature(appContext.getString(R.string.assistant_feature_title), "✨", Route.Assistant.route,
+                // English keywords stay alongside the localised ones: users type
+                // "ai" and "chat" in Latin script regardless of app language.
+                "ai", "assistant", "ask", "ask zenxii", "chat", "help",
+                "question", "doubt", "query", "bot", "helpdesk",
+                appContext.getString(R.string.assistant_feature_title),
+                appContext.getString(R.string.assistant_search_keywords)),
             feature("Attendance", "📅", Route.Attendance.route,
                 "present", "absent", "attendance", "leave record", "days"),
             feature(appContext.getString(R.string.dash_pay_fees), "💳", Route.Fees.route,

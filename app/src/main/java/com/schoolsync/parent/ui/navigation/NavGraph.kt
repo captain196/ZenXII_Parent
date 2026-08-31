@@ -82,6 +82,7 @@ import com.schoolsync.parent.ui.attendance.AttendanceScreen
 import com.schoolsync.parent.ui.search.SearchScreen
 import com.schoolsync.parent.ui.dashboard.DashboardScreen
 import com.schoolsync.parent.ui.events.EventDetailScreen
+import com.schoolsync.parent.ui.assistant.AssistantScreen
 import com.schoolsync.parent.ui.support.SupportComposeScreen
 import com.schoolsync.parent.ui.support.SupportListScreen
 import com.schoolsync.parent.ui.support.SupportThreadScreen
@@ -201,6 +202,9 @@ sealed class Route(val route: String) {
         const val ARG_TICKET_ID = "ticketId"
         fun createRoute(ticketId: String) = "support_thread/$ticketId"
     }
+    // Ask ZenXii — the AI assistant. Reads the student's own records and can
+    // hand off to SupportCompose; it never writes a ticket itself.
+    data object Assistant : Route("assistant")
     data object MyTeachers : Route("my_teachers")
     data object MyLessons : Route("my_lessons")
     data object StoryViewer : Route("story_viewer/{teacherId}") {
@@ -458,6 +462,12 @@ fun MainScreen(
     onLogout: () -> Unit
 ) {
     val navController = rememberNavController()
+
+    // One-shot carrier for a support request the AI assistant drafted. Held here
+    // because it crosses two composables (assistant → support composer) and must
+    // survive exactly one navigation, then be consumed. Not saved state: a draft
+    // should not outlive the session that produced it.
+    var assistantDraft by remember { mutableStateOf<Pair<String, String>?>(null) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -830,8 +840,40 @@ fun MainScreen(
                 )
             }
 
+            composable(Route.Assistant.route) {
+                AssistantScreen(
+                    onBack = { navController.popBackStack() },
+                    // The assistant returns a bare route name (currently only
+                    // Route.SupportCompose). Navigating by name keeps the AI
+                    // feature's only coupling to Support Desk a string.
+                    // Allow-list, not a passthrough. navigate() with an unknown
+                    // route throws IllegalArgumentException and crashes the app;
+                    // the value comes from the server, so it is not trusted.
+                    onOpenSupport = { route, subject, details ->
+                        if (route == Route.SupportCompose.route) {
+                            assistantDraft = subject to details
+                            navController.navigate(route)
+                        }
+                    },
+                )
+            }
+
             composable(Route.SupportCompose.route) {
+                // If the assistant prepared a draft, seed the Support composer with
+                // it exactly once. Done here rather than inside SupportComposeScreen
+                // so the Support Desk workstream's own files stay untouched — its
+                // screen already accepts its ViewModel as a defaulted parameter and
+                // exposes public updateSubject/updateBody.
+                val supportVm: com.schoolsync.parent.ui.support.SupportViewModel = hiltViewModel()
+                LaunchedEffect(Unit) {
+                    assistantDraft?.let { (subject, details) ->
+                        if (subject.isNotBlank()) supportVm.updateSubject(subject)
+                        if (details.isNotBlank()) supportVm.updateBody(details)
+                        assistantDraft = null      // consume — never re-seed on return
+                    }
+                }
                 SupportComposeScreen(
+                    viewModel = supportVm,
                     onBack = { navController.popBackStack() },
                     // Replace the composer in the back stack with the thread, so
                     // Back from a freshly-raised ticket lands on the list rather

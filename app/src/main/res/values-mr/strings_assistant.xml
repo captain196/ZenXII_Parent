@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- मराठी · Marathi
+     Ask ZenXii — AI assistant. Terminology follows the existing locale files.
+     "ZenXii" is a brand name and stays in Latin script everywhere.
+
+     ⚠ assistant_ai_disclosure is compliance-sensitive. It must say the person
+     is talking to an AI and NOT to school staff, and that only this student's
+     records are visible. Softening either half defeats the disclosure.
+
+     ⚠ No string here may promise that a request was sent or a ticket raised.
+     The assistant only hands the user to the Support screen; they send it
+     themselves. See raise_helpdesk_ticket in studentAssistant.js.
+
+     MACHINE-ASSISTED, PENDING NATIVE REVIEW. -->
+<resources>
+    <string name="common_back">मागे</string>
+    <string name="assistant_title">ZenXii ला विचारा</string>
+    <string name="assistant_subtitle">तुमचा शाळा सहाय्यक</string>
+    <string name="assistant_thinking">पाहिले जात आहे…</string>
+    <string name="assistant_send">पाठवा</string>
+    <string name="assistant_input_hint">तुमच्या शाळेबद्दल विचारा…</string>
+    <string name="assistant_intro_title">ZenXii ला विचारा</string>
+    <string name="assistant_intro_body">उपस्थिती, गृहपाठ, वेळापत्रक, शुल्क किंवा निकालाबद्दल विचारा — किंवा एखादी अडचण सांगा आणि ती कार्यालयापर्यंत पोहोचवण्यात मी मदत करेन.</string>
+    <string name="assistant_ai_disclosure">तुम्ही AI सहाय्यकाशी बोलत आहात, शाळेच्या कर्मचाऱ्याशी नाही. तो फक्त याच विद्यार्थ्याचे रेकॉर्ड पाहू शकतो.</string>
+    <string name="assistant_chip_attendance">माझी उपस्थिती</string>
+    <string name="assistant_chip_homework">बाकी गृहपाठ</string>
+    <string name="assistant_chip_fees">शुल्क</string>
+    <string name="assistant_chip_timetable">वेळापत्रक</string>
+    <string name="assistant_tool_attendance">तुमची उपस्थिती पाहिली</string>
+    <string name="assistant_tool_homework">तुमचा गृहपाठ पाहिला</string>
+    <string name="assistant_tool_fees">तुमचे शुल्क रेकॉर्ड पाहिले</string>
+    <string name="assistant_tool_timetable">तुमचे वेळापत्रक पाहिले</string>
+    <string name="assistant_tool_results">तुमचे निकाल पाहिले</string>
+    <string name="assistant_tool_generic">तुमचे रेकॉर्ड पाहिले</string>
+    <string name="assistant_open_support">सहाय्य उघडा</string>
+    <string name="assistant_unavailable">हा सहाय्यक अद्याप तुमच्या शाळेसाठी उपलब्ध नाही.</string>
+    <string name="assistant_quota_reached">तुम्ही आजची प्रश्न मर्यादा पूर्ण केली आहे. ती उद्या पुन्हा सुरू होईल.</string>
+    <string name="assistant_signed_out">सहाय्यक वापरण्यासाठी कृपया पुन्हा साइन इन करा.</string>
+    <string name="assistant_too_long">यात खूप जास्त टप्पे लागले. काहीतरी अधिक नेमके विचारून पाहा.</string>
+    <string name="assistant_generic_error">सहाय्यकाशी संपर्क होऊ शकला नाही. कृपया पुन्हा प्रयत्न करा.</string>
+    <string name="assistant_feature_title">AI सहाय्यक</string>
+    <!-- Extra search terms. Latin-script "ai"/"chat" are added in code and
+         are not repeated here. -->
+    <string name="assistant_search_keywords">विचारा प्रश्न शंका मदत सहाय्य बोला</string>
+    <string name="assistant_call_telemanas">Tele-MANAS 14416 वर कॉल करा</string>
+</resources>

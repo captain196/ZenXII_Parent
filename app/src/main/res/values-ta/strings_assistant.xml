@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- தமிழ் · Tamil
+     Ask ZenXii — AI assistant. Terminology follows the existing locale files.
+     "ZenXii" is a brand name and stays in Latin script everywhere.
+
+     ⚠ assistant_ai_disclosure is compliance-sensitive. It must say the person
+     is talking to an AI and NOT to school staff, and that only this student's
+     records are visible. Softening either half defeats the disclosure.
+
+     ⚠ No string here may promise that a request was sent or a ticket raised.
+     The assistant only hands the user to the Support screen; they send it
+     themselves. See raise_helpdesk_ticket in studentAssistant.js.
+
+     MACHINE-ASSISTED, PENDING NATIVE REVIEW. -->
+<resources>
+    <string name="common_back">பின்செல்</string>
+    <string name="assistant_title">ZenXii-இடம் கேளுங்கள்</string>
+    <string name="assistant_subtitle">உங்கள் பள்ளி உதவியாளர்</string>
+    <string name="assistant_thinking">பார்க்கப்படுகிறது…</string>
+    <string name="assistant_send">அனுப்பு</string>
+    <string name="assistant_input_hint">உங்கள் பள்ளி குறித்து கேளுங்கள்…</string>
+    <string name="assistant_intro_title">ZenXii-இடம் கேளுங்கள்</string>
+    <string name="assistant_intro_body">வருகை, வீட்டுப்பாடம், கால அட்டவணை, கட்டணம் அல்லது முடிவுகள் குறித்து கேளுங்கள் — அல்லது ஒரு சிக்கலைச் சொல்லுங்கள், அதை அலுவலகத்திற்கு அனுப்ப நான் உதவுவேன்.</string>
+    <string name="assistant_ai_disclosure">நீங்கள் ஒரு AI உதவியாளருடன் பேசுகிறீர்கள், பள்ளி ஊழியருடன் அல்ல. இது இந்த மாணவரின் பதிவுகளை மட்டுமே பார்க்க முடியும்.</string>
+    <string name="assistant_chip_attendance">என் வருகை</string>
+    <string name="assistant_chip_homework">நிலுவை வீட்டுப்பாடம்</string>
+    <string name="assistant_chip_fees">கட்டணம்</string>
+    <string name="assistant_chip_timetable">கால அட்டவணை</string>
+    <string name="assistant_tool_attendance">உங்கள் வருகை பார்க்கப்பட்டது</string>
+    <string name="assistant_tool_homework">உங்கள் வீட்டுப்பாடம் பார்க்கப்பட்டது</string>
+    <string name="assistant_tool_fees">உங்கள் கட்டணப் பதிவுகள் பார்க்கப்பட்டன</string>
+    <string name="assistant_tool_timetable">உங்கள் கால அட்டவணை பார்க்கப்பட்டது</string>
+    <string name="assistant_tool_results">உங்கள் முடிவுகள் பார்க்கப்பட்டன</string>
+    <string name="assistant_tool_generic">உங்கள் பதிவுகள் பார்க்கப்பட்டன</string>
+    <string name="assistant_open_support">உதவியைத் திற</string>
+    <string name="assistant_unavailable">இந்த உதவியாளர் இன்னும் உங்கள் பள்ளிக்குக் கிடைக்கவில்லை.</string>
+    <string name="assistant_quota_reached">இன்றைய கேள்வி வரம்பை நீங்கள் எட்டிவிட்டீர்கள். இது நாளை மீண்டும் தொடங்கும்.</string>
+    <string name="assistant_signed_out">உதவியாளரைப் பயன்படுத்த மீண்டும் உள்நுழையவும்.</string>
+    <string name="assistant_too_long">இதற்கு அதிகப் படிகள் தேவைப்பட்டன. இன்னும் குறிப்பாகக் கேட்டுப் பாருங்கள்.</string>
+    <string name="assistant_generic_error">உதவியாளரைத் தொடர்பு கொள்ள முடியவில்லை. மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="assistant_feature_title">AI உதவியாளர்</string>
+    <!-- Extra search terms. Latin-script "ai"/"chat" are added in code and
+         are not repeated here. -->
+    <string name="assistant_search_keywords">கேள் கேள்வி சந்தேகம் உதவி பேசு</string>
+    <string name="assistant_call_telemanas">Tele-MANAS 14416 ஐ அழைக்கவும்</string>
+</resources>
