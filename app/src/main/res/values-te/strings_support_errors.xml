@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Support/helpdesk ticket outcome messages (ViewModel-level). -->
+<resources>
+    <string name="support_sent_offline">పంపబడింది — ఆన్‌లైన్‌కు వచ్చాక సింక్ అవుతుంది.</string>
+    <string name="support_wait_resolve">మరొకటి నమోదు చేయడానికి ముందు ఒకటి పరిష్కారమయ్యే వరకు వేచి ఉండండి.</string>
+    <string name="support_permission_denied">పాఠశాల వ్యవస్థ దాన్ని తిరస్కరించింది. సైన్ అవుట్ చేసి మళ్లీ సైన్ ఇన్ చేయండి — పదేపదే జరిగితే పాఠశాల కార్యాలయాన్ని సంప్రదించండి.</string>
+    <string name="support_not_ready">పాఠశాల వ్యవస్థ దీనికి ఇంకా సిద్ధంగా లేదు. దయచేసి తర్వాత ప్రయత్నించండి.</string>
+    <string name="support_offline_queue">మీరు ఆఫ్‌లైన్‌లో ఉన్నట్లు కనిపిస్తోంది. మళ్లీ కనెక్ట్ అయ్యాక పంపబడుతుంది.</string>
+    <string name="support_generic_error">ఏదో తప్పు జరిగింది. దయచేసి మళ్లీ ప్రయత్నించండి.</string>
+</resources>

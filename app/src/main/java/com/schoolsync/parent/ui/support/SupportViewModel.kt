@@ -20,6 +20,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
+import com.schoolsync.parent.R
+import com.schoolsync.parent.util.localizedString
+import com.schoolsync.parent.util.localizedPlural
 
 /**
  * Support Desk — Parent app state.
@@ -140,8 +143,32 @@ class SupportViewModel @Inject constructor(
 
     // ── list ─────────────────────────────────────────────────────────────────
 
+    /** The live listener, so a retry can cancel and re-establish it. */
+    private var ticketsJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * Retry the ticket list after a failure.
+     *
+     * The banner's button is labelled "Try again" and used to call clearError()
+     * and nothing else. But `.catch` below TERMINATES the flow, so by the time
+     * that banner is on screen there is no listener left — clearing the message
+     * simply revealed an empty list, and the screen then rendered "No tickets
+     * yet". A real failure became an empty account: the exact read-side
+     * false-success this file's header says it exists to prevent, produced by the
+     * one control offered to recover from it.
+     *
+     * Re-subscribing is what the label already promised.
+     */
+    fun retryTickets() {
+        _uiState.update { it.copy(errorMessage = null, isLoading = true) }
+        observeTickets()
+    }
+
     private fun observeTickets() {
-        viewModelScope.launch {
+        // Cancel any previous listener first — a retry must not leave two
+        // collectors racing to write the same state.
+        ticketsJob?.cancel()
+        ticketsJob = viewModelScope.launch {
             repository.observeMyTickets()
                 .catch { e ->
                     // A listener error — rules rejection, a missing index — must
@@ -234,7 +261,7 @@ class SupportViewModel @Inject constructor(
                     // Server-acked, or queued locally. Both are durable.
                     _uiState.update {
                         it.copy(isSendingReply = false, replyBody = "",
-                            infoMessage = if (result == null) "Sent — it will sync when you're back online." else null)
+                            infoMessage = if (result == null) appContext.localizedString(R.string.support_sent_offline) else null)
                     }
                 }
                 else -> _uiState.update {
@@ -253,7 +280,9 @@ class SupportViewModel @Inject constructor(
     fun addImages(uris: List<Uri>) {
         val room = SupportFirestoreRepository.MAX_ATTACHMENTS - _uiState.value.pickedImages.size
         if (room <= 0) {
-            _uiState.update { it.copy(errorMessage = "You can attach up to ${SupportFirestoreRepository.MAX_ATTACHMENTS} photos.") }
+            _uiState.update { it.copy(errorMessage = appContext.localizedPlural(
+                R.plurals.support_attach_limit,
+                SupportFirestoreRepository.MAX_ATTACHMENTS, SupportFirestoreRepository.MAX_ATTACHMENTS)) }
             return
         }
         _uiState.update { it.copy(pickedImages = it.pickedImages + uris.take(room)) }
@@ -287,8 +316,11 @@ class SupportViewModel @Inject constructor(
             if (open >= SupportFirestoreRepository.MAX_OPEN_TICKETS) {
                 _uiState.update {
                     it.copy(isSubmitting = false, errorMessage =
-                        "You already have ${SupportFirestoreRepository.MAX_OPEN_TICKETS} open tickets. " +
-                        "Please wait for one to be resolved before raising another.")
+                        appContext.localizedPlural(
+                            R.plurals.support_open_tickets_fmt,
+                            SupportFirestoreRepository.MAX_OPEN_TICKETS,
+                            SupportFirestoreRepository.MAX_OPEN_TICKETS) +
+                        appContext.localizedString(R.string.support_wait_resolve))
                 }
                 return@launch
             }
@@ -302,7 +334,8 @@ class SupportViewModel @Inject constructor(
                     onFailure = { e ->
                         _uiState.update {
                             it.copy(isSubmitting = false, errorMessage =
-                                "Could not upload photo ${i + 1}: ${friendly(e)} Nothing was sent — your message is still here.")
+                                appContext.localizedString(
+                                R.string.support_photo_upload_failed_fmt, i + 1, friendly(e)))
                         }
                         return@launch
                     }
@@ -338,7 +371,7 @@ class SupportViewModel @Inject constructor(
                             submittedTicketId = draftTicketId,
                             category = "", subject = "", body = "", pickedImages = emptyList(),
                             infoMessage = if (result == null)
-                                "Sent — it will sync when you're back online." else null
+                                appContext.localizedString(R.string.support_sent_offline) else null
                         )
                     }
                     // A NEW id for the next ticket. Reusing it would overwrite
@@ -386,12 +419,12 @@ class SupportViewModel @Inject constructor(
         val raw = e?.message.orEmpty()
         return when {
             raw.contains("PERMISSION_DENIED", true) ->
-                "The school's system refused that. Try signing out and back in — if it keeps happening, contact the school office."
+                appContext.localizedString(R.string.support_permission_denied)
             raw.contains("FAILED_PRECONDITION", true) ->
-                "The school's system isn't ready for this yet. Please try again later."
+                appContext.localizedString(R.string.support_not_ready)
             raw.contains("UNAVAILABLE", true) || raw.contains("network", true) ->
-                "You appear to be offline. It will send when you reconnect."
-            raw.isBlank() -> "Something went wrong. Please try again."
+                appContext.localizedString(R.string.support_offline_queue)
+            raw.isBlank() -> appContext.localizedString(R.string.support_generic_error)
             else -> raw
         }
     }

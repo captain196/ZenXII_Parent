@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Support/helpdesk ticket outcome messages (ViewModel-level). -->
+<resources>
+    <string name="support_sent_offline">મોકલ્યું — ઑનલાઇન થતાં સિંક થશે.</string>
+    <string name="support_wait_resolve">બીજું નોંધાવતાં પહેલાં કૃપા કરી એકના ઉકેલની રાહ જુઓ.</string>
+    <string name="support_permission_denied">શાળાની સિસ્ટમે તે નકાર્યું. સાઇન આઉટ કરીને ફરી સાઇન ઇન કરો — વારંવાર થાય તો શાળા કાર્યાલયનો સંપર્ક કરો.</string>
+    <string name="support_not_ready">શાળાની સિસ્ટમ હજી આ માટે તૈયાર નથી. કૃપા કરી પછી પ્રયાસ કરો.</string>
+    <string name="support_offline_queue">તમે ઑફલાઇન જણાઓ છો. ફરી જોડાતાં તે મોકલાશે.</string>
+    <string name="support_generic_error">કંઈક ખોટું થયું. કૃપા કરી ફરી પ્રયાસ કરો.</string>
+</resources>

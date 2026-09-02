@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Support/helpdesk ticket outcome messages (ViewModel-level). -->
+<resources>
+    <string name="support_sent_offline">Sent — it will sync when you\'re back online.</string>
+    <string name="support_wait_resolve">Please wait for one to be resolved before raising another.</string>
+    <string name="support_permission_denied">The school\'s system refused that. Try signing out and back in — if it keeps happening, contact the school office.</string>
+    <string name="support_not_ready">The school\'s system isn\'t ready for this yet. Please try again later.</string>
+    <string name="support_offline_queue">You appear to be offline. It will send when you reconnect.</string>
+    <string name="support_generic_error">Something went wrong. Please try again.</string>
+</resources>

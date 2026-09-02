@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Support/helpdesk ticket outcome messages (ViewModel-level). -->
+<resources>
+    <string name="support_sent_offline">அனுப்பப்பட்டது — ஆன்லைனில் வந்ததும் ஒத்திசைக்கும்.</string>
+    <string name="support_wait_resolve">மற்றொன்றை பதிவு செய்வதற்கு முன் ஒன்று தீர்க்கப்படும் வரை காத்திருக்கவும்.</string>
+    <string name="support_permission_denied">பள்ளியின் அமைப்பு அதை மறுத்தது. வெளியேறி மீண்டும் உள்நுழையவும் — தொடர்ந்து நடந்தால் பள்ளி அலுவலகத்தைத் தொடர்பு கொள்ளவும்.</string>
+    <string name="support_not_ready">பள்ளியின் அமைப்பு இதற்கு இன்னும் தயாராகவில்லை. பின்னர் முயற்சிக்கவும்.</string>
+    <string name="support_offline_queue">நீங்கள் ஆஃப்லைனில் இருப்பதாகத் தெரிகிறது. மீண்டும் இணைந்ததும் அனுப்பப்படும்.</string>
+    <string name="support_generic_error">ஏதோ தவறு நடந்தது. மீண்டும் முயற்சிக்கவும்.</string>
+</resources>

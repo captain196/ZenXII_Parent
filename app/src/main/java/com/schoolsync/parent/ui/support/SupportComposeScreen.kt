@@ -281,8 +281,20 @@ private const val CONDUCT_CATEGORY = "conduct"
 /**
  * Where a concern about a member of staff actually goes.
  *
- * Writes nothing. Height-capped and scrollable so it survives a small screen and
- * landscape, per the app's local rule about dialogs.
+ * Writes nothing. Height-capped and scrollable so it survives a small screen.
+ *
+ * ORDER IS LOAD-BEARING: the contact and its Call/Email buttons come FIRST, the
+ * explanation after. They used to sit at the BOTTOM of the scrolling body, and at
+ * a 200% font scale the prose above them consumed the whole 380dp cap — so the
+ * dialog told a parent "speak to the school's designated contact directly" and
+ * then clipped away every means of doing it. Only Close survived, because
+ * AlertDialog pins its button slot.
+ *
+ * Verified on an emulator at font_scale 2.0 before and after. The users most
+ * likely to run large text are the ones least able to recover from a dialog that
+ * hides its only action, and this is the POSH/POCSO-adjacent path — so the
+ * ordering degrades in the right direction: scrolling now hides the CONTEXT,
+ * never the ACTION.
  */
 @Composable
 private fun ConductRouteDialog(
@@ -312,20 +324,7 @@ private fun ConductRouteDialog(
                     .heightIn(max = 380.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Text(
-                    stringResource(R.string.conduct_route_body),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = c.textSecondary
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    stringResource(R.string.conduct_route_not_logged),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = c.textSecondary
-                )
-
-                Spacer(Modifier.height(18.dp))
-
+                // The actionable part first — see the note above.
                 when {
                     contact.isLoading -> Text(
                         stringResource(R.string.conduct_route_loading),
@@ -383,6 +382,20 @@ private fun ConductRouteDialog(
                         }
                     }
                 }
+
+                Spacer(Modifier.height(18.dp))
+
+                Text(
+                    stringResource(R.string.conduct_route_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = c.textSecondary
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.conduct_route_not_logged),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = c.textSecondary
+                )
             }
         },
         confirmButton = {

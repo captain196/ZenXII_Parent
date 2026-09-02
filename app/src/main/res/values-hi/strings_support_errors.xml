@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Support/helpdesk ticket outcome messages (ViewModel-level). -->
+<resources>
+    <string name="support_sent_offline">भेजा गया — ऑनलाइन होते ही सिंक हो जाएगा।</string>
+    <string name="support_wait_resolve">दूसरा दर्ज करने से पहले कृपया एक के समाधान की प्रतीक्षा करें।</string>
+    <string name="support_permission_denied">विद्यालय के सिस्टम ने इसे अस्वीकार किया। साइन आउट करके फिर साइन इन करें — यदि बार-बार हो, तो विद्यालय कार्यालय से संपर्क करें।</string>
+    <string name="support_not_ready">विद्यालय का सिस्टम अभी इसके लिए तैयार नहीं है। कृपया बाद में प्रयास करें।</string>
+    <string name="support_offline_queue">आप ऑफ़लाइन प्रतीत होते हैं। दोबारा जुड़ने पर यह भेज दिया जाएगा।</string>
+    <string name="support_generic_error">कुछ गड़बड़ हो गई। कृपया पुनः प्रयास करें।</string>
+</resources>
