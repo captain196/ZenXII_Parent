@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave: interpolated/concatenated UI copy invisible to the position
+     patterns, plus the single-word literals that sat below the prose
+     sweep's word threshold. See audit.py HOLE 8/9. -->
+<resources>
+    <string name="att_day_status_a11y_fmt">दिवस %1$d: %2$s</string>
+    <string name="att_day_not_recorded_a11y_fmt">दिवस %1$d: नोंद नाही</string>
+    <string name="msg_delete_with_fmt">%1$s सोबतचे हे संभाषण हटवायचे? </string>
+    <string name="msg_this_contact">हा संपर्क</string>
+    <string name="ptm_no_class_teacher_fmt">%1$s साठी वर्गशिक्षक नेमलेले नाहीत. कृपया शाळा कार्यालयात विचारा.</string>
+    <string name="ptm_queue_number_fmt">रांग क्रमांक: #%1$d</string>
+    <string name="ptm_in_line_fmt">तुम्ही रांगेत #%1$d आहात. %2$s यांना भेटा.</string>
+    <string name="fees_refund">परतावा</string>
+    <string name="fees_refund_mode_fmt">परतावा · %1$s</string>
+    <string name="fees_refund_of_receipt_fmt">पावती #%1$s चा परतावा</string>
+    <string name="fees_checkout_open_failed_fmt">चेकआउट उघडू शकले नाही: %1$s</string>
+    <string name="fees_paid_of_fmt">%2$s पैकी %1$s भरले</string>
+    <string name="fees_error_code_fmt">त्रुटी कोड: %1$d</string>
+    <string name="fees_months_fmt">महिने: %1$s</string>
+    <string name="fp_no_contact_student_fmt">"%1$s" साठी संपर्क आढळला नाही. तुमचा विद्यार्थी आयडी तपासा आणि पुन्हा प्रयत्न करा.</string>
+    <string name="pay_remaining_fmt">%1$s: %2$s शिल्लक</string>
+    <string name="search_untitled_notice">(शीर्षक नसलेली सूचना)</string>
+    <string name="search_untitled_event">(शीर्षक नसलेला कार्यक्रम)</string>
+    <string name="search_no_results_for_fmt">"%1$s" साठी निकाल नाहीत</string>
+    <string name="dash_class_fmt">वर्ग %1$s</string>
+    <string name="dash_sec_fmt">विभाग %1$s</string>
+    <string name="dash_roll_fmt">रोल #%1$s</string>
+    <string name="common_today">आज</string>
+    <string name="common_tomorrow">उद्या</string>
+    <string name="common_ongoing">सुरू</string>
+    <string name="common_overdue">मुदत उलटली</string>
+    <string name="common_unknown_error">अज्ञात त्रुटी</string>
+    <string name="dash_rank_fmt">क्रमांक #%1$d</string>
+    <string name="story_reacted_a11y_fmt">तुम्ही %1$s प्रतिक्रिया दिली. बदलण्यासाठी टॅप करा</string>
+    <string name="support_photo_upload_failed_fmt">फोटो %1$d अपलोड होऊ शकला नाही: %2$s काहीही पाठवले गेले नाही — तुमचा संदेश इथेच आहे.</string>
+    <string name="hw_submit_failed_fmt">सादर करता आले नाही: %1$s</string>
+    <string name="rf_none_filtered_fmt">तुमच्या मुलासाठी कोणतेही %1$s ध्वज नाहीत. सर्व सूचना पाहण्यासाठी “सर्व” टॅप करा.</string>
+    <string name="rf_filter_homework">गृहपाठ</string>
+    <string name="rf_filter_behavior">वर्तन</string>
+    <string name="rf_filter_performance">कामगिरी</string>
+</resources>

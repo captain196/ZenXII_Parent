@@ -229,7 +229,7 @@ private fun ProgressChip(subject: String, completed: Int, total: Int, percent: D
         )
         Spacer(Modifier.height(4.dp))
         Row {
-            Text("${"%.1f".format(percent)}%", color = color, fontSize = 11.sp,
+            Text("${String.format(java.util.Locale.ROOT, "%.1f", percent)}%", color = color, fontSize = 11.sp,
                 fontWeight = FontWeight.Medium)
             Spacer(Modifier.weight(1f))
             Text("$completed / $total", color = c.textTertiary, fontSize = 10.sp)
@@ -256,7 +256,7 @@ private fun LessonCard(lesson: LessonPlanDoc) {
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            lesson.subject.ifBlank { "(no subject)" },
+            lesson.subject.ifBlank { stringResource(R.string.lessons_no_subject) },
             color = c.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold
         )
         if (lesson.teacherName.isNotBlank()) {

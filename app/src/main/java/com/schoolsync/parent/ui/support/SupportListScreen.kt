@@ -183,7 +183,7 @@ private fun TicketRow(
 
         Spacer(Modifier.height(6.dp))
         Text(
-            t.subject.ifBlank { vm.categoryLabel(t.category) },
+            t.subject.ifBlank { vm.categoryLabelLocalized(t.category) },
             style = MaterialTheme.typography.bodyLarge,
             color = c.textPrimary,
             fontWeight = FontWeight.SemiBold
@@ -192,8 +192,13 @@ private fun TicketRow(
         // blank subject is backfilled with the category label on create (see
         // SupportViewModel), deliberately, so the panel's triage queue has no
         // blank rows. That leaves the card printing the same words twice.
-        val categoryLabel = vm.categoryLabel(t.category)
-        if (!t.subject.equals(categoryLabel, ignoreCase = true)) {
+        val categoryLabel = vm.categoryLabelLocalized(t.category)
+        // Compare against the ENGLISH label, not the localized one: the subject
+        // was backfilled with the English label at create time and is stored
+        // that way. Comparing against the translation never matches, so the
+        // card would print the same category twice — once as the stored English
+        // subject and once as the Tamil label.
+        if (!t.subject.equals(vm.categoryLabel(t.category), ignoreCase = true)) {
             Spacer(Modifier.height(2.dp))
             Text(
                 categoryLabel,

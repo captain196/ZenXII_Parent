@@ -75,7 +75,7 @@ class AttendanceFirestoreRepository @Inject constructor(
         if (parts.size != 2) return s
         val year = parts[1].toIntOrNull() ?: return s
         val monthNum = monthNameToNumber(parts[0]) ?: return s
-        return "%d-%02d".format(year, monthNum)
+        return String.format(java.util.Locale.ROOT, "%d-%02d", year, monthNum)
     }
 
     private fun monthNameToNumber(name: String): Int? = when (name.lowercase()) {

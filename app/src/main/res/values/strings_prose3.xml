@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave: interpolated/concatenated UI copy invisible to the position
+     patterns, plus the single-word literals that sat below the prose
+     sweep's word threshold. See audit.py HOLE 8/9. -->
+<resources>
+    <string name="att_day_status_a11y_fmt">Day %1$d: %2$s</string>
+    <string name="att_day_not_recorded_a11y_fmt">Day %1$d: not recorded</string>
+    <string name="msg_delete_with_fmt">Delete this conversation with %1$s? </string>
+    <string name="msg_this_contact">this contact</string>
+    <string name="ptm_no_class_teacher_fmt">No class teacher set for %1$s. Please ask the school office.</string>
+    <string name="ptm_queue_number_fmt">Queue number: #%1$d</string>
+    <string name="ptm_in_line_fmt">You\'re #%1$d in line. Meet %2$s.</string>
+    <string name="fees_refund">Refund</string>
+    <string name="fees_refund_mode_fmt">Refund · %1$s</string>
+    <string name="fees_refund_of_receipt_fmt">Refund of receipt #%1$s</string>
+    <string name="fees_checkout_open_failed_fmt">Unable to open checkout: %1$s</string>
+    <string name="fees_paid_of_fmt">%1$s paid of %2$s</string>
+    <string name="fees_error_code_fmt">Error code: %1$d</string>
+    <string name="fees_months_fmt">Months: %1$s</string>
+    <string name="fp_no_contact_student_fmt">No contact found for "%1$s". Check your Student ID and try again.</string>
+    <string name="pay_remaining_fmt">%1$s: %2$s remaining</string>
+    <string name="search_untitled_notice">(Untitled notice)</string>
+    <string name="search_untitled_event">(Untitled event)</string>
+    <string name="search_no_results_for_fmt">No results for "%1$s"</string>
+    <string name="dash_class_fmt">Class %1$s</string>
+    <string name="dash_sec_fmt">Sec %1$s</string>
+    <string name="dash_roll_fmt">Roll #%1$s</string>
+    <string name="common_today">Today</string>
+    <string name="common_tomorrow">Tomorrow</string>
+    <string name="common_ongoing">Ongoing</string>
+    <string name="common_overdue">Overdue</string>
+    <string name="common_unknown_error">unknown error</string>
+    <string name="dash_rank_fmt">Rank #%1$d</string>
+    <string name="story_reacted_a11y_fmt">You reacted %1$s. Tap to change your reaction</string>
+    <string name="support_photo_upload_failed_fmt">Could not upload photo %1$d: %2$s Nothing was sent — your message is still here.</string>
+    <string name="hw_submit_failed_fmt">Couldn\'t submit: %1$s</string>
+    <string name="rf_none_filtered_fmt">No %1$s flags for your child. Tap “All” to see every alert.</string>
+    <string name="rf_filter_homework">Homework</string>
+    <string name="rf_filter_behavior">Behavior</string>
+    <string name="rf_filter_performance">Performance</string>
+</resources>

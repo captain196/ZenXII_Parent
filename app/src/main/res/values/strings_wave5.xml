@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 5: found on device / by the widened position audit (HOLE 10-11). -->
+<resources>
+    <string name="fees_label_due">due</string>
+    <string name="fees_label_remaining">remaining</string>
+    <string name="fees_fine_label">Fine</string>
+    <string name="fees_status_pending">Pending</string>
+    <string name="att_percent_label">percent</string>
+    <string name="pay_fee_cleared_fmt">%1$s fee cleared</string>
+    <string name="hw_priority_urgent">Urgent</string>
+    <string name="hw_priority_relaxed">Relaxed</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">System</string>
+</resources>

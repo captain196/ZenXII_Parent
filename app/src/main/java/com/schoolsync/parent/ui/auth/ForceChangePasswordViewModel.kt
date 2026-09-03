@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 /**
  * Drives the forced password-change screen that appears immediately after
@@ -86,16 +87,16 @@ class ForceChangePasswordViewModel @Inject constructor(
     private fun validate(new: String, confirm: String): String? {
         // Mirrors the server-side policy in Auth_api::clear_must_change.
         if (new.length < 8 || new.length > 72) {
-            return appContext.getString(R.string.auth_pw_len)
+            return appContext.localizedString(R.string.auth_pw_len)
         }
-        if (!new.any { it.isUpperCase() }) return appContext.getString(R.string.auth_pw_upper)
-        if (!new.any { it.isLowerCase() }) return appContext.getString(R.string.auth_pw_lower)
-        if (!new.any { it.isDigit() })     return appContext.getString(R.string.auth_pw_digit)
-        if (new != confirm)                return appContext.getString(R.string.auth_pw_mismatch)
+        if (!new.any { it.isUpperCase() }) return appContext.localizedString(R.string.auth_pw_upper)
+        if (!new.any { it.isLowerCase() }) return appContext.localizedString(R.string.auth_pw_lower)
+        if (!new.any { it.isDigit() })     return appContext.localizedString(R.string.auth_pw_digit)
+        if (new != confirm)                return appContext.localizedString(R.string.auth_pw_mismatch)
         // Block the auto-generated password format (e.g. "Sum1504@") from
         // being reused — the entire point of this screen is to replace it.
         if (Regex("^[A-Z][a-z]{2}\\d{4}@$").matches(new)) {
-            return appContext.getString(R.string.auth_pw_different)
+            return appContext.localizedString(R.string.auth_pw_different)
         }
         return null
     }

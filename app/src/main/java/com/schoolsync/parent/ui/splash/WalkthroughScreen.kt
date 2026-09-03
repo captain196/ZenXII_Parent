@@ -226,6 +226,11 @@ private fun WalkthroughPageContent(page: WalkthroughPage, colors: AppColors) {
         Text(
             text = stringResource(page.titleRes),
             fontSize = 28.sp,
+            // Explicit lineHeight: a title that wraps to a second line has that
+            // line clipped at the top without it. English fits on one line so it
+            // never showed; caught under the en-XA pseudolocale in the Teacher
+            // app and fixed here too, since the titles are equally translatable.
+            lineHeight = 34.sp,
             fontWeight = FontWeight.Bold,
             color = colors.textPrimary,
             textAlign = TextAlign.Center

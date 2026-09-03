@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class ProfileUiState(
     val isLoading: Boolean = true,
@@ -291,15 +292,15 @@ class ProfileViewModel @Inject constructor(
         val state = _uiState.value
 
         if (state.currentPassword.isBlank()) {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.profile_error_enter_current_password)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.profile_error_enter_current_password)) }
             return
         }
         if (state.newPassword.length < 6) {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.profile_error_password_min_length)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.profile_error_password_min_length)) }
             return
         }
         if (state.newPassword != state.confirmPassword) {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.profile_error_passwords_no_match)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.profile_error_passwords_no_match)) }
             return
         }
 

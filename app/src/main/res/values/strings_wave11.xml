@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 11: user-visible ifBlank fallbacks. groupBy keys and wire values excluded. -->
+<resources>
+    <string name="common_student">Student</string>
+    <string name="fees_route_id_fmt">Route: %1$s</string>
+    <string name="lib_untitled">Untitled</string>
+    <string name="dash_event_generic">Event</string>
+    <string name="result_badge_absent">ABSENT</string>
+    <string name="result_badge_passed">PASSED</string>
+    <string name="result_badge_review">REVIEW</string>
+    <string name="lessons_no_subject">(no subject)</string>
+    <string name="search_untitled_generic">(Untitled)</string>
+    <string name="search_teacher_generic">(Teacher)</string>
+    <string name="search_exam_generic">(Exam)</string>
+</resources>

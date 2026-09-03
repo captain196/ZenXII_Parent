@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class NoticesUiState(
     val isLoading: Boolean = true,
@@ -77,7 +78,7 @@ class NoticesViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: appContext.getString(R.string.notices_refresh_failed_short)
+                            errorMessage = e.message ?: appContext.localizedString(R.string.notices_refresh_failed_short)
                         )
                     }
                 }

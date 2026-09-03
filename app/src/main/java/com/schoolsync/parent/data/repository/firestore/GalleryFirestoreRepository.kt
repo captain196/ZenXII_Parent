@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.schoolsync.parent.util.localizedString
 
 /**
  * Phase C-2 canonical gallery repository (Parent — read-only).
@@ -228,7 +229,7 @@ class GalleryFirestoreRepository @Inject constructor(
                     .limit(1)
             }
             // Not-found is a success with an empty-shell album (the detail
-            // screen renders appContext.getString(R.string.gal_album_not_found) style state); only a genuine
+            // screen renders appContext.localizedString(R.string.gal_album_not_found) style state); only a genuine
             // query failure below becomes Result.failure.
             val albumDoc = albumDocs.firstOrNull()
                 ?: return Result.success(GalleryAlbum(albumId = albumId))

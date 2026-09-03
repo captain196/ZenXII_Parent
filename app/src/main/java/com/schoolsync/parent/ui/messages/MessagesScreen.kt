@@ -467,7 +467,10 @@ private fun DeleteConversationDialog(
         title = { Text(stringResource(R.string.msg_delete_chat), color = c.textPrimary) },
         text = {
             Text(
-                "Delete this conversation with ${otherName.ifBlank { "this contact" }}? " +
+                stringResource(
+                    R.string.msg_delete_with_fmt,
+                    otherName.ifBlank { stringResource(R.string.msg_this_contact) }
+                ) +
                     stringResource(R.string.msg_delete_only_yours),
                 color = c.textSecondary
             )
@@ -881,7 +884,7 @@ private fun dayLabelLocalized(timestamp: Long): String {
         diffDays in 0..1 -> yesterday
         diffDays in 2..6 -> DisplayFormat.pattern(Date(timestamp), "EEEE")
         msg.get(Calendar.YEAR) == now.get(Calendar.YEAR) ->
-            DisplayFormat.pattern(Date(timestamp), "MMM d")
+            DisplayFormat.pattern(Date(timestamp), "MMM d"  /* i18n-ignore: date pattern */)
         else -> DisplayFormat.pattern(Date(timestamp), "MMM d, yyyy")
     }
 }
@@ -899,7 +902,7 @@ private fun dayLabel(timestamp: Long): String {
         diffDays in 0..1 -> "Yesterday"
         diffDays in 2..6 -> DisplayFormat.pattern(Date(timestamp), "EEEE")
         msg.get(Calendar.YEAR) == now.get(Calendar.YEAR) ->
-            DisplayFormat.pattern(Date(timestamp), "MMM d")
+            DisplayFormat.pattern(Date(timestamp), "MMM d"  /* i18n-ignore: date pattern */)
         else -> DisplayFormat.pattern(Date(timestamp), "MMM d, yyyy")
     }
 }

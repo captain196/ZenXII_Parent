@@ -98,7 +98,9 @@ private fun formatTimePadded(raw: String): String {
         if (parts.size < 2) return s
         var h = parts[0].trim().toInt()
         val m = parts[1].trim().toInt()
-        val mer = when {
+        // i18n-ignore: AM/PM here are 12-hour PARSE TOKENS compared against
+        // the server's "10:45AM" strings, not display text.
+        val mer = when {  // i18n-ignore
             hasPm -> "PM"
             hasAm -> "AM"
             h >= 12 -> "PM"
@@ -752,7 +754,7 @@ private fun SlotRow(
                 Text(
                     text = buildString {
                         if (slot.teacher.isNotBlank()) append(slot.teacher)
-                        if (slot.teacher.isNotBlank() && slot.room.isNotBlank()) append("  \u2022  ")
+                        if (slot.teacher.isNotBlank() && slot.room.isNotBlank()) append("  \u2022  ")  // i18n-ignore: punctuation separator
                         if (slot.room.isNotBlank()) append(slot.room)
                     },
                     fontSize = 11.sp,

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Money-path copy as format strings; amounts pre-formatted via DisplayFormat. -->
+<resources>
+    <string name="fees_pay_custom_hint">விருப்ப தொகை செலுத்துங்கள் (≤ %1$s)</string>
+    <string name="fees_hostel_breakdown">அறை: %1$s + உணவகம்: %2$s</string>
+    <string name="fees_month_balance">%1$s  ·  மீதம் %2$s</string>
+    <string name="fees_amount_between">%1$s முதல் %2$s வரை தொகையை உள்ளிடவும்</string>
+    <string name="fees_pay_amount">%1$s செலுத்து</string>
+    <string name="fees_hostel_room_label">%1$s - அறை %2$s</string>
+    <string name="fees_fine_due">கெடு: %1$s</string>
+    <string name="fees_head_amount">%1$s: %2$s</string>
+    <string name="fees_refund_of_receipt">ரசீது #%1$s இன் திரும்பப்பணம்</string>
+</resources>

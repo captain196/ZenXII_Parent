@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.schoolsync.parent.ui.theme.LocalAppColors
+import com.schoolsync.parent.util.DisplayFormat
 
 /**
  * Reused across Dashboard + Results + (future) TC screen — surfaces a
@@ -86,7 +87,8 @@ fun FeeBlockedBanner(
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = stringResource(R.string.fees_outstanding_fmt, "%,.0f".format(dueAmount)),
+                text = stringResource(R.string.fees_outstanding_fmt,
+                    DisplayFormat.number(dueAmount)),
                 style = MaterialTheme.typography.titleSmall,
                 color = c.error,
                 fontWeight = FontWeight.Bold

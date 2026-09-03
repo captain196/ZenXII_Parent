@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 6: dashboard action verbs, found on device via the named-argument sweep (HOLE 12). -->
+<resources>
+    <string name="dash_action_pay">भुगतान</string>
+    <string name="dash_action_rsvp">उत्तर दें</string>
+    <string name="dash_action_view">देखें</string>
+    <string name="dash_action_read">पढ़ें</string>
+    <string name="dash_viewing">देखा जा रहा है</string>
+</resources>

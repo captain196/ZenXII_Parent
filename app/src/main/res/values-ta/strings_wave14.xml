@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 14: Support ticket category labels. The KEY stays the lowercase
+     wire value stored on the ticket; only the label is localized. -->
+<resources>
+    <string name="supcat_fees">கட்டணம் &amp; பணம் செலுத்துதல்</string>
+    <string name="supcat_transport">போக்குவரத்து</string>
+    <string name="supcat_academics">கல்வி &amp; வீட்டுப்பாடம்</string>
+    <string name="supcat_attendance">வருகை</string>
+    <string name="supcat_exams">தேர்வு &amp; முடிவுகள்</string>
+    <string name="supcat_certificates">சான்றிதழ்கள் &amp; ஆவணங்கள்</string>
+    <string name="supcat_health">சுகாதாரம் &amp; பாதுகாப்பு</string>
+    <string name="supcat_app">ஆப் &amp; உள்நுழைவு</string>
+    <string name="supcat_conduct">பணியாளர் நடத்தை</string>
+    <string name="supcat_other">மற்றவை</string>
+</resources>

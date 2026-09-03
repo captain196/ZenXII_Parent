@@ -24,6 +24,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
+import com.schoolsync.parent.util.localizedPlural
 
 // ── UI State ────────────────────────────────────────────────────────────────
 
@@ -64,7 +66,7 @@ class LibraryViewModel @Inject constructor(
 
             if (studentId.isBlank()) {
                 _uiState.update {
-                    it.copy(isLoading = false, error = appContext.getString(R.string.lib_no_student_id))
+                    it.copy(isLoading = false, error = appContext.localizedString(R.string.lib_no_student_id))
                 }
                 return@launch
             }
@@ -235,11 +237,11 @@ class LibraryViewModel @Inject constructor(
         fun dueDateLabel(ctx: android.content.Context, dueDate: String): String {
             val days = daysUntilDue(dueDate) ?: return dueDate
             return when {
-                days < 0L -> ctx.resources.getQuantityString(
+                days < 0L -> ctx.localizedPlural(
                     R.plurals.lib_days_overdue, (-days).toInt(), (-days).toInt())
                 days == 0L -> ctx.getString(R.string.dash_due_today)
                 days == 1L -> ctx.getString(R.string.dash_due_tomorrow)
-                days <= 7 -> ctx.resources.getQuantityString(
+                days <= 7 -> ctx.localizedPlural(
                     R.plurals.lib_due_in_days, days.toInt(), days.toInt())
                 else -> {
                     val d = parseDate(dueDate)

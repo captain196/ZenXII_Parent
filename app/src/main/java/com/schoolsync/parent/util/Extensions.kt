@@ -175,18 +175,18 @@ fun Double.toRupees(): String {
     return if (this == this.toLong().toDouble()) {
         "Rs. ${this.toLong()}"
     } else {
-        "Rs. ${"%.2f".format(this)}"
+        "Rs. ${String.format(java.util.Locale.ROOT, "%.2f", this)}"
     }
 }
 
 /** Format a Float as percentage string */
 fun Float.toPercentString(decimals: Int = 1): String {
-    return "${"%.${decimals}f".format(this)}%"
+    return "${String.format(java.util.Locale.ROOT, "%.${decimals}f", this)}%"
 }
 
 /** Format a Double as percentage string */
 fun Double.toPercentString(decimals: Int = 1): String {
-    return "${"%.${decimals}f".format(this)}%"
+    return "${String.format(java.util.Locale.ROOT, "%.${decimals}f", this)}%"
 }
 
 // ── Collection Extensions ───────────────────────────────────────────────

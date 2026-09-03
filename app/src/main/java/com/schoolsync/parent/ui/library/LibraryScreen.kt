@@ -66,6 +66,7 @@ import com.schoolsync.parent.data.model.firestore.LibraryIssueDoc
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
+import com.schoolsync.parent.util.DisplayFormat
 
 // ─── Main Entry Point ───────────────────────────────────────────────────────
 
@@ -447,8 +448,8 @@ private fun HistoryBookCard(item: LibraryIssueDoc) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = when (item.status.lowercase()) {
-                    "returned" -> "\u2705"
+                text = when (item.status.lowercase()) {  // i18n-ignore: wire values + emoji
+                    "returned" -> "\u2705"  // i18n-ignore: wire value + emoji
                     "overdue" -> "\u26A0\uFE0F"
                     else -> "\uD83D\uDCD6"
                 },
@@ -472,7 +473,7 @@ private fun HistoryBookCard(item: LibraryIssueDoc) {
             // Date range
             val dateRange = buildString {
                 append(LibraryViewModel.formatDisplayDate(item.issueDate))
-                append(" \u2192 ")
+                append(" \u2192 ")  // i18n-ignore: punctuation separator
                 if (item.returnDate.isNotBlank()) {
                     append(LibraryViewModel.formatDisplayDate(item.returnDate))
                 } else {
@@ -552,7 +553,7 @@ private fun TotalFinesSummary(totalFines: Double, count: Int) {
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = "\u20B9${String.format("%.2f", totalFines)}",
+            text = DisplayFormat.currency(totalFines),
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = c.error
@@ -632,7 +633,7 @@ private fun FineCard(fine: LibraryFineDoc) {
 
             // Fine amount
             Text(
-                text = "\u20B9${String.format("%.0f", fine.fineAmount)}",
+                text = DisplayFormat.currencyWhole(fine.fineAmount),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = c.error
@@ -766,7 +767,7 @@ private fun CatalogBookCard(book: LibraryBookDoc) {
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = book.title.ifBlank { "Untitled" },
+                text = book.title.ifBlank { stringResource(R.string.lib_untitled) },
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = c.textPrimary,

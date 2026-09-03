@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class ResultsUiState(
     val isLoading: Boolean = true,
@@ -120,11 +121,11 @@ class ResultsViewModel @Inject constructor(
                     }
                 },
                 onFailure = { e ->
-                    Log.e("ResultsVM", appContext.getString(R.string.res_exams_load_failed), e)
+                    Log.e("ResultsVM", appContext.localizedString(R.string.res_exams_load_failed), e)
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: appContext.getString(R.string.res_exams_load_failed)
+                            errorMessage = e.message ?: appContext.localizedString(R.string.res_exams_load_failed)
                         )
                     }
                 }
@@ -207,14 +208,14 @@ class ResultsViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                errorMessage = e.message ?: appContext.getString(R.string.res_results_load_failed)
+                                errorMessage = e.message ?: appContext.localizedString(R.string.res_results_load_failed)
                             )
                         }
                     }
                 )
             } else {
                 _uiState.update {
-                    it.copy(isLoading = false, errorMessage = appContext.getString(R.string.att_no_student_info))
+                    it.copy(isLoading = false, errorMessage = appContext.localizedString(R.string.att_no_student_info))
                 }
             }
         }

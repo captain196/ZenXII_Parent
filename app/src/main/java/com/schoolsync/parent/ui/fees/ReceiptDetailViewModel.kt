@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class SchoolMetaUi(
     val name: String = "",
@@ -96,7 +97,7 @@ class ReceiptDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             val user = tokenManager.user.firstOrNull() ?: User.empty()
             if (receiptId.isBlank()) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = appContext.getString(R.string.fees_receipt_invalid)) }
+                _uiState.update { it.copy(isLoading = false, errorMessage = appContext.localizedString(R.string.fees_receipt_invalid)) }
                 return@launch
             }
 
@@ -109,7 +110,7 @@ class ReceiptDetailViewModel @Inject constructor(
                 rRes.fold(
                     onSuccess = { refund ->
                         if (refund == null) {
-                            _uiState.update { it.copy(isLoading = false, errorMessage = appContext.getString(R.string.fees_refund_not_found)) }
+                            _uiState.update { it.copy(isLoading = false, errorMessage = appContext.localizedString(R.string.fees_refund_not_found)) }
                         } else {
                             _uiState.update {
                                 it.copy(
@@ -126,7 +127,7 @@ class ReceiptDetailViewModel @Inject constructor(
                         }
                     },
                     onFailure = { e ->
-                        _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: appContext.getString(R.string.fees_refund_load_failed)) }
+                        _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: appContext.localizedString(R.string.fees_refund_load_failed)) }
                     }
                 )
                 return@launch
@@ -136,7 +137,7 @@ class ReceiptDetailViewModel @Inject constructor(
             res.fold(
                 onSuccess = { doc ->
                     if (doc == null) {
-                        _uiState.update { it.copy(isLoading = false, errorMessage = appContext.getString(R.string.fees_receipt_not_found)) }
+                        _uiState.update { it.copy(isLoading = false, errorMessage = appContext.localizedString(R.string.fees_receipt_not_found)) }
                     } else {
                         _uiState.update { it.copy(isLoading = false, receipt = doc, user = user) }
                         // Fire-and-forget school meta lookup so the
@@ -155,7 +156,7 @@ class ReceiptDetailViewModel @Inject constructor(
                     }
                 },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: appContext.getString(R.string.fees_receipt_load_failed)) }
+                    _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: appContext.localizedString(R.string.fees_receipt_load_failed)) }
                 }
             )
         }
@@ -180,9 +181,10 @@ class ReceiptDetailViewModel @Inject constructor(
             else                         -> "R"
         }
         val modeLabel = if (r.refundMode.isBlank()) {
-            "Refund"
+            appContext.localizedString(R.string.fees_refund)
         } else {
-            "Refund · ${r.refundMode.replaceFirstChar { it.uppercase() }}"
+            appContext.localizedString(
+                R.string.fees_refund_mode_fmt, r.refundMode.replaceFirstChar { it.uppercase() })
         }
         // Breakdown: one row so the "FEE BREAKDOWN" card shows which
         // head was refunded. Rs amount is the absolute value so the
@@ -214,7 +216,7 @@ class ReceiptDetailViewModel @Inject constructor(
                 mapOf("head" to headLabel, "amount" to absAmount)
             ),
             remarks         = buildString {
-                if (r.origReceiptNo.isNotBlank()) append("Refund of receipt #${r.origReceiptNo}")
+                if (r.origReceiptNo.isNotBlank()) append(appContext.localizedString(R.string.fees_refund_of_receipt, r.origReceiptNo))
                 if (r.reason.isNotBlank()) {
                     if (isNotEmpty()) append(" · ")
                     append(r.reason)

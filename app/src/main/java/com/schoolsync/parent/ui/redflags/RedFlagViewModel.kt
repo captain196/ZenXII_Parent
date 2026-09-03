@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class RedFlagUiState(
     val isLoading: Boolean = true,
@@ -120,13 +121,13 @@ class RedFlagViewModel @Inject constructor(
         val msg = e.message ?: ""
         return when {
             msg.contains("PERMISSION_DENIED", ignoreCase = true) ->
-                appContext.getString(R.string.rf_permission_denied)
+                appContext.localizedString(R.string.rf_permission_denied)
             msg.contains("FAILED_PRECONDITION", ignoreCase = true) ||
                 msg.contains("requires an index", ignoreCase = true) ->
-                appContext.getString(R.string.rf_temporarily_unavailable)
+                appContext.localizedString(R.string.rf_temporarily_unavailable)
             msg.contains("UNAVAILABLE", ignoreCase = true) || msg.contains("network", ignoreCase = true) ->
-                appContext.getString(R.string.hw_network_problem)
-            else -> appContext.getString(R.string.rf_load_failed_retry)
+                appContext.localizedString(R.string.hw_network_problem)
+            else -> appContext.localizedString(R.string.rf_load_failed_retry)
         }
     }
 

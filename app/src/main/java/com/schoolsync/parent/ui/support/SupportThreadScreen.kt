@@ -93,7 +93,7 @@ fun SupportThreadScreen(
                         // blank subject is backfilled with the category label on
                         // create, so the header otherwise reads the same words
                         // twice. The ticket number is still worth showing.
-                        val cat = viewModel.categoryLabel(it.category)
+                        val cat = viewModel.categoryLabelLocalized(it.category)
                         val num = if (it.ticketNo > 0) "#${it.ticketNo}" else ""
                         val line = if (it.subject.equals(cat, ignoreCase = true)) num
                                    else if (num.isEmpty()) cat

@@ -20,6 +20,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class MyLessonsUiState(
     val date: String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()),
@@ -64,7 +65,7 @@ class MyLessonsViewModel @Inject constructor(
                 onFailure = { e ->
                     _ui.update { it.copy(
                         lessons = emptyList(), isLoadingLessons = false,
-                        error = e.message ?: appContext.getString(R.string.lessons_load_failed)
+                        error = e.message ?: appContext.localizedString(R.string.lessons_load_failed)
                     ) }
                 }
             )

@@ -12,6 +12,7 @@ import com.schoolsync.parent.util.Constants
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.schoolsync.parent.util.localizedString
 
 /**
  * Reads the canonical `subjectAssignments` collection for the parent's child's
@@ -49,7 +50,7 @@ class MyTeachersFirestoreRepository @Inject constructor(
     }
 
     /**
-     * One row in the appContext.getString(R.string.tch_title) UI: a single subject assignment joined
+     * One row in the appContext.localizedString(R.string.tch_title) UI: a single subject assignment joined
      * with the resolved staff profile.
      */
     data class TeacherEntry(
@@ -114,7 +115,7 @@ class MyTeachersFirestoreRepository @Inject constructor(
             // staff lifecycle (Phase 3 cascade) sets `archived=true` on every
             // subjectAssignment row owned by a deactivated teacher, so this
             // filter is the join-side guard that keeps deactivated teachers
-            // off the parent's appContext.getString(R.string.tch_title) list.
+            // off the parent's appContext.localizedString(R.string.tch_title) list.
             val assignments = (sectionSpecific + classWide)
                 .distinctBy { it.id }
                 .filter { !it.archived }

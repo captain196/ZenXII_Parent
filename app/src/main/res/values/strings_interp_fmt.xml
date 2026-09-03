@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Interpolated user-facing copy converted to format strings. -->
+<resources>
+    <string name="dash_ptm_title">PTM · %1$s</string>
+    <string name="dash_ptm_rsvp">Tap to RSVP · %1$s</string>
+    <string name="dash_attendance_down">Down %1$s%% this month</string>
+    <string name="dash_attendance_good">%1$d%% this month · keep it up</string>
+    <string name="dash_attendance_month">ATTENDANCE · %1$s</string>
+    <string name="dash_happy_birthday">Happy Birthday, %1$s!</string>
+    <string name="dash_birthday_fallback">Champ</string>
+    <string name="fees_payment_description">Fees — %1$s</string>
+    <string name="hw_subject_filter_cd">%1$s subject filter</string>
+    <string name="profile_roll_suffix">  ·  Roll #%1$s</string>
+    <string name="rf_error_tap_retry">%1$s  Tap to retry.</string>
+    <string name="rf_severity_cd">Severity: %1$s</string>
+    <string name="search_open_item">Open %1$s</string>
+    <string name="story_from_teacher">Story from %1$s</string>
+    <string name="story_reacted_with">Reacted with %1$s</string>
+    <string name="story_react_with">React with %1$s</string>
+</resources>

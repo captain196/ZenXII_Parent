@@ -260,7 +260,7 @@ fun ProfileScreen(
                             modifier = Modifier.weight(1f),
                             // Pending \u2192 jump into the Pending tab; all done \u2192 open
                             // the full homework list.
-                            onClick = { onOpenHomework(if (pending > 0) "pending" else "all") }
+                            onClick = { onOpenHomework(if (pending > 0) "pending" else "all") }  // i18n-ignore: tab keys
                         )
                     }
                 }
@@ -305,7 +305,7 @@ fun ProfileScreen(
                                     val roll = user?.rollNo?.takeIf { it.isNotBlank() }
                                     if (cls != null) append(cls)
                                     if (sec != null) append(" - $sec")
-                                    if (roll != null) append("  \u00B7  Roll #$roll")
+                                    if (roll != null) append(stringResource(R.string.profile_roll_suffix, roll.toString()))
                                 }
                                 if (classSection.isNotBlank()) {
                                     Text(text = classSection, style = TextStyle(fontSize = 11.sp, color = c.textSecondary))
@@ -412,9 +412,9 @@ fun ProfileScreen(
                             emoji = "\uD83C\uDFA8",
                             label = stringResource(R.string.section_appearance),
                             subtitle = when (uiState.themeMode) {
-                                "light" -> "Light"
-                                "dark" -> "Dark"
-                                else -> "System"
+                                "light" -> stringResource(R.string.theme_light)
+                                "dark" -> stringResource(R.string.theme_dark)
+                                else -> stringResource(R.string.theme_system)
                             },
                             onClick = { viewModel.toggleAppearance() }
                         )

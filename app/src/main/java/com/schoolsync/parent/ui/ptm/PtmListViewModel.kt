@@ -22,6 +22,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 /**
  * One row in the parent-facing PTM list. Combines the PTM event metadata
@@ -69,7 +70,7 @@ class PtmListViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = appContext.getString(R.string.ptm_no_class_section)
+                            errorMessage = appContext.localizedString(R.string.ptm_no_class_section)
                         )
                     }
                     return@launch
@@ -115,7 +116,7 @@ class PtmListViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.message ?: appContext.getString(R.string.ptm_load_failed_plural)
+                        errorMessage = e.message ?: appContext.localizedString(R.string.ptm_load_failed_plural)
                     )
                 }
             }

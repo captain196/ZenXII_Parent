@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plural forms for the counts added in the interpolated-copy wave.
+     English tolerates "%d day(s)"; hi/ta/te do not. -->
+<resources>
+    <plurals name="fees_charge_all_unpaid">
+        <item quantity="one">This will charge the %1$d unpaid month in one payment.</item>
+        <item quantity="other">This will charge ALL %1$d unpaid months in one payment.</item>
+    </plurals>
+    <plurals name="dash_in_days">
+        <item quantity="one">In %1$d day</item>
+        <item quantity="other">In %1$d days</item>
+    </plurals>
+    <plurals name="dash_due_in_days">
+        <item quantity="one">Due in %1$d day</item>
+        <item quantity="other">Due in %1$d days</item>
+    </plurals>
+</resources>

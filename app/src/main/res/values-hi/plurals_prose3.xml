@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plural forms for the counts added in the interpolated-copy wave.
+     English tolerates "%d day(s)"; hi/ta/te do not. -->
+<resources>
+    <plurals name="fees_charge_all_unpaid">
+        <item quantity="one">इससे %1$d अवैतनिक माह एक ही भुगतान में लिया जाएगा।</item>
+        <item quantity="other">इससे सभी %1$d अवैतनिक माह एक ही भुगतान में लिए जाएँगे।</item>
+    </plurals>
+    <plurals name="dash_in_days">
+        <item quantity="one">%1$d दिन में</item>
+        <item quantity="other">%1$d दिनों में</item>
+    </plurals>
+    <plurals name="dash_due_in_days">
+        <item quantity="one">%1$d दिन में देय</item>
+        <item quantity="other">%1$d दिनों में देय</item>
+    </plurals>
+</resources>

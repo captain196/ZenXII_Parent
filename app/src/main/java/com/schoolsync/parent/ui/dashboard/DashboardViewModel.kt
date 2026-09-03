@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 /** Lightweight sibling summary used by the Dashboard switcher. */
 data class SiblingSummary(
@@ -77,7 +78,7 @@ data class DashboardUiState(
     val feesLoadFailed: Boolean = false,
     val pendingHomeworkCount: Int = 0,
     /** Live count of ACTIVE red flags for the current child — drives the
-     *  dashboard appContext.getString(R.string.rf_title) tile badge so a new serious flag is visible
+     *  dashboard appContext.localizedString(R.string.rf_title) tile badge so a new serious flag is visible
      *  at a glance without opening the screen. */
     val activeFlagCount: Int = 0,
     /**
@@ -261,7 +262,7 @@ class DashboardViewModel @Inject constructor(
             try {
                 val result = studentFirestoreRepo.getStudent(studentId)
                 val doc = result.getOrNull() ?: run {
-                    _uiState.update { it.copy(errorMessage = appContext.getString(R.string.dash_child_profile_failed)) }
+                    _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.dash_child_profile_failed)) }
                     return@launch
                 }
                 val current = _uiState.value.user ?: User.empty()
@@ -323,7 +324,7 @@ class DashboardViewModel @Inject constructor(
                 loadEvents()
             } catch (e: Exception) {
                 Log.e("DashboardVM", "switchToSibling failed", e)
-                _uiState.update { it.copy(errorMessage = e.message ?: appContext.getString(R.string.dash_switch_failed)) }
+                _uiState.update { it.copy(errorMessage = e.message ?: appContext.localizedString(R.string.dash_switch_failed)) }
             }
         }
     }
@@ -418,7 +419,7 @@ class DashboardViewModel @Inject constructor(
                 else ptmFirestoreRepo.getUpcomingPtms(cls, sec).getOrNull().orEmpty().map { p ->
                     Event(
                         eventId      = p.ptmEventId.ifBlank { p.id.removePrefix("${p.schoolId}_") },
-                        title        = p.title.ifBlank { appContext.getString(R.string.ptm_meeting_title) },
+                        title        = p.title.ifBlank { appContext.localizedString(R.string.ptm_meeting_title) },
                         description  = p.description,
                         category     = "ptm",
                         startDate    = p.date,
@@ -471,13 +472,13 @@ class DashboardViewModel @Inject constructor(
             result.fold(
                 onSuccess = { summaries ->
                     val now = java.time.YearMonth.now()
-                    val canonicalKey = "%d-%02d".format(now.year, now.monthValue)
+                    val canonicalKey = String.format(java.util.Locale.ROOT, "%d-%02d", now.year, now.monthValue)
                     val legacyLabel  = "${now.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)} ${now.year}"
                     val currentMonthSummary = summaries.find {
                         it.month == canonicalKey || it.month == legacyLabel
                     }
                     val prevYm = now.minusMonths(1)
-                    val prevCanonical = "%d-%02d".format(prevYm.year, prevYm.monthValue)
+                    val prevCanonical = String.format(java.util.Locale.ROOT, "%d-%02d", prevYm.year, prevYm.monthValue)
                     val prevLegacy    = "${prevYm.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)} ${prevYm.year}"
                     val prevMonthSummary = summaries.find {
                         it.month == prevCanonical || it.month == prevLegacy
@@ -501,12 +502,12 @@ class DashboardViewModel @Inject constructor(
                             // Display labels for the stored code chars. The CODES
                             // ('P'/'A'/'L'/'H'/'V'/'T') are the wire values and are
                             // untouched; only the rendered text is translated.
-                            'P' -> appContext.getString(R.string.attendance_status_present)
-                            'A' -> appContext.getString(R.string.attendance_status_absent)
-                            'L' -> appContext.getString(R.string.attendance_status_leave)
-                            'H' -> appContext.getString(R.string.attendance_status_holiday)
-                            'V' -> appContext.getString(R.string.attendance_status_vacation)
-                            'T' -> appContext.getString(R.string.attendance_status_tardy)
+                            'P' -> appContext.localizedString(R.string.attendance_status_present)
+                            'A' -> appContext.localizedString(R.string.attendance_status_absent)
+                            'L' -> appContext.localizedString(R.string.attendance_status_leave)
+                            'H' -> appContext.localizedString(R.string.attendance_status_holiday)
+                            'V' -> appContext.localizedString(R.string.attendance_status_vacation)
+                            'T' -> appContext.localizedString(R.string.attendance_status_tardy)
                             else -> null
                         }
                     }

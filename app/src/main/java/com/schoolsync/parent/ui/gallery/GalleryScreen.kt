@@ -291,7 +291,19 @@ private fun CategoryChips(
                     .padding(horizontal = 14.dp, vertical = 7.dp)
             ) {
                 Text(
-                    text = category.replaceFirstChar { it.uppercase() },
+                    // Display label only — `category` stays the lowercase wire
+                    // value the filter compares against. .replaceFirstChar is
+                    // dropped: Indic scripts have no case, and an unknown
+                    // school-defined category still falls through to itself.
+                    text = when (category) {
+                        "all"      -> stringResource(R.string.common_all)
+                        "general"  -> stringResource(R.string.gal_cat_general)
+                        "sports"   -> stringResource(R.string.gal_cat_sports)
+                        "cultural" -> stringResource(R.string.gal_cat_cultural)
+                        "academic" -> stringResource(R.string.gal_cat_academic)
+                        "event"    -> stringResource(R.string.gal_cat_event)
+                        else       -> category.replaceFirstChar { it.uppercase() }
+                    },
                     style = TextStyle(
                         fontSize = 12.sp,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,

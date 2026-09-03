@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 /** Buckets a search hit falls into. `order` drives the section order on screen. */
 enum class SearchCategory(val label: String, val emoji: String) {
@@ -120,7 +121,7 @@ class SearchViewModel @Inject constructor(
                         SearchResult(
                             id = "hw_${hw.id}",
                             category = SearchCategory.HOMEWORK,
-                            title = hw.title.ifBlank { "(Untitled)" },
+                            title = hw.title.ifBlank { appContext.localizedString(R.string.search_untitled_generic) },
                             subtitle = listOfNotNull(
                                 hw.subject.ifBlank { null },
                                 hw.teacherName.ifBlank { null }
@@ -139,7 +140,7 @@ class SearchViewModel @Inject constructor(
                     SearchResult(
                         id = "notice_${n.id}",
                         category = SearchCategory.NOTICE,
-                        title = n.title.ifBlank { "(Untitled notice)" },
+                        title = n.title.ifBlank { appContext.localizedString(R.string.search_untitled_notice) },
                         subtitle = n.author.ifBlank { n.category },
                         emoji = SearchCategory.NOTICE.emoji,
                         route = Route.Notices.route,
@@ -156,7 +157,7 @@ class SearchViewModel @Inject constructor(
                     SearchResult(
                         id = "event_${e.id}",
                         category = SearchCategory.EVENT,
-                        title = e.title.ifBlank { "(Untitled event)" },
+                        title = e.title.ifBlank { appContext.localizedString(R.string.search_untitled_event) },
                         subtitle = listOfNotNull(
                             e.startDate.ifBlank { null },
                             e.location.ifBlank { null }
@@ -177,7 +178,7 @@ class SearchViewModel @Inject constructor(
                     SearchResult(
                         id = "teacher_${t.assignment.teacherId}_${t.assignment.subjectCode}",
                         category = SearchCategory.TEACHER,
-                        title = name.ifBlank { "(Teacher)" },
+                        title = name.ifBlank { appContext.localizedString(R.string.search_teacher_generic) },
                         subtitle = subject,
                         emoji = SearchCategory.TEACHER.emoji,
                         route = Route.MyTeachers.route,
@@ -192,7 +193,7 @@ class SearchViewModel @Inject constructor(
                     SearchResult(
                         id = "exam_${ex.id}",
                         category = SearchCategory.RESULT,
-                        title = ex.examName.ifBlank { "(Exam)" },
+                        title = ex.examName.ifBlank { appContext.localizedString(R.string.search_exam_generic) },
                         subtitle = ex.examType,
                         emoji = SearchCategory.RESULT.emoji,
                         route = Route.Results.route,
@@ -220,7 +221,7 @@ class SearchViewModel @Inject constructor(
                 id = "feat_$route",
                 category = SearchCategory.FEATURE,
                 title = title,
-                subtitle = "Open $title",
+                subtitle = appContext.localizedString(R.string.search_open_item, title),
                 emoji = emoji,
                 route = route,
             ),
@@ -232,17 +233,16 @@ class SearchViewModel @Inject constructor(
             // what it is before anyone opens it. The screen itself says
             // "Ask ZenXii". Sparkle, not a speech bubble — a bubble would read
             // as messaging a teacher, which is a different feature.
-            // TODO(locale): use localizedString once that helper lands on main.
-            feature(appContext.getString(R.string.assistant_feature_title), "✨", Route.Assistant.route,
+            feature(appContext.localizedString(R.string.assistant_feature_title), "✨", Route.Assistant.route,
                 // English keywords stay alongside the localised ones: users type
                 // "ai" and "chat" in Latin script regardless of app language.
                 "ai", "assistant", "ask", "ask zenxii", "chat", "help",
                 "question", "doubt", "query", "bot", "helpdesk",
-                appContext.getString(R.string.assistant_feature_title),
-                appContext.getString(R.string.assistant_search_keywords)),
+                appContext.localizedString(R.string.assistant_feature_title),
+                appContext.localizedString(R.string.assistant_search_keywords)),
             feature("Attendance", "📅", Route.Attendance.route,
                 "present", "absent", "attendance", "leave record", "days"),
-            feature(appContext.getString(R.string.dash_pay_fees), "💳", Route.Fees.route,
+            feature(appContext.localizedString(R.string.dash_pay_fees), "💳", Route.Fees.route,
                 "fees", "fee", "payment", "pay", "due", "invoice", "receipt", "challan"),
             feature("Homework", "📝", Route.Homework.route,
                 "homework", "assignment", "assignments", "diary", "task", "work"),
@@ -262,14 +262,14 @@ class SearchViewModel @Inject constructor(
                 "leave", "absence", "apply leave", "sick"),
             feature("PTM", "👥", Route.PtmList.route,
                 "ptm", "parent teacher meeting", "meeting", "appointment"),
-            feature(appContext.getString(R.string.tch_title), "👩‍🏫", Route.MyTeachers.route,
+            feature(appContext.localizedString(R.string.tch_title), "👩‍🏫", Route.MyTeachers.route,
                 "teachers", "teacher", "staff", "faculty", "contact"),
-            feature(appContext.getString(R.string.rf_title), "🚩", Route.RedFlags.route,
+            feature(appContext.localizedString(R.string.rf_title), "🚩", Route.RedFlags.route,
                 "red flags", "flags", "discipline", "warning", "behaviour", "behavior"),
             // Support Desk. Synonyms are deliberately wide: a parent looking for
             // this will search for the PROBLEM ("complaint", "wrong fee") far
             // more often than for the feature's name.
-            feature(appContext.getString(R.string.support_title), "🎫", Route.Support.route,
+            feature(appContext.localizedString(R.string.support_title), "🎫", Route.Support.route,
                 "support", "help", "helpdesk", "ticket", "tickets", "complaint",
                 "complain", "grievance", "issue", "problem", "query", "contact school"),
         )

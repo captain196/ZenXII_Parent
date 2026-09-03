@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 13: gallery category chips. The VALUE stays the lowercase wire
+     string used for filtering; only the label localizes. -->
+<resources>
+    <string name="gal_cat_general">સામાન્ય</string>
+    <string name="gal_cat_sports">રમતગમત</string>
+    <string name="gal_cat_cultural">સાંસ્કૃતિક</string>
+    <string name="gal_cat_academic">શૈક્ષણિક</string>
+    <string name="gal_cat_event">કાર્યક્રમ</string>
+</resources>

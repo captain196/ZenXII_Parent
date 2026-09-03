@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 5: found on device / by the widened position audit (HOLE 10-11). -->
+<resources>
+    <string name="fees_label_due">બાકી</string>
+    <string name="fees_label_remaining">બાકી</string>
+    <string name="fees_fine_label">દંડ</string>
+    <string name="fees_status_pending">બાકી</string>
+    <string name="att_percent_label">ટકા</string>
+    <string name="pay_fee_cleared_fmt">%1$s ફી ચૂકવાઈ</string>
+    <string name="hw_priority_urgent">તાત્કાલિક</string>
+    <string name="hw_priority_relaxed">સામાન્ય</string>
+    <string name="theme_light">હળવું</string>
+    <string name="theme_dark">ઘેરું</string>
+    <string name="theme_system">સિસ્ટમ</string>
+</resources>

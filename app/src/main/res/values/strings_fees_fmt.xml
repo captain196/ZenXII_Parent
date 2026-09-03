@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Money-path copy as format strings; amounts pre-formatted via DisplayFormat. -->
+<resources>
+    <string name="fees_pay_custom_hint">Pay a custom amount (≤ %1$s)</string>
+    <string name="fees_hostel_breakdown">Room: %1$s + Mess: %2$s</string>
+    <string name="fees_month_balance">%1$s  ·  Balance %2$s</string>
+    <string name="fees_amount_between">Enter an amount between %1$s and %2$s</string>
+    <string name="fees_pay_amount">Pay %1$s</string>
+    <string name="fees_hostel_room_label">%1$s - Room %2$s</string>
+    <string name="fees_fine_due">Due: %1$s</string>
+    <string name="fees_head_amount">%1$s: %2$s</string>
+    <string name="fees_refund_of_receipt">Refund of receipt #%1$s</string>
+</resources>

@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.schoolsync.parent.data.model.TeacherStoryGroup
 import com.schoolsync.parent.ui.theme.LocalAppColors
+import androidx.compose.ui.res.pluralStringResource
 
 /**
  * The parent-side story tray.
@@ -85,7 +86,7 @@ fun StoriesRow(
                         .padding(horizontal = 7.dp, vertical = 1.dp)
                 ) {
                     Text(
-                        text = "$unseenCount new",
+                        text = pluralStringResource(R.plurals.stories_unseen_new, unseenCount, unseenCount),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         fontWeight = FontWeight.Bold

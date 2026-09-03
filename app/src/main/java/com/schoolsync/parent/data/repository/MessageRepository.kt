@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.schoolsync.parent.util.localizedString
 
 /**
  * Repository for messages (inbox + chat).
@@ -322,7 +323,7 @@ class MessageRepository @Inject constructor(
      * conversation. The shared `Conversations/{id}` doc and the chat
      * history under `Chat/{id}` are left intact so the other participant
      * (teacher / admin) still sees the conversation. Mirrors WhatsApp's
-     * appContext.getString(R.string.msg_delete_chat) behaviour.
+     * appContext.localizedString(R.string.msg_delete_chat) behaviour.
      *
      * Best-effort: never throws if the entry was already gone.
      */

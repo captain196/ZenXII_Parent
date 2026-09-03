@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 /**
  * Aggregated row used by the My Teachers UI. One row per unique teacher,
@@ -67,7 +68,7 @@ class MyTeachersViewModel @Inject constructor(
                     },
                     onFailure = { e ->
                         android.util.Log.w("MyTeachersVM", "pullRefresh failed", e)
-                        _uiState.update { it.copy(error = e.message ?: appContext.getString(R.string.tch_load_failed)) }
+                        _uiState.update { it.copy(error = e.message ?: appContext.localizedString(R.string.tch_load_failed)) }
                     }
                 )
             } catch (e: Exception) {
@@ -112,7 +113,7 @@ class MyTeachersViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = e.message ?: appContext.getString(R.string.tch_load_failed),
+                            error = e.message ?: appContext.localizedString(R.string.tch_load_failed),
                         )
                     }
                 }
@@ -137,7 +138,7 @@ class MyTeachersViewModel @Inject constructor(
             TeacherRow(
                 teacherId = first.assignment.teacherId,
                 name = staff?.name?.takeIf { it.isNotBlank() }
-                    ?: first.assignment.teacherName.ifBlank { appContext.getString(R.string.tch_unknown) },
+                    ?: first.assignment.teacherName.ifBlank { appContext.localizedString(R.string.tch_unknown) },
                 phone = staff?.phone.orEmpty(),
                 email = staff?.email.orEmpty(),
                 profilePic = staff?.profilePic.orEmpty(),

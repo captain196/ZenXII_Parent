@@ -258,7 +258,7 @@ private fun AssignmentCard(state: PtmDetailUiState, c: com.schoolsync.parent.ui.
             )
         } else if (a.classTeacherId.isBlank() || a.classTeacherName.isBlank()) {
             Text(
-                "No class teacher set for ${a.sectionKey}. Please ask the school office.",
+                stringResource(R.string.ptm_no_class_teacher_fmt, a.sectionKey),
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.error
             )
@@ -316,7 +316,7 @@ private fun AppliedCard(
                     fontWeight = FontWeight.SemiBold
                 )
                 val q = state.queueNumber
-                val sub = if (q != null && q > 0) "Queue number: #$q"
+                val sub = if (q != null && q > 0) stringResource(R.string.ptm_queue_number_fmt, q)
                           else stringResource(R.string.ptm_in_queue)
                 Text(sub, style = MaterialTheme.typography.labelMedium, color = c.textSecondary)
             }

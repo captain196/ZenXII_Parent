@@ -631,6 +631,8 @@ private fun SubjectChip(
     onClick: () -> Unit
 ) {
     val c = LocalAppColors.current
+    // Hoisted: Modifier.semantics {} is not a composable scope.
+    val subjectFilterCd = stringResource(R.string.hw_subject_filter_cd, label)
     Box(
         modifier = Modifier
             // FIX 6 a11y: 48dp min touch target for the subject chip (visual
@@ -652,7 +654,7 @@ private fun SubjectChip(
             .semantics(mergeDescendants = true) {
                 role = Role.Tab
                 selected = isSelected
-                contentDescription = "$label subject filter"
+                contentDescription = subjectFilterCd
             }
             .padding(horizontal = 12.dp, vertical = 7.dp)
     ) {
@@ -748,7 +750,7 @@ private fun HomeworkCard(item: Homework, onClick: () -> Unit) {
                 Text(
                     text = buildString {
                         if (item.teacherName.isNotBlank()) append(item.teacherName)
-                        if (item.teacherName.isNotBlank() && item.subject.isNotBlank()) append(" \u00B7 ")
+                        if (item.teacherName.isNotBlank() && item.subject.isNotBlank()) append(" \u00B7 ")  // i18n-ignore: punctuation separator
                         if (item.subject.isNotBlank()) append(item.subject)
                     },
                     fontSize = 11.sp, // FIX 6 a11y: was 10sp
@@ -807,7 +809,7 @@ private fun HomeworkCard(item: Homework, onClick: () -> Unit) {
                     // with invisible body).
                     val trimmedRemark = item.teacherMarkRemark.trim()
                     Text(
-                        text = "Evaluated (no submission) \u2014 score: ${item.teacherMarkScore}" +
+                        text = stringResource(R.string.hw_evaluated_no_submission, item.teacherMarkScore.toString()) +
                                if (trimmedRemark.isNotEmpty()) " \u00B7 $trimmedRemark" else "",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
@@ -1025,9 +1027,9 @@ private fun HomeworkDetailPage(
                 ) {
                     Text(
                         text = when (priority) {
-                            Priority.HIGH -> "Urgent"
+                            Priority.HIGH -> stringResource(R.string.hw_priority_urgent)
                             Priority.MEDIUM -> stringResource(R.string.hw_due_soon)
-                            Priority.LOW -> "Relaxed"
+                            Priority.LOW -> stringResource(R.string.hw_priority_relaxed)
                         },
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,

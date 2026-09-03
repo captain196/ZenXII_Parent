@@ -50,6 +50,8 @@ import com.schoolsync.parent.ui.theme.LocalAppColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.schoolsync.parent.util.DisplayFormat
+import com.schoolsync.parent.util.localizedString
 
 /**
  * Full-screen success state shown by [PaymentFlowOverlay] when
@@ -145,7 +147,7 @@ fun PaymentSuccessScreen(
             // Amount — only when we know it. "Rs 0" looks like a bug.
             if (details.amount > 0) {
                 Text(
-                    "Rs ${"%,.0f".format(details.amount)}",
+                    DisplayFormat.currencyWhole(details.amount),
                     style = MaterialTheme.typography.displaySmall,
                     color = c.textPrimary,
                     fontWeight = FontWeight.Bold,
@@ -161,6 +163,9 @@ fun PaymentSuccessScreen(
             // 2,800 dues is misleading. PaymentSession reads the
             // allocation doc to compute isPartial + remainingByMonth so
             // we can render accurate per-month status here.
+            // joinToString's transform is not a composable scope, so the
+            // per-month line resolves through the Context instead.
+            val ctx = androidx.compose.ui.platform.LocalContext.current
             val subtitle = when {
                 details.alreadyPaid ->
                     stringResource(R.string.pay_already_verified)
@@ -168,13 +173,13 @@ fun PaymentSuccessScreen(
                     stringResource(R.string.pay_receipt_preparing)
                 details.isPartial && details.remainingByMonth.isNotEmpty() -> {
                     val parts = details.remainingByMonth.entries.joinToString(" · ") { (m, bal) ->
-                        "$m: Rs ${"%,.0f".format(bal)} remaining"
+                        ctx.localizedString(R.string.pay_remaining_fmt, m, DisplayFormat.currencyWhole(bal))
                     }
                     parts
                 }
                 details.isPartial -> stringResource(R.string.pay_balance_remaining)
                 details.months.isNotEmpty() ->
-                    "${details.months.joinToString(", ")} fee cleared"
+                    stringResource(R.string.pay_fee_cleared_fmt, details.months.joinToString(", "))
                 else -> stringResource(R.string.pay_fees_cleared)
             }
             Text(
@@ -227,7 +232,7 @@ fun PaymentSuccessScreen(
                 Button(
                     onClick = {
                         Log.i(
-                            "PaymentSuccess",
+                            "PaymentSuccess",  // i18n-ignore: log tag
                             "[TAP View Receipt] receiptDocId=${details.receiptDocId} receiptKey=${details.receiptKey}"
                         )
                         onViewReceipt(details.receiptDocId)

@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -162,6 +164,8 @@ import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import com.schoolsync.parent.util.localizedString
+import com.schoolsync.parent.util.localizedPlural
 
 // ───────────────────────────────────────────────────────────────────────────
 // Main Dashboard
@@ -264,16 +268,17 @@ fun DashboardScreen(
                 // RTDB fallbacks may write bare "10th". Strip a leading
                 // "Class " so we never render "Class Class 10th" when the
                 // source already has the prefix. Same for "Section " prefix.
+                val ctx = androidx.compose.ui.platform.LocalContext.current
                 val classLabel = listOfNotNull(
                     user?.className?.takeIf { it.isNotBlank() }?.let { raw ->
                         val bare = raw.trim().removePrefix("Class").removePrefix("class").trim()
-                        "Class ${bare.ifBlank { raw }}"
+                        ctx.localizedString(R.string.dash_class_fmt, bare.ifBlank { raw })
                     },
                     user?.section?.takeIf { it.isNotBlank() }?.let { raw ->
                         val bare = raw.trim().removePrefix("Section").removePrefix("section").trim()
-                        "Sec ${bare.ifBlank { raw }}"
+                        ctx.localizedString(R.string.dash_sec_fmt, bare.ifBlank { raw })
                     },
-                    user?.rollNo?.takeIf { it.isNotBlank() }?.let { "Roll #$it" }
+                    user?.rollNo?.takeIf { it.isNotBlank() }?.let { ctx.localizedString(R.string.dash_roll_fmt, it) }
                 ).joinToString(" · ")
 
                 Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
@@ -883,8 +888,15 @@ private fun KpiGrid(
         // Bento: Attendance is the tall hero tile (left); Homework and Notices
         // stack in the right column. Heights driven by weights so the left
         // tile matches the combined right column exactly.
+        // Height is intrinsic, not a fixed 212.dp. The tile sublabels are a
+        // single line in English ("task pending") and two in every Indic
+        // script ("பணி நிலுவையில்"), which the fixed height clipped
+        // mid-glyph. IntrinsicSize.Min keeps the left hero tile matched to the
+        // combined right column, which is what the fixed height was for.
         Row(
-            modifier = Modifier.fillMaxWidth().height(212.dp),
+            modifier = Modifier.fillMaxWidth()
+                .heightIn(min = 212.dp)
+                .height(IntrinsicSize.Min),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             AttendanceRingCard(
@@ -905,8 +917,8 @@ private fun KpiGrid(
                     value = if (homeworkFailed) "—" else homeworkCount.toString(),
                     sublabel = when {
                         homeworkFailed -> stringResource(R.string.dash_tap_retry)
-                        homeworkCount == 1 -> "task pending"
-                        else -> "tasks pending"
+                        else -> pluralStringResource(
+                            R.plurals.dash_tasks_pending, homeworkCount)
                     },
                     modifier = Modifier.fillMaxWidth().weight(1f)
                         .bouncyClickable(onClick = onHomework)
@@ -916,7 +928,7 @@ private fun KpiGrid(
                     iconColor = Color(0xFF6A1B9A),
                     label = stringResource(R.string.drawer_notices),
                     value = noticeCount.toString(),
-                    sublabel = if (noticeCount == 1) "new circular" else "new circulars",
+                    sublabel = pluralStringResource(R.plurals.dash_new_circulars, noticeCount),
                     modifier = Modifier.fillMaxWidth().weight(1f)
                         .bouncyClickable(onClick = onNotices)
                 )
@@ -1009,7 +1021,7 @@ private fun AttendanceRingCard(
             val sign = if (isRise) "+" else "−"
             val color = if (isRise) c.success else c.error
             Text(
-                "$arrow $sign${"%.1f".format(kotlin.math.abs(change))}% this month",
+                "$arrow $sign${String.format(java.util.Locale.ROOT, "%.1f", kotlin.math.abs(change))}% this month",
                 style = MaterialTheme.typography.labelMedium,
                 color = color,
                 fontWeight = FontWeight.SemiBold,
@@ -1074,7 +1086,7 @@ private fun FeesDueCard(
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    "%,.0f".format(amount),
+                    String.format(java.util.Locale.ROOT, "%,.0f", amount),
                     style = MetricLarge.copy(fontSize = 26.sp),
                     color = c.textPrimary
                 )
@@ -1612,7 +1624,7 @@ private fun EventBannerCard(event: Event, onClick: () -> Unit) {
                         .padding(horizontal = 9.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        event.category.ifBlank { "Event" }.replaceFirstChar { it.uppercase() },
+                        event.category.ifBlank { stringResource(R.string.dash_event_generic) }.replaceFirstChar { it.uppercase() },
                         style = MaterialTheme.typography.labelSmall,
                         color = c.onBanner,
                         fontWeight = FontWeight.Bold
@@ -1627,10 +1639,11 @@ private fun EventBannerCard(event: Event, onClick: () -> Unit) {
                     ) {
                         Text(
                             when {
-                                daysUntil == 0L -> "Today"
-                                daysUntil == 1L -> "Tomorrow"
-                                daysUntil < 0L -> "Ongoing"
-                                else -> "In $daysUntil days"
+                                daysUntil == 0L -> stringResource(R.string.common_today)
+                                daysUntil == 1L -> stringResource(R.string.common_tomorrow)
+                                daysUntil < 0L -> stringResource(R.string.common_ongoing)
+                                else -> pluralStringResource(
+                                    R.plurals.dash_in_days, daysUntil.toInt(), daysUntil.toInt())
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = gradStart,
@@ -1708,7 +1721,7 @@ private fun HighlightBannerCard(
         "holiday" -> "🎉"
         "ptm"     -> "👥"; else -> "📅"
     }
-    val tag = event.category.ifBlank { "Event" }.replaceFirstChar { it.uppercase() }
+    val tag = event.category.ifBlank { stringResource(R.string.dash_event_generic) }.replaceFirstChar { it.uppercase() }
     val sub = listOfNotNull(
         formatEventDate(event.startDate).ifBlank { event.startDate }.takeIf { it.isNotBlank() },
         event.location.takeIf { it.isNotBlank() }
@@ -1867,29 +1880,30 @@ private fun buildPulses(
             icon = Icons.Filled.CreditCard,
             tint = c.warning,
             onClick = onFees,
-            action = "Pay"
+            action = stringResource(R.string.dash_action_pay)
         )
     }
 
     // 2. PTM — show whenever an upcoming PTM is found, since RSVPs need
     //    parent action regardless of date proximity.
     if (nextPtm != null) {
+        val ctx = androidx.compose.ui.platform.LocalContext.current
         val days = daysUntilIso(nextPtm.date)
         val timing = when {
             days == null -> nextPtm.date
-            days <= 0L   -> "Today"
-            days == 1L   -> "Tomorrow"
-            days <= 7L   -> "In $days days"
+            days <= 0L   -> ctx.localizedString(R.string.common_today)
+            days == 1L   -> ctx.localizedString(R.string.common_tomorrow)
+            days <= 7L   -> ctx.localizedPlural(R.plurals.dash_in_days, days.toInt(), days.toInt())
             else         -> formatPtmShortDate(nextPtm.date)
         }
         out += Pulse(
             kind = PulseKind.PTM,
-            title = "PTM \u00B7 $timing",
-            subtitle = "Tap to RSVP \u00B7 ${nextPtm.title.ifBlank { stringResource(R.string.ptm_meeting_title) }}",
+            title = stringResource(R.string.dash_ptm_title, timing),
+            subtitle = stringResource(R.string.dash_ptm_rsvp, nextPtm.title.ifBlank { stringResource(R.string.ptm_meeting_title) }),
             icon = Icons.Filled.EventAvailable,
             tint = c.info,
             onClick = { onPtm(nextPtm.ptmEventId.ifBlank { nextPtm.id }) },
-            action = "RSVP"
+            action = stringResource(R.string.dash_action_rsvp)
         )
     }
 
@@ -1898,9 +1912,9 @@ private fun buildPulses(
         val days = daysUntilIso(nextEvent.startDate)
         if (days != null && days <= 3L) {
             val when_ = when {
-                days <= 0L -> "Today"
-                days == 1L -> "Tomorrow"
-                else -> "In $days days"
+                days <= 0L -> stringResource(R.string.common_today)
+                days == 1L -> stringResource(R.string.common_tomorrow)
+                else -> pluralStringResource(R.plurals.dash_in_days, days.toInt(), days.toInt())
             }
             out += Pulse(
                 kind = PulseKind.EVENT,
@@ -1912,7 +1926,7 @@ private fun buildPulses(
                     if (nextEvent.eventId.isNotBlank()) onEventDetail(nextEvent.eventId)
                     else onEvents()
                 },
-                action = "View"
+                action = stringResource(R.string.dash_action_view)
             )
         }
     }
@@ -1927,21 +1941,21 @@ private fun buildPulses(
                 icon = Icons.Filled.Warning,
                 tint = c.warning,
                 onClick = onAttendance,
-                action = "View"
+                action = stringResource(R.string.dash_action_view)
             )
             attendanceChange != null && attendanceChange < -3f -> out += Pulse(
                 kind = PulseKind.ATTENDANCE,
-                title = stringResource(R.string.dash_attendance_dropping_fmt, "%.1f".format(kotlin.math.abs(attendanceChange))),
-                subtitle = "Down ${"%.1f".format(kotlin.math.abs(attendanceChange))}% this month",
+                title = stringResource(R.string.dash_attendance_dropping_fmt, String.format(java.util.Locale.ROOT, "%.1f", kotlin.math.abs(attendanceChange))),
+                subtitle = stringResource(R.string.dash_attendance_down, String.format(java.util.Locale.ROOT, "%.1f", kotlin.math.abs(attendanceChange))),
                 icon = Icons.AutoMirrored.Filled.TrendingDown,
                 tint = c.warning,
                 onClick = onAttendance,
-                action = "View"
+                action = stringResource(R.string.dash_action_view)
             )
             attendancePct >= 92f -> out += Pulse(
                 kind = PulseKind.CELEBRATE,
                 title = stringResource(R.string.dash_attendance_great_fmt, attendancePct.toInt()),
-                subtitle = "${attendancePct.toInt()}% this month · keep it up",
+                subtitle = stringResource(R.string.dash_attendance_good, attendancePct.toInt()),
                 icon = Icons.AutoMirrored.Filled.TrendingUp,
                 tint = c.success,
                 onClick = onAttendance
@@ -1958,7 +1972,7 @@ private fun buildPulses(
             icon = Icons.AutoMirrored.Filled.Assignment,
             tint = c.teal,
             onClick = onHomework,
-            action = "View"
+            action = stringResource(R.string.dash_action_view)
         )
     }
 
@@ -1971,7 +1985,7 @@ private fun buildPulses(
             icon = Icons.Filled.Campaign,
             tint = c.purple,
             onClick = onNotices,
-            action = "Read"
+            action = stringResource(R.string.dash_action_read)
         )
     }
 
@@ -2340,11 +2354,13 @@ private fun formatHomeworkDue(dueDate: String): DueLabel {
     if (dueDate.isBlank()) return DueLabel("", c.textTertiary)
     val days = daysUntilIso(dueDate) ?: return DueLabel("Due $dueDate", c.textTertiary)
     return when {
-        days < 0L  -> DueLabel("Overdue", c.error)
+        days < 0L  -> DueLabel(stringResource(R.string.common_overdue), c.error)
         days == 0L -> DueLabel(stringResource(R.string.dash_due_today), c.error)
         days == 1L -> DueLabel(stringResource(R.string.dash_due_tomorrow), c.warning)
-        days <= 7L -> DueLabel("Due in $days days", c.warning)
-        else       -> DueLabel("Due in $days days", c.textTertiary)
+        days <= 7L -> DueLabel(pluralStringResource(
+            R.plurals.dash_due_in_days, days.toInt(), days.toInt()), c.warning)
+        else       -> DueLabel(pluralStringResource(
+            R.plurals.dash_due_in_days, days.toInt(), days.toInt()), c.textTertiary)
     }
 }
 
@@ -2399,10 +2415,10 @@ private fun AttendanceCalendarStrip(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("ATTENDANCE \u00B7 $monthLabel".uppercase(), style = OverlineLabel, color = c.textTertiary)
+                Text(stringResource(R.string.dash_attendance_month, monthLabel).uppercase(), style = OverlineLabel, color = c.textTertiary)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    "${"%.0f".format(summary.percentage)}% \u00B7 ${summary.present} present, ${summary.absent} absent",
+                    "${String.format(java.util.Locale.ROOT, "%.0f", summary.percentage)}% \u00B7 ${summary.present} present, ${summary.absent} absent",
                     style = MaterialTheme.typography.titleSmall,
                     color = c.textPrimary,
                     fontWeight = FontWeight.SemiBold
@@ -2561,7 +2577,7 @@ private fun LatestResultCard(
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        "Rank #${result.rank}",
+                        stringResource(R.string.dash_rank_fmt, result.rank),
                         style = MaterialTheme.typography.labelSmall,
                         color = c.accent,
                         fontWeight = FontWeight.Bold
@@ -2634,9 +2650,12 @@ private fun LatestResultCard(
                     else -> c.error
                 }
                 val badgeText = when {
-                    isAbsent -> "ABSENT"
-                    passed -> "PASSED"
-                    else -> result.passFail.ifBlank { "REVIEW" }.uppercase()
+                    // .uppercase() is dropped: Indic scripts have no case, and
+                    // the localized strings already carry the right form.
+                    isAbsent -> stringResource(R.string.result_badge_absent)
+                    passed -> stringResource(R.string.result_badge_passed)
+                    else -> result.passFail.ifBlank {
+                        stringResource(R.string.result_badge_review) }
                 }
                 Box(
                     modifier = Modifier
@@ -3032,7 +3051,7 @@ private fun SiblingSwitcher(
             Spacer(modifier = Modifier.width(10.dp))
             androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "Viewing",
+                    stringResource(R.string.dash_viewing),
                     style = MaterialTheme.typography.labelSmall,
                     color = c.textTertiary
                 )
@@ -3105,14 +3124,15 @@ private fun SiblingSwitcher(
                                 color = c.textPrimary,
                                 fontWeight = FontWeight.Medium
                             )
+                            val sibCtx = androidx.compose.ui.platform.LocalContext.current
                             val classLine = listOfNotNull(
                                 sib.className.takeIf { it.isNotBlank() }?.let { raw ->
                                     val bare = raw.trim().removePrefix("Class").removePrefix("class").trim()
-                                    "Class ${bare.ifBlank { raw }}"
+                                    sibCtx.localizedString(R.string.dash_class_fmt, bare.ifBlank { raw })
                                 },
                                 sib.section.takeIf { it.isNotBlank() }?.let { raw ->
                                     val bare = raw.trim().removePrefix("Section").removePrefix("section").trim()
-                                    "Sec ${bare.ifBlank { raw }}"
+                                    sibCtx.localizedString(R.string.dash_sec_fmt, bare.ifBlank { raw })
                                 }
                             ).joinToString(" · ")
                             if (classLine.isNotBlank()) {
@@ -3295,7 +3315,7 @@ private fun BirthdayBanner(wardName: String) {
             Spacer(modifier = Modifier.width(14.dp))
             Column {
                 Text(
-                    text = "Happy Birthday, ${wardName.ifBlank { "Champ" }}!",
+                    text = stringResource(R.string.dash_happy_birthday, wardName.ifBlank { stringResource(R.string.dash_birthday_fallback) }),
                     color = androidx.compose.ui.graphics.Color.White,
                     fontSize = 17.sp,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
@@ -3351,7 +3371,7 @@ private fun BirthdayBalloons() {
                     ),
                     repeatMode = androidx.compose.animation.core.RepeatMode.Restart
                 ),
-                label = "balloon_$idx"
+                label = "balloon_$idx"  /* i18n-ignore: animation label */
             )
             // Fade in for first 15% of rise, fade out in last 20%.
             val alpha = when {

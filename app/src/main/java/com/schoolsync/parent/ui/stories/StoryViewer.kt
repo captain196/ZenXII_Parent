@@ -436,7 +436,7 @@ private fun StoryPage(
                         coil.compose.AsyncImage(
                             model = story.mediaUrl,
                             contentDescription = buildString {
-                                append("Story from ${group.teacherName}")
+                                append(stringResource(R.string.story_from_teacher, group.teacherName))
                                 if (story.caption.isNotBlank()) append(": ${story.caption}")
                             },
                             contentScale = ContentScale.Fit,
@@ -620,6 +620,8 @@ private fun StoryPage(
                         val myEmoji = myReactions[story.storyId]
                         // Hoisted: Modifier.semantics {} is not a composable scope.
                         val reactCd = stringResource(R.string.story_react)
+                        val reactedCd = if (myEmoji != null)
+                            stringResource(R.string.story_reacted_a11y_fmt, myEmoji) else ""
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
@@ -629,7 +631,7 @@ private fun StoryPage(
                                 .padding(8.dp)
                                 .semantics {
                                     contentDescription =
-                                        if (myEmoji != null) "You reacted $myEmoji. Tap to change your reaction"
+                                        if (myEmoji != null) reactedCd
                                         else reactCd
                                 }
                         ) {
@@ -709,15 +711,16 @@ private fun ReactionTray(selected: String?, onReact: (String) -> Unit) {
         StorySharedConfig.ALLOWED_REACTIONS.forEach { emoji ->
             val isSel = selected == emoji
             val scale by animateFloatAsState(targetValue = if (isSel) 1.3f else 1f, label = "reactScale")
+            // Hoisted: Modifier.semantics {} is not a composable scope.
+            val reactCd = if (isSel) stringResource(R.string.story_reacted_with, emoji)
+                          else stringResource(R.string.story_react_with, emoji)
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(if (isSel) Color.White.copy(alpha = 0.22f) else Color.Transparent)
                     .clickable { onReact(emoji) }
-                    .semantics {
-                        contentDescription = if (isSel) "Reacted with $emoji" else "React with $emoji"
-                    },
+                    .semantics { contentDescription = reactCd },
                 contentAlignment = Alignment.Center
             ) {
                 Text(

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Interpolated user-facing copy converted to format strings. -->
+<resources>
+    <string name="dash_ptm_title">PTM · %1$s</string>
+    <string name="dash_ptm_rsvp">RSVP हेतु टैप करें · %1$s</string>
+    <string name="dash_attendance_down">इस माह %1$s%% की गिरावट</string>
+    <string name="dash_attendance_good">इस माह %1$d%% · ऐसे ही जारी रखें</string>
+    <string name="dash_attendance_month">उपस्थिति · %1$s</string>
+    <string name="dash_happy_birthday">जन्मदिन मुबारक, %1$s!</string>
+    <string name="dash_birthday_fallback">चैंप</string>
+    <string name="fees_payment_description">शुल्क — %1$s</string>
+    <string name="hw_subject_filter_cd">%1$s विषय फ़िल्टर</string>
+    <string name="profile_roll_suffix">  ·  क्रमांक #%1$s</string>
+    <string name="rf_error_tap_retry">%1$s  पुनः प्रयास हेतु टैप करें।</string>
+    <string name="rf_severity_cd">गंभीरता: %1$s</string>
+    <string name="search_open_item">%1$s खोलें</string>
+    <string name="story_from_teacher">%1$s की स्टोरी</string>
+    <string name="story_reacted_with">%1$s से प्रतिक्रिया दी</string>
+    <string name="story_react_with">%1$s से प्रतिक्रिया दें</string>
+</resources>

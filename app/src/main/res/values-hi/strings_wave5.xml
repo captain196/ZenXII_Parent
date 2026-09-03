@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 5: found on device / by the widened position audit (HOLE 10-11). -->
+<resources>
+    <string name="fees_label_due">देय</string>
+    <string name="fees_label_remaining">शेष</string>
+    <string name="fees_fine_label">जुर्माना</string>
+    <string name="fees_status_pending">लंबित</string>
+    <string name="att_percent_label">प्रतिशत</string>
+    <string name="pay_fee_cleared_fmt">%1$s शुल्क चुकता</string>
+    <string name="hw_priority_urgent">अत्यावश्यक</string>
+    <string name="hw_priority_relaxed">सामान्य</string>
+    <string name="theme_light">हल्का</string>
+    <string name="theme_dark">गहरा</string>
+    <string name="theme_system">सिस्टम</string>
+</resources>

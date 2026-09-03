@@ -111,6 +111,27 @@ object DisplayFormat {
     }
 
     /** Rupees with no decimals — for whole-rupee amounts like fee heads. */
+    /**
+     * Currency showing paise ONLY when they are non-zero.
+     *
+     * Replaces the fee screen's local `fmtRupee`, which built "Rs. " + a
+     * `"%,.0f"`/`"%,.2f"` string. Two problems with that: the literal "Rs." is
+     * untranslated and inconsistent with the ₹ every other amount uses, and
+     * `String.format` groups using the DEFAULT locale — so the digit grouping
+     * of a money value changed with the device language. Grouping is pinned to
+     * en-IN here, the same as every other amount in the app.
+     */
+    fun currencySmart(amount: Number?): String {
+        if (amount == null) return ""
+        val d = amount.toDouble()
+        val hasPaise = kotlin.math.round(d * 100).toLong() % 100L != 0L
+        val nf = NumberFormat.getCurrencyInstance(Locale("en", "IN")).apply {
+            maximumFractionDigits = if (hasPaise) 2 else 0
+            minimumFractionDigits = if (hasPaise) 2 else 0
+        }
+        return nf.format(d)
+    }
+
     fun currencyWhole(amount: Number?): String {
         if (amount == null) return ""
         val nf = NumberFormat.getCurrencyInstance(Locale("en", "IN")).apply {

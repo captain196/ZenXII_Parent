@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 14: Support ticket category labels. The KEY stays the lowercase
+     wire value stored on the ticket; only the label is localized. -->
+<resources>
+    <string name="supcat_fees">Fees &amp; Payments</string>
+    <string name="supcat_transport">Transport</string>
+    <string name="supcat_academics">Academics &amp; Homework</string>
+    <string name="supcat_attendance">Attendance</string>
+    <string name="supcat_exams">Exams &amp; Results</string>
+    <string name="supcat_certificates">Certificates &amp; Documents</string>
+    <string name="supcat_health">Health &amp; Safety</string>
+    <string name="supcat_app">App &amp; Login</string>
+    <string name="supcat_conduct">Staff Conduct</string>
+    <string name="supcat_other">Other</string>
+</resources>

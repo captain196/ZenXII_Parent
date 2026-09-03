@@ -21,7 +21,7 @@ import javax.inject.Singleton
  * provider once the DI graph is confirmed to have no consumers.
  */
 @Deprecated(
-    message = "Dead RTDB stub — always empty. Use HomeworkFirestoreRepository.",
+    message = "Dead RTDB stub — always empty. Use HomeworkFirestoreRepository."  /* i18n-ignore: log/doc string */,
     level = DeprecationLevel.WARNING
 )
 @Singleton

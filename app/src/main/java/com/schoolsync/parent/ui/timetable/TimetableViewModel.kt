@@ -21,6 +21,7 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 // ─── View mode ───────────────────────────────────────────────────────────────
 
@@ -173,7 +174,7 @@ class TimetableViewModel @Inject constructor(
                 val user = tokenManager.user.firstOrNull() ?: User.empty()
                 if (user.className.isBlank() || user.section.isBlank()) {
                     _uiState.update {
-                        it.copy(isLoading = false, errorMessage = appContext.getString(R.string.tt_no_class_info))
+                        it.copy(isLoading = false, errorMessage = appContext.localizedString(R.string.tt_no_class_info))
                     }
                     return@launch
                 }
@@ -193,7 +194,7 @@ class TimetableViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                errorMessage = e.message ?: appContext.getString(R.string.tt_load_failed)
+                                errorMessage = e.message ?: appContext.localizedString(R.string.tt_load_failed)
                             )
                         }
                     }
@@ -202,7 +203,7 @@ class TimetableViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.message ?: appContext.getString(R.string.tt_load_failed)
+                        errorMessage = e.message ?: appContext.localizedString(R.string.tt_load_failed)
                     )
                 }
             }
@@ -314,8 +315,8 @@ class TimetableViewModel @Inject constructor(
             // Lunch heuristic: gap >= 20 min AND crosses 12pm, or gap >= 25 min.
             val crossesNoon = thisEnd.isBefore(LocalTime.NOON) && nextStart.isAfter(LocalTime.of(11, 30))
             val isLunchLike = gapMin >= 25 || (gapMin >= 20 && crossesNoon)
-            val label = if (isLunchLike) appContext.getString(R.string.tt_lunch)
-                        else appContext.getString(R.string.tt_break)
+            val label = if (isLunchLike) appContext.localizedString(R.string.tt_lunch)
+                        else appContext.localizedString(R.string.tt_break)
 
             val timeLabel = "${formatTimeLabel(thisEnd)} - ${formatTimeLabel(nextStart)}"
             result.add(

@@ -116,7 +116,7 @@ fun AttendanceScreen(
     ) {
         // 1. Header
         AttendanceHeader(
-            studentName = uiState.user.name.ifBlank { "Student" },
+            studentName = uiState.user.name.ifBlank { stringResource(R.string.common_student) },
             className = uiState.user.className,
             section = uiState.user.section,
             onBack = onBack,
@@ -557,7 +557,7 @@ private fun StatsCard(
                         color = colors.textPrimary
                     )
                     Text(
-                        text = "percent",
+                        text = stringResource(R.string.att_percent_label),
                         fontSize = 10.sp,
                         color = colors.textTertiary
                     )
@@ -769,13 +769,19 @@ private fun CalendarCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            listOf("M", "T", "W", "T", "F", "S", "S").forEach { day ->
+            // Platform weekday names rather than hardcoded initials: an initial
+            // cannot be derived safely for Tamil or Devanagari (slicing the first
+            // char splits a grapheme cluster), and DateFormatSymbols already
+            // knows every locale we ship. It reads Locale.getDefault(), which
+            // LocaleManager.wrap() sets, so this follows the app language.
+            weekdayInitials().forEach { day ->
                 Text(
                     text = day,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.textTertiary,
                     textAlign = TextAlign.Center,
+                    maxLines = 1,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -892,9 +898,9 @@ private fun CalendarDayCell(
     // reads "not recorded". VACATION's label is already "Not recorded".
     val a11yContext = androidx.compose.ui.platform.LocalContext.current
     val cellDescription = if (showStatus && status != null) {
-        "Day $day: ${status.displayLabel(a11yContext)}"
+        stringResource(R.string.att_day_status_a11y_fmt, day, status.displayLabel(a11yContext))
     } else {
-        "Day $day: not recorded"
+        stringResource(R.string.att_day_not_recorded_a11y_fmt, day)
     }
 
     Box(
@@ -1150,4 +1156,24 @@ private fun computeLateMinutes(arrivalTime: String, lateThreshold: String = "08:
 
     val diff = arrivalMin - cutoffMin
     return if (diff > 0) diff else null
+}
+
+/**
+ * Weekday column headers for the attendance grid, Monday-first.
+ *
+ * English keeps its one-letter form (M T W T F S S) because that is what the
+ * design calls for and the initials are unambiguous there. Every other locale
+ * gets the platform's short name, which is the shortest form that is actually
+ * readable in that script.
+ */
+private fun weekdayInitials(): List<String> {
+    val syms = java.text.DateFormatSymbols.getInstance()
+    val order = listOf(
+        java.util.Calendar.MONDAY, java.util.Calendar.TUESDAY, java.util.Calendar.WEDNESDAY,
+        java.util.Calendar.THURSDAY, java.util.Calendar.FRIDAY, java.util.Calendar.SATURDAY,
+        java.util.Calendar.SUNDAY,
+    )
+    val short = order.map { syms.shortWeekdays[it] }
+    val isLatin = short.all { it.all { ch -> ch.code < 0x0250 } }
+    return if (isLatin) short.map { it.take(1) } else short
 }

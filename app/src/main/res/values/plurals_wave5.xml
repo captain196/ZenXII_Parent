@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 5 plurals: hand-rolled singular/plural pairs found on device. -->
+<resources>
+    <plurals name="fees_months_selected">
+        <item quantity="one">%1$d month selected</item>
+        <item quantity="other">%1$d months selected</item>
+    </plurals>
+</resources>

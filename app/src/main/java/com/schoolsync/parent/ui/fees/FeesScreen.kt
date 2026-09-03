@@ -117,6 +117,7 @@ import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
 import com.schoolsync.parent.util.DisplayFormat
+import com.schoolsync.parent.util.localizedString
 
 /**
  * Smart rupee formatter — prints whole rupees without trailing zeros
@@ -131,7 +132,7 @@ import com.schoolsync.parent.util.DisplayFormat
 private fun fmtRupee(value: Double): String {
     val hasPaise = kotlin.math.abs(value * 100 - kotlin.math.round(value * 100)) > 0.005 ||
                    kotlin.math.round(value * 100).toLong() % 100L != 0L
-    return if (hasPaise) "%,.2f".format(value) else "%,d".format(kotlin.math.round(value).toLong())
+    return if (hasPaise) String.format(java.util.Locale.ROOT, "%,.2f", value) else String.format(java.util.Locale.ROOT, "%,d", kotlin.math.round(value).toLong())
 }
 
 /**
@@ -229,7 +230,8 @@ fun FeesScreen(
             try {
                 Checkout().apply { setKeyID(req.apiKey) }.open(activity, options)
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Unable to open checkout: ${e.message}")
+                snackbarHostState.showSnackbar(
+                    context.localizedString(R.string.fees_checkout_open_failed_fmt, e.message.orEmpty()))
             }
         }
     }
@@ -288,19 +290,19 @@ fun FeesScreen(
         ) {
             FeeSummaryChip(
                 label = stringResource(R.string.fees_total),
-                value = "Rs. ${fmtRupee(totalFees)}",
+                value = DisplayFormat.currencySmart(totalFees),
                 color = c.accent,
                 modifier = Modifier.weight(1f)
             )
             FeeSummaryChip(
                 label = stringResource(R.string.fees_status_paid),
-                value = "Rs. ${fmtRupee(overview.totalPaid)}",
+                value = DisplayFormat.currencySmart(overview.totalPaid),
                 color = c.success,
                 modifier = Modifier.weight(1f)
             )
             FeeSummaryChip(
                 label = stringResource(R.string.fees_status_due),
-                value = "Rs. ${fmtRupee(overview.pendingFees.totalPending)}",
+                value = DisplayFormat.currencySmart(overview.pendingFees.totalPending),
                 color = if (overview.pendingFees.totalPending > 0) c.error else c.success,
                 modifier = Modifier.weight(1f)
             )
@@ -316,7 +318,7 @@ fun FeesScreen(
             ) {
                 FeeSummaryChip(
                     label = stringResource(R.string.fees_scholarship),
-                    value = "Rs. ${"%,.0f".format(overview.scholarshipAmount)}",
+                    value = DisplayFormat.currencyWhole(overview.scholarshipAmount),
                     color = Color(0xFF9C27B0),
                     modifier = Modifier.weight(1f)
                 )
@@ -681,7 +683,7 @@ private fun FeeStructureCard(item: FeeHead) {
             }
         }
         Text(
-            text = "Rs. ${"%,.0f".format(item.amount)}",
+            text = DisplayFormat.currencyWhole(item.amount),
             style = MaterialTheme.typography.titleMedium,
             color = c.textPrimary,
             fontWeight = FontWeight.SemiBold
@@ -727,8 +729,8 @@ private fun PendingFeesContent(
         return
     }
 
-    val unpaidMonths = pendingMonths.filter { it.status != stringResource(R.string.fees_status_paid) }
-    val paidMonths = pendingMonths.filter { it.status == stringResource(R.string.fees_status_paid) }
+    val unpaidMonths = pendingMonths.filter { it.status != "Paid" }  // i18n-ignore: wire value
+    val paidMonths = pendingMonths.filter { it.status == "Paid" }  // i18n-ignore: wire value
     val unpaidMonthNames = unpaidMonths.map { it.month }
     // Selection driven from VM state — survives recomposition AND can
     // be cleared by `pullRefresh()`.
@@ -881,10 +883,9 @@ private fun PendingFeesContent(
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = if (selectedMonths.size == 1)
-                                        "1 month selected"
-                                    else
-                                        "${selectedMonths.size} months selected",
+                                    text = pluralStringResource(
+                                        R.plurals.fees_months_selected,
+                                        selectedMonths.size, selectedMonths.size),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = c.textSecondary,
                                     fontWeight = FontWeight.Medium
@@ -897,7 +898,7 @@ private fun PendingFeesContent(
                             }
                         }
                         Text(
-                            text = "Rs. ${fmtRupee(selectedTotal)}",
+                            text = DisplayFormat.currencySmart(selectedTotal),
                             style = MaterialTheme.typography.titleLarge,
                             color = c.accent,
                             fontWeight = FontWeight.Bold
@@ -983,7 +984,7 @@ private fun PendingFeesContent(
                         enabled = !paymentInProgress && monthBalance > 0.0
                     ) {
                         Text(
-                            "Pay a custom amount (≤ Rs. ${fmtRupee(monthBalance)})",
+                            stringResource(R.string.fees_pay_custom_hint, DisplayFormat.currencySmart(monthBalance)),
                             style = MaterialTheme.typography.labelMedium,
                             color = c.accent,
                             fontWeight = FontWeight.Medium
@@ -1022,7 +1023,8 @@ private fun PendingFeesContent(
             text = {
                 Column {
                     Text(
-                        "This will charge ALL ${unpaidMonths.size} unpaid month(s) in one payment.",
+                        pluralStringResource(
+                            R.plurals.fees_charge_all_unpaid, unpaidMonths.size, unpaidMonths.size),
                         style = MaterialTheme.typography.bodyMedium,
                         color = c.textSecondary
                     )
@@ -1038,11 +1040,13 @@ private fun PendingFeesContent(
                     ) {
                         Text(
                             stringResource(R.string.fees_total_payable),
+                            modifier = Modifier.weight(1f, fill = false),
                             style = MaterialTheme.typography.labelMedium,
                             color = c.textSecondary
                         )
+                        Spacer(Modifier.width(10.dp))
                         Text(
-                            "Rs. ${fmtRupee(fullYearTotal)}",
+                            DisplayFormat.currencySmart(fullYearTotal),
                             style = MaterialTheme.typography.titleLarge,
                             color = c.accent,
                             fontWeight = FontWeight.Bold
@@ -1113,7 +1117,7 @@ private fun PendingFeeCard(
 ) {
     val c = LocalAppColors.current
     var expanded by remember { mutableStateOf(false) }
-    val isPaid = month.status.equals(stringResource(R.string.fees_status_paid), true)
+    val isPaid = month.status.equals("Paid", true)  // i18n-ignore: wire value
     val isPartial = month.status.equals("Partial", true)
     val statusColor = when {
         isProcessing -> c.accent
@@ -1256,14 +1260,16 @@ private fun PendingFeeCard(
                 // about what's left to pay than the original amount.
                 val displayAmount = if (isPaid) month.totalAmount else month.balanceAmount
                 Text(
-                    text = "Rs. ${fmtRupee(displayAmount)}",
+                    text = DisplayFormat.currencySmart(displayAmount),
                     style = MaterialTheme.typography.titleMedium,
                     color = if (isPaid) c.textPrimary else statusColor,
                     fontWeight = FontWeight.Bold
                 )
                 if (!isPaid) {
                     Text(
-                        text = if (isPartial) "remaining" else "due",
+                        text = stringResource(
+                            if (isPartial) R.string.fees_label_remaining
+                            else R.string.fees_label_due),
                         style = MaterialTheme.typography.labelSmall,
                         color = c.textTertiary
                     )
@@ -1302,7 +1308,11 @@ private fun PendingFeeCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "Rs ${fmtRupee(month.paidAmount)} paid of Rs ${fmtRupee(month.totalAmount)}",
+                    stringResource(
+                        R.string.fees_paid_of_fmt,
+                        DisplayFormat.currencyWhole(month.paidAmount),
+                        DisplayFormat.currencyWhole(month.totalAmount),
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = c.textSecondary
                 )
@@ -1339,7 +1349,7 @@ private fun PendingFeeCard(
                             modifier = Modifier.weight(1f)
                         )
                         Text(
-                            text = "Rs. ${"%,.0f".format(head.netAmount)}",
+                            text = DisplayFormat.currencyWhole(head.netAmount),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = headColor
@@ -1354,9 +1364,14 @@ private fun PendingFeeCard(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(stringResource(R.string.fees_status_paid), style = MaterialTheme.typography.labelMedium, color = c.success)
                         Text(
-                            "Rs. ${"%,.0f".format(month.paidAmount)}",
+                            stringResource(R.string.fees_status_paid),
+                            modifier = Modifier.weight(1f, fill = false),
+                            style = MaterialTheme.typography.labelMedium, color = c.success
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            DisplayFormat.currencyWhole(month.paidAmount),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = c.success
@@ -1447,7 +1462,7 @@ private fun PaymentRecordCard(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "Rs. ${"%,.0f".format(record.amount)}",
+                    text = DisplayFormat.currencyWhole(record.amount),
                     style = MaterialTheme.typography.titleMedium,
                     color = c.success,
                     fontWeight = FontWeight.Bold
@@ -1497,7 +1512,8 @@ private fun ModuleFeesContent(
                     iconBg = c.infoBg,
                     iconTint = c.info,
                     title = stringResource(R.string.fees_transport),
-                    subtitle = transportFee.routeName.ifBlank { "Route: ${transportFee.routeId}" },
+                    subtitle = transportFee.routeName.ifBlank {
+                        stringResource(R.string.fees_route_id_fmt, transportFee.routeId) },
                     amount = transportFee.amount,
                     detail = transportFee.period,
                     status = transportFee.status
@@ -1513,10 +1529,10 @@ private fun ModuleFeesContent(
                     iconBg = c.purpleBg,
                     iconTint = c.purple,
                     title = stringResource(R.string.fees_hostel),
-                    subtitle = "${hostelFee.building} - Room ${hostelFee.room}",
+                    subtitle = stringResource(R.string.fees_hostel_room_label, hostelFee.building, hostelFee.room),
                     amount = hostelFee.amount + hostelFee.messCharges,
                     detail = if (hostelFee.messCharges > 0)
-                        "Room: Rs. ${"%,.0f".format(hostelFee.amount)} + Mess: Rs. ${"%,.0f".format(hostelFee.messCharges)}"
+                        stringResource(R.string.fees_hostel_breakdown, DisplayFormat.currencyWhole(hostelFee.amount), DisplayFormat.currencyWhole(hostelFee.messCharges))
                     else hostelFee.period,
                     status = hostelFee.status
                 )
@@ -1540,10 +1556,10 @@ private fun ModuleFeesContent(
                     iconBg = c.coralBg,
                     iconTint = c.coral,
                     title = fine.bookTitle.ifBlank { fine.bookId },
-                    subtitle = if (fine.dueDate.isNotBlank()) "Due: ${fine.dueDate}" else "",
+                    subtitle = if (fine.dueDate.isNotBlank()) stringResource(R.string.fees_fine_due, fine.dueDate) else "",
                     amount = fine.fineAmount,
-                    detail = "Fine",
-                    status = "pending"
+                    detail = stringResource(R.string.fees_fine_label),
+                    status = stringResource(R.string.fees_status_pending)
                 )
             }
         }
@@ -1616,7 +1632,7 @@ private fun ModuleFeeCard(
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = "Rs. ${"%,.0f".format(amount)}",
+                text = DisplayFormat.currencyWhole(amount),
                 style = MaterialTheme.typography.titleMedium,
                 color = c.textPrimary,
                 fontWeight = FontWeight.SemiBold
@@ -1670,7 +1686,7 @@ private fun ClearanceContent(clearanceStatus: ClearanceStatus?) {
                     )
                     if (!clearanceStatus.allClear) {
                         Text(
-                            text = stringResource(R.string.fees_total_dues_fmt, "%,.0f".format(clearanceStatus.totalDues)),
+                            text = stringResource(R.string.fees_total_dues_fmt, String.format(java.util.Locale.ROOT, "%,.0f", clearanceStatus.totalDues)),
                             style = MaterialTheme.typography.bodySmall,
                             color = c.error
                         )
@@ -1794,7 +1810,7 @@ private fun ClearanceItemRow(
             )
         } else {
             Text(
-                text = "Rs. ${"%,.0f".format(dues)}",
+                text = DisplayFormat.currencyWhole(dues),
                 style = MaterialTheme.typography.titleMedium,
                 color = c.error,
                 fontWeight = FontWeight.Bold
@@ -2021,7 +2037,7 @@ private fun PartialPaymentDialog(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "$month  ·  Balance Rs. ${"%,.0f".format(maxAmount)}",
+                            stringResource(R.string.fees_month_balance, month, DisplayFormat.currencyWhole(maxAmount)),
                             style = MaterialTheme.typography.labelMedium,
                             color = c.textSecondary
                         )
@@ -2095,7 +2111,7 @@ private fun PartialPaymentDialog(
                 if (input.isNotEmpty() && !valid) {
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Enter an amount between Rs. 1 and Rs. ${"%,.0f".format(maxAmount)}",
+                        stringResource(R.string.fees_amount_between, DisplayFormat.currencyWhole(1), DisplayFormat.currencyWhole(maxAmount)),
                         style = MaterialTheme.typography.labelSmall,
                         color = c.error
                     )
@@ -2146,8 +2162,8 @@ private fun PartialPaymentDialog(
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        BreakdownRow(stringResource(R.string.fees_paying_now), "Rs. ${"%,.0f".format(parsed)}", c.accent, bold = true)
-                        BreakdownRow(stringResource(R.string.fees_remaining_due), "Rs. ${"%,.0f".format(remainingAfter)}",
+                        BreakdownRow(stringResource(R.string.fees_paying_now), DisplayFormat.currencyWhole(parsed), c.accent, bold = true)
+                        BreakdownRow(stringResource(R.string.fees_remaining_due), DisplayFormat.currencyWhole(remainingAfter),
                             if (remainingAfter > 0) c.warning else c.success)
                     }
                 }
@@ -2177,7 +2193,7 @@ private fun PartialPaymentDialog(
                         Icon(Icons.Filled.Payment, null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            if (parsed != null && valid) "Pay Rs. ${"%,.0f".format(parsed)}"
+                            if (parsed != null && valid) stringResource(R.string.fees_pay_amount, DisplayFormat.currencyWhole(parsed))
                             else stringResource(R.string.fees_enter_amount),
                             fontWeight = FontWeight.Bold
                         )
@@ -2243,7 +2259,7 @@ private fun PaymentFailureDialog(
                 if (!isCancelled && failure.code != 0) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Error code: ${failure.code}",
+                        stringResource(R.string.fees_error_code_fmt, failure.code),
                         style = MaterialTheme.typography.labelSmall,
                         color = c.textTertiary
                     )
@@ -2251,7 +2267,7 @@ private fun PaymentFailureDialog(
                 if (failure.failedMonths.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Months: ${failure.failedMonths.joinToString(", ")}",
+                        stringResource(R.string.fees_months_fmt, failure.failedMonths.joinToString(", ")),
                         style = MaterialTheme.typography.labelSmall,
                         color = c.textTertiary
                     )
@@ -2301,7 +2317,7 @@ private fun DiscountsContent(
                     iconColor = c.success,
                     title = stringResource(R.string.fees_scholarship),
                     subtitle = stringResource(R.string.fees_awarded_session),
-                    amountText = "−Rs. ${"%,.0f".format(scholarshipAmount)}",
+                    amountText = "−" + DisplayFormat.currencyWhole(scholarshipAmount),
                     amountColor = c.success
                 )
             }
@@ -2314,7 +2330,7 @@ private fun DiscountsContent(
                     iconColor = c.warning,
                     title = stringResource(R.string.fees_carry_forward),
                     subtitle = stringResource(R.string.fees_rolled_over),
-                    amountText = "+Rs. ${"%,.0f".format(carryForwardDues)}",
+                    amountText = "+" + DisplayFormat.currencyWhole(carryForwardDues),
                     amountColor = c.warning
                 )
             }

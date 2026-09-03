@@ -133,7 +133,12 @@ fun RedFlagScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            val filters = listOf("all" to stringResource(R.string.common_all), "homework" to "Homework", "behavior" to "Behavior", "performance" to "Performance")
+            val filters = listOf(
+                "all" to stringResource(R.string.common_all),
+                "homework" to stringResource(R.string.rf_filter_homework),
+                "behavior" to stringResource(R.string.rf_filter_behavior),
+                "performance" to stringResource(R.string.rf_filter_performance),
+            )
             filters.forEach { (key, label) ->
                 FilterChip(
                     selected = uiState.selectedFilter == key,
@@ -195,7 +200,7 @@ fun RedFlagScreen(
                 ) {
                     Icon(Icons.Filled.Refresh, contentDescription = null, tint = c.error, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("$error  Tap to retry.", color = c.error, style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.rf_error_tap_retry, error), color = c.error, style = MaterialTheme.typography.bodySmall)
                 }
             }
             LazyColumn(
@@ -305,12 +310,14 @@ private fun FlagCard(flag: StudentFlag) {
                 // anxious parent needs most.
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val severityLabel = flag.severity.replaceFirstChar { it.uppercase() }
+                    // Hoisted: Modifier.semantics {} is not a composable scope.
+                    val severityCd = stringResource(R.string.rf_severity_cd, severityLabel)
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
                             .background(severityColor.copy(alpha = 0.15f))
                             .padding(horizontal = 8.dp, vertical = 3.dp)
-                            .semantics { contentDescription = "Severity: $severityLabel" }
+                            .semantics { contentDescription = severityCd }
                     ) {
                         Text(
                             text = severityLabel,
@@ -321,9 +328,11 @@ private fun FlagCard(flag: StudentFlag) {
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (flag.status == "active") stringResource(R.string.filter_active) else stringResource(R.string.filter_resolved),
+                        // i18n-ignore: "active" is the Firestore wire value
+                        text = if (flag.status == "active") stringResource(R.string.filter_active)
+                               else stringResource(R.string.filter_resolved),
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (flag.status == "active") c.error else c.textTertiary,
+                        color = if (flag.status == "active") c.error else c.textTertiary,  // i18n-ignore: wire value
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -408,7 +417,17 @@ private fun EmptyFlagsState(selectedFilter: String, hasAnyFlags: Boolean) {
     val filtering = selectedFilter != "all" && hasAnyFlags
     val title = if (filtering) stringResource(R.string.hw_nothing_here) else stringResource(R.string.rf_none_title)
     val body = if (filtering) {
-        "No ${selectedFilter} flags for your child. Tap “All” to see every alert."
+        stringResource(
+            R.string.rf_none_filtered_fmt,
+            // The filter key is a Firestore wire value ("behavior"); show the
+            // same label the chip does, not the raw key.
+            when (selectedFilter) {
+                "homework"    -> stringResource(R.string.rf_filter_homework)
+                "behavior"    -> stringResource(R.string.rf_filter_behavior)
+                "performance" -> stringResource(R.string.rf_filter_performance)
+                else          -> selectedFilter
+            },
+        )
     } else {
         stringResource(R.string.rf_none_subtitle)
     }

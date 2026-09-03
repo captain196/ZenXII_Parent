@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 11: user-visible ifBlank fallbacks. groupBy keys and wire values excluded. -->
+<resources>
+    <string name="common_student">மாணவர்</string>
+    <string name="fees_route_id_fmt">வழி: %1$s</string>
+    <string name="lib_untitled">தலைப்பில்லை</string>
+    <string name="dash_event_generic">நிகழ்வு</string>
+    <string name="result_badge_absent">வரவில்லை</string>
+    <string name="result_badge_passed">தேர்ச்சி</string>
+    <string name="result_badge_review">மறுபரிசீலனை</string>
+    <string name="lessons_no_subject">(பாடம் இல்லை)</string>
+    <string name="search_untitled_generic">(தலைப்பில்லை)</string>
+    <string name="search_teacher_generic">(ஆசிரியர்)</string>
+    <string name="search_exam_generic">(தேர்வு)</string>
+</resources>

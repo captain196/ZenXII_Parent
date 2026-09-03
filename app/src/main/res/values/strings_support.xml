@@ -14,7 +14,7 @@
   The promise being made is narrower: the name is not shown to school staff.
   Say that, and only that.
 -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- ── navigation / titles ── -->
     <string name="support_title">Support</string>
@@ -30,7 +30,7 @@
     <string name="support_ticket_number">#%1$d</string>
     <string name="support_awaiting_school">Waiting on the school</string>
     <string name="support_awaiting_you">Waiting on you</string>
-    <string name="support_msg_count">%1$d messages</string>
+    <string name="support_msg_count" tools:ignore="PluralsCandidate">%1$d messages</string>
     <string name="support_msg_count_one">1 message</string>
 
     <!-- ── status ── -->

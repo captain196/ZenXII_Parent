@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave: interpolated/concatenated UI copy invisible to the position
+     patterns, plus the single-word literals that sat below the prose
+     sweep's word threshold. See audit.py HOLE 8/9. -->
+<resources>
+    <string name="att_day_status_a11y_fmt">દિવસ %1$d: %2$s</string>
+    <string name="att_day_not_recorded_a11y_fmt">દિવસ %1$d: નોંધ નથી</string>
+    <string name="msg_delete_with_fmt">%1$s સાથેની આ વાતચીત કાઢી નાખવી? </string>
+    <string name="msg_this_contact">આ સંપર્ક</string>
+    <string name="ptm_no_class_teacher_fmt">%1$s માટે કોઈ વર્ગશિક્ષક નિયુક્ત નથી. કૃપા કરીને શાળા કાર્યાલયને પૂછો.</string>
+    <string name="ptm_queue_number_fmt">કતાર નંબર: #%1$d</string>
+    <string name="ptm_in_line_fmt">તમે કતારમાં #%1$d છો. %2$s ને મળો.</string>
+    <string name="fees_refund">રિફંડ</string>
+    <string name="fees_refund_mode_fmt">રિફંડ · %1$s</string>
+    <string name="fees_refund_of_receipt_fmt">રસીદ #%1$s નું રિફંડ</string>
+    <string name="fees_checkout_open_failed_fmt">ચેકઆઉટ ખોલી શકાયું નથી: %1$s</string>
+    <string name="fees_paid_of_fmt">%2$s માંથી %1$s ચૂકવ્યા</string>
+    <string name="fees_error_code_fmt">ભૂલ કોડ: %1$d</string>
+    <string name="fees_months_fmt">મહિના: %1$s</string>
+    <string name="fp_no_contact_student_fmt">"%1$s" માટે કોઈ સંપર્ક મળ્યો નથી. તમારો વિદ્યાર્થી ID તપાસો અને ફરી પ્રયાસ કરો.</string>
+    <string name="pay_remaining_fmt">%1$s: %2$s બાકી</string>
+    <string name="search_untitled_notice">(શીર્ષક વિનાની સૂચના)</string>
+    <string name="search_untitled_event">(શીર્ષક વિનાનો કાર્યક્રમ)</string>
+    <string name="search_no_results_for_fmt">"%1$s" માટે કોઈ પરિણામ નથી</string>
+    <string name="dash_class_fmt">વર્ગ %1$s</string>
+    <string name="dash_sec_fmt">વિભાગ %1$s</string>
+    <string name="dash_roll_fmt">રોલ #%1$s</string>
+    <string name="common_today">આજે</string>
+    <string name="common_tomorrow">આવતીકાલે</string>
+    <string name="common_ongoing">ચાલુ</string>
+    <string name="common_overdue">મુદત વીતી</string>
+    <string name="common_unknown_error">અજ્ઞાત ભૂલ</string>
+    <string name="dash_rank_fmt">રેન્ક #%1$d</string>
+    <string name="story_reacted_a11y_fmt">તમે %1$s પ્રતિક્રિયા આપી. બદલવા માટે ટૅપ કરો</string>
+    <string name="support_photo_upload_failed_fmt">ફોટો %1$d અપલોડ થઈ શક્યો નથી: %2$s કંઈ મોકલાયું નથી — તમારો સંદેશ અહીં જ છે.</string>
+    <string name="hw_submit_failed_fmt">સબમિટ થઈ શક્યું નથી: %1$s</string>
+    <string name="rf_none_filtered_fmt">તમારા બાળક માટે કોઈ %1$s ફ્લેગ નથી. બધી ચેતવણી જોવા “બધા” ટૅપ કરો.</string>
+    <string name="rf_filter_homework">ગૃહકાર્ય</string>
+    <string name="rf_filter_behavior">વર્તન</string>
+    <string name="rf_filter_performance">દેખાવ</string>
+</resources>

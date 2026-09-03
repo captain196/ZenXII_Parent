@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Money-path copy as format strings; amounts pre-formatted via DisplayFormat. -->
+<resources>
+    <string name="fees_pay_custom_hint">તમારી રકમ ચૂકવો (≤ %1$s)</string>
+    <string name="fees_hostel_breakdown">રૂમ: %1$s + મેસ: %2$s</string>
+    <string name="fees_month_balance">%1$s  ·  બાકી %2$s</string>
+    <string name="fees_amount_between">%1$s અને %2$s વચ્ચે રકમ દાખલ કરો</string>
+    <string name="fees_pay_amount">%1$s ચૂકવો</string>
+    <string name="fees_hostel_room_label">%1$s - રૂમ %2$s</string>
+    <string name="fees_fine_due">બાકી: %1$s</string>
+    <string name="fees_head_amount">%1$s: %2$s</string>
+    <string name="fees_refund_of_receipt">રસીદ #%1$s નું રિફંડ</string>
+</resources>

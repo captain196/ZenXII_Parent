@@ -21,6 +21,7 @@ import javax.inject.Inject
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.schoolsync.parent.R
+import com.schoolsync.parent.util.localizedString
 
 /**
  * Mid-session enforcement for credential changes.
@@ -86,7 +87,7 @@ class SessionGuardViewModel @Inject constructor(
                     ended = false            // fresh sign-in — re-arm the guard
                 } else if (tokenManager.isLoggedIn.first()) {
                     Log.w(TAG, "Firebase dropped currentUser while still signed in — ending session")
-                    end(appContext.getString(R.string.vm_session_ended))
+                    end(appContext.localizedString(R.string.vm_session_ended))
                 }
             }
         }
@@ -111,7 +112,7 @@ class SessionGuardViewModel @Inject constructor(
                 } catch (e: FirebaseAuthInvalidUserException) {
                     // Revoked / disabled / deleted — unrecoverable, end it.
                     Log.w(TAG, "token refresh rejected — ending session", e)
-                    end(appContext.getString(R.string.vm_session_ended))
+                    end(appContext.localizedString(R.string.vm_session_ended))
                     return@launch
                 } catch (e: Exception) {
                     // Offline or transient: keep the session rather than inventing
@@ -144,7 +145,7 @@ class SessionGuardViewModel @Inject constructor(
 
                 if (claimMustChange || docMustChange) {
                     Log.w(TAG, "password reset detected mid-session — ending session")
-                    end(appContext.getString(R.string.vm_password_reset_by_school))
+                    end(appContext.localizedString(R.string.vm_password_reset_by_school))
                 }
             } finally {
                 running = false

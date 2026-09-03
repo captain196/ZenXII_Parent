@@ -145,7 +145,8 @@ private fun ExamSubjectRow(subject: ExamSubjectScheduleDoc) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = subject.subjectName.ifBlank { "Subject" },
+                text = subject.subjectName.ifBlank { stringResource(R.string.common_subject) },
+                modifier = Modifier.weight(1f, fill = false),
                 style = MaterialTheme.typography.titleMedium,
                 color = TextPrimary,
                 fontWeight = FontWeight.SemiBold

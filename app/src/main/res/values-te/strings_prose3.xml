@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave: interpolated/concatenated UI copy invisible to the position
+     patterns, plus the single-word literals that sat below the prose
+     sweep's word threshold. See audit.py HOLE 8/9. -->
+<resources>
+    <string name="att_day_status_a11y_fmt">రోజు %1$d: %2$s</string>
+    <string name="att_day_not_recorded_a11y_fmt">రోజు %1$d: నమోదు కాలేదు</string>
+    <string name="msg_delete_with_fmt">%1$s తో ఈ సంభాషణను తొలగించాలా? </string>
+    <string name="msg_this_contact">ఈ సంప్రదింపు</string>
+    <string name="ptm_no_class_teacher_fmt">%1$s కోసం క్లాస్ టీచర్ నియమించబడలేదు. దయచేసి పాఠశాల కార్యాలయాన్ని అడగండి.</string>
+    <string name="ptm_queue_number_fmt">క్యూ నంబర్: #%1$d</string>
+    <string name="ptm_in_line_fmt">మీరు వరుసలో #%1$d. %2$s ను కలవండి.</string>
+    <string name="fees_refund">వాపసు</string>
+    <string name="fees_refund_mode_fmt">వాపసు · %1$s</string>
+    <string name="fees_refund_of_receipt_fmt">రసీదు #%1$s వాపసు</string>
+    <string name="fees_checkout_open_failed_fmt">చెక్అవుట్ తెరవలేకపోయాము: %1$s</string>
+    <string name="fees_paid_of_fmt">%2$s లో %1$s చెల్లించారు</string>
+    <string name="fees_error_code_fmt">లోపం కోడ్: %1$d</string>
+    <string name="fees_months_fmt">నెలలు: %1$s</string>
+    <string name="fp_no_contact_student_fmt">"%1$s" కోసం సంప్రదింపు కనుగొనబడలేదు. మీ విద్యార్థి ID తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.</string>
+    <string name="pay_remaining_fmt">%1$s: %2$s మిగిలి ఉంది</string>
+    <string name="search_untitled_notice">(శీర్షిక లేని నోటీసు)</string>
+    <string name="search_untitled_event">(శీర్షిక లేని ఈవెంట్)</string>
+    <string name="search_no_results_for_fmt">"%1$s" కోసం ఫలితాలు లేవు</string>
+    <string name="dash_class_fmt">తరగతి %1$s</string>
+    <string name="dash_sec_fmt">సెక్ %1$s</string>
+    <string name="dash_roll_fmt">రోల్ #%1$s</string>
+    <string name="common_today">ఈరోజు</string>
+    <string name="common_tomorrow">రేపు</string>
+    <string name="common_ongoing">కొనసాగుతోంది</string>
+    <string name="common_overdue">గడువు దాటింది</string>
+    <string name="common_unknown_error">తెలియని లోపం</string>
+    <string name="dash_rank_fmt">ర్యాంక్ #%1$d</string>
+    <string name="story_reacted_a11y_fmt">మీరు %1$s స్పందించారు. మార్చడానికి నొక్కండి</string>
+    <string name="support_photo_upload_failed_fmt">ఫోటో %1$d అప్‌లోడ్ చేయలేకపోయాము: %2$s ఏమీ పంపబడలేదు — మీ సందేశం ఇక్కడే ఉంది.</string>
+    <string name="hw_submit_failed_fmt">సమర్పించలేకపోయాము: %1$s</string>
+    <string name="rf_none_filtered_fmt">మీ పిల్లలకు %1$s ఫ్లాగ్‌లు లేవు. అన్ని హెచ్చరికలు చూడటానికి “అన్నీ” నొక్కండి.</string>
+    <string name="rf_filter_homework">హోంవర్క్</string>
+    <string name="rf_filter_behavior">ప్రవర్తన</string>
+    <string name="rf_filter_performance">పనితీరు</string>
+</resources>

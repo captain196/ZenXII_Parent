@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class EventsUiState(
     val isLoading: Boolean = true,
@@ -99,7 +100,7 @@ class EventsViewModel @Inject constructor(
                                 isLoading = false,
                                 // If events failed but PTMs loaded, still show the PTMs.
                                 events = if (ptmRows.isNotEmpty()) ptmRows else emptyList(),
-                                errorMessage = if (ptmRows.isEmpty()) (e.message ?: appContext.getString(R.string.events_load_failed)) else null
+                                errorMessage = if (ptmRows.isEmpty()) (e.message ?: appContext.localizedString(R.string.events_load_failed)) else null
                             )
                         }
                     }
@@ -125,7 +126,7 @@ class EventsViewModel @Inject constructor(
 
     private fun PtmEventDoc.toEvent(): Event = Event(
         eventId      = ptmEventId.ifBlank { id },
-        title        = title.ifBlank { appContext.getString(R.string.ptm_meeting_title) },
+        title        = title.ifBlank { appContext.localizedString(R.string.ptm_meeting_title) },
         description  = description,
         category     = "ptm",
         startDate    = date,
@@ -171,7 +172,7 @@ class EventsViewModel @Inject constructor(
                     _detailState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: appContext.getString(R.string.events_detail_load_failed)
+                            errorMessage = e.message ?: appContext.localizedString(R.string.events_detail_load_failed)
                         )
                     }
                 }

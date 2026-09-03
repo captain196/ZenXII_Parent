@@ -64,6 +64,7 @@ import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.schoolsync.parent.util.localizedString
 
 private data class RecoveryContact(
     val schoolName: String,
@@ -411,7 +412,7 @@ private suspend fun fetchRecoveryContact(ctx: Context, userId: String): LookupSt
         val found = data["found"] as? Boolean ?: false
         if (!found) {
             LookupState.Failure(
-                "No contact found for \"$userId\". Check your Student ID and try again."
+                ctx.localizedString(R.string.fp_no_contact_student_fmt, userId)
             )
         } else {
             LookupState.Success(

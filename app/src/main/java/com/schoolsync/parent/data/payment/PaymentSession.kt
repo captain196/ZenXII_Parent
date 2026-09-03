@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.schoolsync.parent.util.localizedString
 
 /**
  * App-scoped owner of the Razorpay verify-payment lifecycle.
@@ -193,7 +194,7 @@ class PaymentSession @Inject constructor(
             }
             if (idToken.isNullOrBlank()) {
                 _state.value = State.Failure(
-                    appContext.getString(R.string.pay_session_expired_verify),
+                    appContext.localizedString(R.string.pay_session_expired_verify),
                     System.currentTimeMillis()
                 )
                 return@launch
@@ -220,10 +221,10 @@ class PaymentSession @Inject constructor(
                 val friendly = friendlyErrorMessage(
                     appContext,
                     e,
-                    fallback = appContext.getString(R.string.pay_cannot_record)
+                    fallback = appContext.localizedString(R.string.pay_cannot_record)
                 )
                 _state.value = State.Failure(
-                    appContext.getString(R.string.pay_captured_pending_fmt, friendly),
+                    appContext.localizedString(R.string.pay_captured_pending_fmt, friendly),
                     System.currentTimeMillis()
                 )
                 return@launch
@@ -241,7 +242,7 @@ class PaymentSession @Inject constructor(
                 }
                 !response.success -> {
                     _state.value = State.Failure(
-                        message = response.error ?: appContext.getString(R.string.pay_verification_failed),
+                        message = response.error ?: appContext.localizedString(R.string.pay_verification_failed),
                         completedAt = System.currentTimeMillis()
                     )
                 }

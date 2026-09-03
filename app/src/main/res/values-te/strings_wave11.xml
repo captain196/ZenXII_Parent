@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 11: user-visible ifBlank fallbacks. groupBy keys and wire values excluded. -->
+<resources>
+    <string name="common_student">విద్యార్థి</string>
+    <string name="fees_route_id_fmt">మార్గం: %1$s</string>
+    <string name="lib_untitled">శీర్షిక లేదు</string>
+    <string name="dash_event_generic">ఈవెంట్</string>
+    <string name="result_badge_absent">గైర్హాజరు</string>
+    <string name="result_badge_passed">ఉత్తీర్ణత</string>
+    <string name="result_badge_review">సమీక్ష</string>
+    <string name="lessons_no_subject">(సబ్జెక్ట్ లేదు)</string>
+    <string name="search_untitled_generic">(శీర్షిక లేదు)</string>
+    <string name="search_teacher_generic">(ఉపాధ్యాయుడు)</string>
+    <string name="search_exam_generic">(పరీక్ష)</string>
+</resources>

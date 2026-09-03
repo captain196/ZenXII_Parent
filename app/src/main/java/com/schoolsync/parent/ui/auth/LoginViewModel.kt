@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class LoginUiState(
     val userId: String = "",
@@ -67,11 +68,11 @@ class LoginViewModel @Inject constructor(
         val state = _uiState.value
 
         if (state.userId.isBlank()) {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.auth_error_enter_student_id)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.auth_error_enter_student_id)) }
             return
         }
         if (state.password.isBlank()) {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.auth_error_enter_password)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.auth_error_enter_password)) }
             return
         }
 

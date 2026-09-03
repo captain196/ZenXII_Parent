@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 5: found on device / by the widened position audit (HOLE 10-11). -->
+<resources>
+    <string name="fees_label_due">நிலுவை</string>
+    <string name="fees_label_remaining">மீதம்</string>
+    <string name="fees_fine_label">அபராதம்</string>
+    <string name="fees_status_pending">நிலுவையில்</string>
+    <string name="att_percent_label">சதவீதம்</string>
+    <string name="pay_fee_cleared_fmt">%1$s கட்டணம் செலுத்தப்பட்டது</string>
+    <string name="hw_priority_urgent">அவசரம்</string>
+    <string name="hw_priority_relaxed">இயல்பு</string>
+    <string name="theme_light">வெளிர்</string>
+    <string name="theme_dark">அடர்</string>
+    <string name="theme_system">கணினி</string>
+</resources>

@@ -246,7 +246,7 @@ private fun EmptyState(query: String) {
         Text("🔍", fontSize = 40.sp)
         Spacer(Modifier.height(12.dp))
         Text(
-            "No results for \"$query\"",
+            stringResource(R.string.search_no_results_for_fmt, query),
             style = MaterialTheme.typography.titleMedium,
             color = c.textSecondary,
             fontWeight = FontWeight.SemiBold

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 6 plurals: dashboard count tiles used an if/else pair.
+
+     tools:ignore="ImpliedQuantity" is deliberate. Lint is right that in
+     hi/gu the 'one' form covers BOTH 0 and 1, which normally needs a %d
+     so the reader can tell them apart. Here the COUNT IS ALREADY ON
+     SCREEN: CountTileCard renders `value` in 28sp directly above this
+     sublabel, so "0" over "task pending" is unambiguous, and repeating
+     the number would read as "1 1 task pending". -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <plurals name="dash_tasks_pending" tools:ignore="ImpliedQuantity">
+        <item quantity="one">பணி நிலுவையில்</item>
+        <item quantity="other">பணிகள் நிலுவையில்</item>
+    </plurals>
+    <plurals name="dash_new_circulars" tools:ignore="ImpliedQuantity">
+        <item quantity="one">புதிய சுற்றறிக்கை</item>
+        <item quantity="other">புதிய சுற்றறிக்கைகள்</item>
+    </plurals>
+</resources>

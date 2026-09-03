@@ -26,6 +26,7 @@ import java.time.format.TextStyle
 import java.util.Calendar
 import java.util.Locale
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class MonthOption(
     val year: Int,
@@ -178,7 +179,7 @@ class AttendanceViewModel @Inject constructor(
             val studentId = user.userId
 
             if (studentId.isNotBlank()) {
-                val firestoreMonth = "${month.monthName} ${month.year}" // e.g., "March 2026"
+                val firestoreMonth = "${month.monthName} ${month.year}" // e.g., "March 2026"  /* i18n-ignore: date pattern/example */
                 val firestoreResult = attendanceFirestoreRepo.getAttendanceForMonth(studentId, firestoreMonth)
 
                 firestoreResult.fold(
@@ -269,7 +270,7 @@ class AttendanceViewModel @Inject constructor(
                                 it.copy(
                                     isLoading = false,
                                     isEmptyMonth = false,
-                                    errorMessage = appContext.getString(R.string.att_load_failed)
+                                    errorMessage = appContext.localizedString(R.string.att_load_failed)
                                 )
                             }
                         }
@@ -277,7 +278,7 @@ class AttendanceViewModel @Inject constructor(
                 )
             } else {
                 _uiState.update {
-                    it.copy(isLoading = false, errorMessage = appContext.getString(R.string.att_no_student_info))
+                    it.copy(isLoading = false, errorMessage = appContext.localizedString(R.string.att_no_student_info))
                 }
             }
         }
@@ -330,7 +331,7 @@ class AttendanceViewModel @Inject constructor(
                                 val ym = now.minusMonths(offset.toLong())
                                 // Phase 7h (2026-04-08): canonical month key is "YYYY-MM";
                                 // legacy docs still carry "Month YYYY" so match either.
-                                val canonicalKey = "%d-%02d".format(ym.year, ym.monthValue)
+                                val canonicalKey = String.format(java.util.Locale.ROOT, "%d-%02d", ym.year, ym.monthValue)
                                 val legacyLabel = "${getFullMonthName(ym.monthValue)} ${ym.year}"
                                 val abbrev = ym.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                                 val matchingSummary = summaries.find {
@@ -345,10 +346,10 @@ class AttendanceViewModel @Inject constructor(
                             }
 
                             // Streak computation from dayWise strings
-                            val curCanonical = "%d-%02d".format(now.year, now.monthValue)
+                            val curCanonical = String.format(java.util.Locale.ROOT, "%d-%02d", now.year, now.monthValue)
                             val curLegacy = "${getFullMonthName(now.monthValue)} ${now.year}"
                             val prevMonth = now.minusMonths(1)
-                            val prevCanonical = "%d-%02d".format(prevMonth.year, prevMonth.monthValue)
+                            val prevCanonical = String.format(java.util.Locale.ROOT, "%d-%02d", prevMonth.year, prevMonth.monthValue)
                             val prevLegacy = "${getFullMonthName(prevMonth.monthValue)} ${prevMonth.year}"
 
                             val currentDayWise = summaries.find {
@@ -462,7 +463,7 @@ class AttendanceViewModel @Inject constructor(
             result.add(
                 RecentDay(
                     dayName = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()),
-                    dateStr = "%02d/%02d/%d".format(date.dayOfMonth, date.monthValue, date.year),
+                    dateStr = String.format(java.util.Locale.ROOT, "%02d/%02d/%d", date.dayOfMonth, date.monthValue, date.year),
                     status = status,
                     dayOfMonth = day,
                     arrivalTime = arrivalTime

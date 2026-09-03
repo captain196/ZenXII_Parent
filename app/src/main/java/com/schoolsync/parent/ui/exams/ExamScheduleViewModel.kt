@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class ExamScheduleUiState(
     val isLoading: Boolean = true,
@@ -75,7 +76,7 @@ class ExamScheduleViewModel @Inject constructor(
         val user = tokenManager.user.firstOrNull() ?: User.empty()
         if (user.className.isBlank() || user.section.isBlank()) {
             _uiState.update {
-                it.copy(errorMessage = appContext.getString(R.string.exam_no_class_section))
+                it.copy(errorMessage = appContext.localizedString(R.string.exam_no_class_section))
             }
             return
         }
@@ -84,8 +85,8 @@ class ExamScheduleViewModel @Inject constructor(
         // first available exam. We fetch the exam list either way so we can
         // display a human-readable exam name.
         val exams = examFirestoreRepo.getAvailableExams().getOrElse { e ->
-            Log.e("ExamScheduleVM", appContext.getString(R.string.res_exams_load_failed), e)
-            _uiState.update { it.copy(errorMessage = e.message ?: appContext.getString(R.string.res_exams_load_failed)) }
+            Log.e("ExamScheduleVM", appContext.localizedString(R.string.res_exams_load_failed), e)
+            _uiState.update { it.copy(errorMessage = e.message ?: appContext.localizedString(R.string.res_exams_load_failed)) }
             return
         }
 
@@ -116,8 +117,8 @@ class ExamScheduleViewModel @Inject constructor(
                 }
             },
             onFailure = { e ->
-                Log.e("ExamScheduleVM", appContext.getString(R.string.exam_schedule_load_failed), e)
-                _uiState.update { it.copy(errorMessage = e.message ?: appContext.getString(R.string.exam_schedule_load_failed)) }
+                Log.e("ExamScheduleVM", appContext.localizedString(R.string.exam_schedule_load_failed), e)
+                _uiState.update { it.copy(errorMessage = e.message ?: appContext.localizedString(R.string.exam_schedule_load_failed)) }
             }
         )
     }

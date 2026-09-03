@@ -35,6 +35,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 // ── Subject visual mapping ──────────────────────────────────────────────────
 data class SubjectInfo(
@@ -184,14 +185,14 @@ class HomeworkViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: appContext.getString(R.string.hw_load_failed_plain)
+                            errorMessage = e.message ?: appContext.localizedString(R.string.hw_load_failed_plain)
                         )
                     }
                 }
                 .collect { keyed ->
                     if (keyed == null) {
                         _uiState.update {
-                            it.copy(isLoading = false, errorMessage = appContext.getString(R.string.hw_no_class_section))
+                            it.copy(isLoading = false, errorMessage = appContext.localizedString(R.string.hw_no_class_section))
                         }
                         return@collect
                     }
@@ -356,7 +357,7 @@ class HomeworkViewModel @Inject constructor(
                     // error so the submit dialog can be dismissed (dismissal is
                     // gated on !isSubmitting).
                     _uiState.update {
-                        it.copy(markingDone = false, submitError = appContext.getString(R.string.hw_no_school_linked))
+                        it.copy(markingDone = false, submitError = appContext.localizedString(R.string.hw_no_school_linked))
                     }
                 }
             } catch (e: Exception) {
@@ -379,10 +380,12 @@ class HomeworkViewModel @Inject constructor(
         val msg = e.message ?: ""
         return when {
             msg.contains("PERMISSION_DENIED", true) ->
-                appContext.getString(R.string.hw_permission_blocked)
+                appContext.localizedString(R.string.hw_permission_blocked)
             msg.contains("UNAVAILABLE", true) || msg.contains("network", true) ->
-                appContext.getString(R.string.hw_network_problem)
-            else -> "Couldn't submit: ${msg.ifBlank { "unknown error" }}"
+                appContext.localizedString(R.string.hw_network_problem)
+            else -> appContext.localizedString(
+                R.string.hw_submit_failed_fmt,
+                msg.ifBlank { appContext.localizedString(R.string.common_unknown_error) })
         }
     }
 

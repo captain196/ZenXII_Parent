@@ -336,7 +336,7 @@ fun EventDetailScreen(
                                 value = buildString {
                                     append(event.startDate)
                                     if (event.endDate.isNotBlank() && event.endDate != event.startDate) {
-                                        append("  to  ")
+                                        append(stringResource(R.string.ev_date_range_to))
                                         append(event.endDate)
                                     }
                                 },

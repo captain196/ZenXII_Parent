@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class AssistantUiState(
     val messages: List<AssistantMessage> = emptyList(),
@@ -85,12 +86,11 @@ class AssistantViewModel @Inject constructor(
      * unavailable, so we hide the composer rather than let the user keep typing
      * into something that cannot answer.
      */
-    // TODO(locale): switch these to `ctx.localizedString(...)` once
-    // LocaleManager's resContext/localizedString helpers land on main. They
-    // exist only in another workstream's uncommitted change today, and this
-    // file must not depend on unlanded code. Until then these resolve in the
-    // system locale rather than the app's chosen language — the same behaviour
-    // as every other ViewModel currently on main.
+    // localizedString, NOT getString: `getApplication()` is the Application
+    // Context, whose locale is fixed when the PROCESS starts. Changing the
+    // language recreates the Activity but never the Application, so a plain
+    // getString here keeps serving the launch language — reported from the
+    // field as the quota message staying Tamil after switching to English.
     private fun handleFailure(e: Exception) {
         val ctx = getApplication<Application>()
         val code = (e as? FirebaseFunctionsException)?.code
@@ -102,7 +102,7 @@ class AssistantViewModel @Inject constructor(
                 it.copy(
                     isThinking = false,
                     // Never surface raw server text: it is English-only and leaks internals.
-                    unavailableReason = ctx.getString(R.string.assistant_unavailable),
+                    unavailableReason = ctx.localizedString(R.string.assistant_unavailable),
                 )
             }
             return
@@ -110,12 +110,12 @@ class AssistantViewModel @Inject constructor(
 
         val msg = when (code) {
             FirebaseFunctionsException.Code.RESOURCE_EXHAUSTED ->
-                ctx.getString(R.string.assistant_quota_reached)
+                ctx.localizedString(R.string.assistant_quota_reached)
             FirebaseFunctionsException.Code.UNAUTHENTICATED ->
-                ctx.getString(R.string.assistant_signed_out)
+                ctx.localizedString(R.string.assistant_signed_out)
             FirebaseFunctionsException.Code.DEADLINE_EXCEEDED ->
-                ctx.getString(R.string.assistant_too_long)
-            else -> ctx.getString(R.string.assistant_generic_error)
+                ctx.localizedString(R.string.assistant_too_long)
+            else -> ctx.localizedString(R.string.assistant_generic_error)
         }
 
         _ui.update {

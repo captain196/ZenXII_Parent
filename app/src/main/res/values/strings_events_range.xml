@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Event date-range connector (built via AnnotatedString.append). -->
+<resources>
+    <string name="ev_date_range_to">  to  </string>
+</resources>

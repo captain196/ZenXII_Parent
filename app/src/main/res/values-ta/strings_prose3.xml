@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave: interpolated/concatenated UI copy invisible to the position
+     patterns, plus the single-word literals that sat below the prose
+     sweep's word threshold. See audit.py HOLE 8/9. -->
+<resources>
+    <string name="att_day_status_a11y_fmt">நாள் %1$d: %2$s</string>
+    <string name="att_day_not_recorded_a11y_fmt">நாள் %1$d: பதிவு இல்லை</string>
+    <string name="msg_delete_with_fmt">%1$s உடனான இந்த உரையாடலை நீக்கவா? </string>
+    <string name="msg_this_contact">இந்தத் தொடர்பு</string>
+    <string name="ptm_no_class_teacher_fmt">%1$s க்கு வகுப்பு ஆசிரியர் நியமிக்கப்படவில்லை. பள்ளி அலுவலகத்தில் கேட்கவும்.</string>
+    <string name="ptm_queue_number_fmt">வரிசை எண்: #%1$d</string>
+    <string name="ptm_in_line_fmt">நீங்கள் வரிசையில் #%1$d. %2$s ஐச் சந்திக்கவும்.</string>
+    <string name="fees_refund">திருப்பிச் செலுத்துதல்</string>
+    <string name="fees_refund_mode_fmt">திருப்பிச் செலுத்துதல் · %1$s</string>
+    <string name="fees_refund_of_receipt_fmt">ரசீது #%1$s இன் திருப்பிச் செலுத்துதல்</string>
+    <string name="fees_checkout_open_failed_fmt">செக்அவுட்டைத் திறக்க முடியவில்லை: %1$s</string>
+    <string name="fees_paid_of_fmt">%2$s இல் %1$s செலுத்தப்பட்டது</string>
+    <string name="fees_error_code_fmt">பிழைக் குறியீடு: %1$d</string>
+    <string name="fees_months_fmt">மாதங்கள்: %1$s</string>
+    <string name="fp_no_contact_student_fmt">"%1$s" க்கான தொடர்பு எதுவும் இல்லை. உங்கள் மாணவர் ID ஐச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="pay_remaining_fmt">%1$s: %2$s மீதம்</string>
+    <string name="search_untitled_notice">(தலைப்பில்லா அறிவிப்பு)</string>
+    <string name="search_untitled_event">(தலைப்பில்லா நிகழ்வு)</string>
+    <string name="search_no_results_for_fmt">"%1$s" க்கு முடிவுகள் இல்லை</string>
+    <string name="dash_class_fmt">வகுப்பு %1$s</string>
+    <string name="dash_sec_fmt">பிரிவு %1$s</string>
+    <string name="dash_roll_fmt">வரிசை #%1$s</string>
+    <string name="common_today">இன்று</string>
+    <string name="common_tomorrow">நாளை</string>
+    <string name="common_ongoing">நடைபெறுகிறது</string>
+    <string name="common_overdue">கெடு முடிந்தது</string>
+    <string name="common_unknown_error">அறியப்படாத பிழை</string>
+    <string name="dash_rank_fmt">தரவரிசை #%1$d</string>
+    <string name="story_reacted_a11y_fmt">நீங்கள் %1$s என எதிர்வினையாற்றினீர்கள். மாற்ற தட்டவும்</string>
+    <string name="support_photo_upload_failed_fmt">புகைப்படம் %1$d ஐப் பதிவேற்ற முடியவில்லை: %2$s எதுவும் அனுப்பப்படவில்லை — உங்கள் செய்தி இங்கேயே உள்ளது.</string>
+    <string name="hw_submit_failed_fmt">சமர்ப்பிக்க முடியவில்லை: %1$s</string>
+    <string name="rf_none_filtered_fmt">உங்கள் குழந்தைக்கு %1$s கொடிகள் இல்லை. அனைத்து எச்சரிக்கைகளையும் காண “அனைத்தும்” தட்டவும்.</string>
+    <string name="rf_filter_homework">வீட்டுப்பாடம்</string>
+    <string name="rf_filter_behavior">நடத்தை</string>
+    <string name="rf_filter_performance">செயல்திறன்</string>
+</resources>

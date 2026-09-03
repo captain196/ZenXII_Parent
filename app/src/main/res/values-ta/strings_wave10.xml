@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wave 10: hardcoded fallback found while fixing expansion risks. -->
+<resources>
+    <string name="common_subject">பாடம்</string>
+</resources>

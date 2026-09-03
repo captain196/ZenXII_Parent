@@ -47,6 +47,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import com.schoolsync.parent.util.DisplayFormat
+import com.schoolsync.parent.util.localizedString
 
 /**
  * Tab titles are @StringRes ids, not Strings.
@@ -480,9 +482,11 @@ class FeesViewModel @Inject constructor(
                 } ?: ""
 
                 val modeLabel = if (refund.refundMode.isBlank()) {
-                    "Refund"
+                    appContext.localizedString(R.string.fees_refund)
                 } else {
-                    "Refund · ${refund.refundMode.replaceFirstChar { it.uppercase() }}"
+                    appContext.localizedString(
+                        R.string.fees_refund_mode_fmt,
+                        refund.refundMode.replaceFirstChar { it.uppercase() })
                 }
 
                 // Receipt-no column: normal receipts are "F10", "F9"…
@@ -504,8 +508,10 @@ class FeesViewModel @Inject constructor(
                     amount = refund.amount,
                     date = dateStr,
                     month = refund.feeTitle.ifBlank {
-                        if (refund.origReceiptNo.isNotBlank()) "Refund of receipt #${refund.origReceiptNo}"
-                        else "Refund"
+                        if (refund.origReceiptNo.isNotBlank())
+                            appContext.localizedString(
+                                R.string.fees_refund_of_receipt_fmt, refund.origReceiptNo)
+                        else appContext.localizedString(R.string.fees_refund)
                     },
                     mode = modeLabel,
                     receiptNo = displayReceiptNo,
@@ -592,7 +598,7 @@ class FeesViewModel @Inject constructor(
             if (studentId.isBlank() || className.isBlank() || section.isBlank()) {
                 Log.e("FeesVM", "MISSING: studentId=$studentId className=$className section=$section")
                 _uiState.update {
-                    it.copy(isLoading = false, errorMessage = appContext.getString(R.string.att_no_student_info))
+                    it.copy(isLoading = false, errorMessage = appContext.localizedString(R.string.att_no_student_info))
                 }
                 return@launch
             }
@@ -639,7 +645,7 @@ class FeesViewModel @Inject constructor(
                         errorMessage = friendlyErrorMessage(
                             appContext,
                             e,
-                            fallback = appContext.getString(R.string.fees_load_failed_refresh)
+                            fallback = appContext.localizedString(R.string.fees_load_failed_refresh)
                         )
                     )
                 }
@@ -816,7 +822,7 @@ class FeesViewModel @Inject constructor(
                             is String -> rawAmt.toDoubleOrNull() ?: 0.0
                             else -> 0.0
                         }
-                        "$head: Rs. ${"%,.0f".format(amt)}"
+                        appContext.localizedString(R.string.fees_head_amount, head, DisplayFormat.currencyWhole(amt))
                     }.joinToString(" | ")
 
                     FeePayment(
@@ -982,7 +988,7 @@ class FeesViewModel @Inject constructor(
             .sumOf { it.balanceAmount }
         val totalAmount = amountOverride ?: computedTotal
         if (totalAmount <= 0) {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.fees_nothing_selected)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.fees_nothing_selected)) }
             return
         }
 
@@ -1000,7 +1006,7 @@ class FeesViewModel @Inject constructor(
                 didClaim = true
                 current.copy(
                     paymentInProgress = true,
-                    paymentStatus = appContext.getString(R.string.fees_creating_order),
+                    paymentStatus = appContext.localizedString(R.string.fees_creating_order),
                     errorMessage = null,
                     paymentFailure = null
                 )
@@ -1012,7 +1018,7 @@ class FeesViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // Remember what we tried so a failure dialog can offer appContext.getString(R.string.fees_try_again).
+            // Remember what we tried so a failure dialog can offer appContext.localizedString(R.string.fees_try_again).
             lastAttemptedMonths = months
             lastAttemptedAmount = amountOverride
             Log.i("FeesVM", "[PAY START] months=$months override=$amountOverride total=$totalAmount")
@@ -1034,7 +1040,7 @@ class FeesViewModel @Inject constructor(
                     it.copy(
                         paymentInProgress = false,
                         paymentStatus = null,
-                        errorMessage = appContext.getString(R.string.fees_relogin)
+                        errorMessage = appContext.localizedString(R.string.fees_relogin)
                     )
                 }
                 return@launch
@@ -1059,7 +1065,7 @@ class FeesViewModel @Inject constructor(
                         errorMessage = friendlyErrorMessage(
                             appContext,
                             e,
-                            fallback = appContext.getString(R.string.fees_start_payment_failed)
+                            fallback = appContext.localizedString(R.string.fees_start_payment_failed)
                         )
                     )
                 }
@@ -1071,7 +1077,7 @@ class FeesViewModel @Inject constructor(
                     it.copy(
                         paymentInProgress = false,
                         paymentStatus = null,
-                        errorMessage = response.error ?: appContext.getString(R.string.fees_create_order_failed)
+                        errorMessage = response.error ?: appContext.localizedString(R.string.fees_create_order_failed)
                     )
                 }
                 return@launch
@@ -1085,7 +1091,7 @@ class FeesViewModel @Inject constructor(
                     it.copy(
                         paymentInProgress = false,
                         paymentStatus = null,
-                        errorMessage = appContext.getString(R.string.fees_razorpay_missing)
+                        errorMessage = appContext.localizedString(R.string.fees_razorpay_missing)
                     )
                 }
                 return@launch
@@ -1097,8 +1103,8 @@ class FeesViewModel @Inject constructor(
                 (response.amount * 100).toLong()
             }
 
-            _uiState.update { it.copy(paymentStatus = appContext.getString(R.string.fees_opening_checkout)) }
-            val description = "Fees — ${months.joinToString(", ")}"
+            _uiState.update { it.copy(paymentStatus = appContext.localizedString(R.string.fees_opening_checkout)) }
+            val description = appContext.localizedString(R.string.fees_payment_description, months.joinToString(", "))
             // Cache for one-tap retry without a fresh createOrder hop.
             lastCheckout = CachedCheckout(
                 apiKey = response.api_key,
@@ -1178,7 +1184,7 @@ class FeesViewModel @Inject constructor(
             return
         }
         // Stage B1 atomic claim — same race-closing pattern as
-        // initiatePayment so a fast double-tap of appContext.getString(R.string.fees_try_again) cannot
+        // initiatePayment so a fast double-tap of appContext.localizedString(R.string.fees_try_again) cannot
         // re-open Razorpay checkout twice for one cached order.
         var didClaim = false
         _uiState.update { current ->
@@ -1187,7 +1193,7 @@ class FeesViewModel @Inject constructor(
                 didClaim = true
                 current.copy(
                     paymentInProgress = true,
-                    paymentStatus = appContext.getString(R.string.fees_reopening_checkout),
+                    paymentStatus = appContext.localizedString(R.string.fees_reopening_checkout),
                     errorMessage = null,
                     paymentFailure = null
                 )

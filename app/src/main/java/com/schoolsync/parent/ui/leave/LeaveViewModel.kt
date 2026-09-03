@@ -21,6 +21,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
+import com.schoolsync.parent.util.localizedPlural
 
 data class LeaveUiState(
     val isLoading: Boolean = true,
@@ -205,39 +207,39 @@ class LeaveViewModel @Inject constructor(
         if (state.isSubmitting) return
 
         val start = state.startDate ?: run {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_select_start)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.leave_select_start)) }
             return
         }
         val end = state.endDate ?: run {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_select_end)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.leave_select_end)) }
             return
         }
         // Phase 9b: date validation
         val today = LocalDate.now()
         if (start.isBefore(today)) {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_start_in_past)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.leave_start_in_past)) }
             return
         }
         if (end.isBefore(start)) {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_end_before_start)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.leave_end_before_start)) }
             return
         }
         // Fix (validation): cap span at 60 inclusive days (spec §4, student).
         val spanDays = ChronoUnit.DAYS.between(start, end) + 1
         if (spanDays > MAX_STUDENT_LEAVE_DAYS) {
-            _uiState.update { it.copy(errorMessage = appContext.resources.getQuantityString(
+            _uiState.update { it.copy(errorMessage = appContext.localizedPlural(
                 R.plurals.leave_max_days_fmt,
                 MAX_STUDENT_LEAVE_DAYS.toInt(), MAX_STUDENT_LEAVE_DAYS.toInt())) }
             return
         }
         val reason = state.reason.trim()
         if (reason.isBlank()) {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_enter_reason)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.leave_enter_reason)) }
             return
         }
         // Fix (validation): overlap guard against existing pending/approved leaves.
         if (overlapsExisting(state.leaveHistory, start, end)) {
-            _uiState.update { it.copy(errorMessage = appContext.getString(R.string.leave_overlap)) }
+            _uiState.update { it.copy(errorMessage = appContext.localizedString(R.string.leave_overlap)) }
             return
         }
 

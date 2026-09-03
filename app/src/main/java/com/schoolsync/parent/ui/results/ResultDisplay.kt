@@ -40,7 +40,7 @@ fun resolveResultStatus(
  * "—" for an absentee (never a fabricated "0.0%").
  */
 fun formatOverallPercentage(percentage: Double?): String =
-    if (percentage != null) "%.1f%%".format(percentage) else "—"
+    if (percentage != null) String.format(java.util.Locale.ROOT, "%.1f%%", percentage) else "—"
 
 /**
  * Compact percentage chip used on the dashboard "Latest Result" card: whole

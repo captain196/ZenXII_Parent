@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.schoolsync.parent.util.localizedString
 
 data class GalleryUiState(
     val isLoading: Boolean = true,
@@ -77,7 +78,7 @@ class GalleryViewModel @Inject constructor(
                     onFailure = { e ->
                         android.util.Log.e("GalleryVM", "observeAlbums failed", e)
                         _uiState.update {
-                            it.copy(isLoading = false, errorMessage = e.message ?: appContext.getString(R.string.gal_load_failed_plain))
+                            it.copy(isLoading = false, errorMessage = e.message ?: appContext.localizedString(R.string.gal_load_failed_plain))
                         }
                     }
                 )
@@ -102,7 +103,7 @@ class GalleryViewModel @Inject constructor(
                 onFailure = { e ->
                     android.util.Log.e("GalleryVM", "loadAlbumDetail failed", e)
                     _detailState.update {
-                        it.copy(isLoading = false, errorMessage = e.message ?: appContext.getString(R.string.gal_album_load_failed_plain))
+                        it.copy(isLoading = false, errorMessage = e.message ?: appContext.localizedString(R.string.gal_album_load_failed_plain))
                     }
                 }
             )
