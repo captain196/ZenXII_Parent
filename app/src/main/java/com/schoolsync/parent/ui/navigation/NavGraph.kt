@@ -514,7 +514,18 @@ fun MainScreen(
         // result_published / exam_scheduled deep links (optional examId arg).
         val isResults       = target == "results" || target.startsWith("results?")
         val isExams         = target == "exams" || target.startsWith("exams?")
-        if (target in allowedTabs || isEventDetail || isHomework || isResults || isExams) {
+        // R34 — Support. TWO gates had to be opened, and opening only the first
+        // is why this looked fixed and was not: MainActivity now maps the six
+        // support_* push types onto a route, and this allow-list silently
+        // dropped it, exactly as it once dropped red_flags (see the note above —
+        // the same trap, the second time).
+        //
+        // "support" is the ticket list; "support_thread/{ticketId}" opens the
+        // thread the notification is actually about, which is the whole point:
+        // landing a parent on a list after "the school replied" makes them hunt
+        // for their own complaint.
+        val isSupport       = target == "support" || target.startsWith("support_thread/")
+        if (target in allowedTabs || isEventDetail || isHomework || isResults || isExams || isSupport) {
             // Stash the notice id (if any) so the Notices screen auto-opens it.
             if (target == "notices") pendingNoticeId = dl.arg
             navController.navigate(target) {

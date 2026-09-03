@@ -23,6 +23,8 @@ import com.razorpay.Checkout
 import com.razorpay.PaymentData
 import com.razorpay.PaymentResultWithDataListener
 import android.content.Intent
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.tasks.await
 import androidx.lifecycle.lifecycleScope
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.payment.PaymentBridge
@@ -45,6 +47,9 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
     @Inject
     lateinit var schoolFirestoreRepository: SchoolFirestoreRepository
+
+    @Inject
+    lateinit var authRepository: com.schoolsync.parent.data.repository.AuthRepository
 
     /**
      * Apply the user's chosen language before any view or composable is built.
@@ -90,6 +95,38 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             }
         }
 
+        // R33 — re-assert this device's push registration on every start.
+        //
+        // getToken() was called in exactly ONE place: login(). FCM calls
+        // onNewToken only when it CREATES or ROTATES a token, not on every
+        // launch. So a registration that failed at login — no network, no Play
+        // Services, a rules denial — was NEVER retried, and that device stayed
+        // permanently unreachable by push until the user happened to log out and
+        // back in. Nothing anywhere reported it.
+        //
+        // Observed on a real device 2026-09-03: a phone logged in as STU0012 with
+        // ZERO userDevices rows for its android_id, so no push could ever arrive.
+        // Tenant-wide, 42 of 57 device rows are 'stale' and only 14 carry a token,
+        // which is consistent with registrations that were never re-asserted.
+        //
+        // Cheap and idempotent: registerFcmToken() writes with merge, so a
+        // healthy device just refreshes lastActive. It bails on its own when no
+        // user is signed in, so this is a no-op on the login screen.
+        lifecycleScope.launch {
+            try {
+                val deviceId = tokenManager.deviceId.firstOrNull()
+                if (!deviceId.isNullOrBlank()) {
+                    val token = com.google.firebase.messaging.FirebaseMessaging
+                        .getInstance().token.await()
+                    authRepository.registerFcmToken(token, deviceId)
+                }
+            } catch (e: Exception) {
+                // Never fatal: a device that cannot register still uses the app,
+                // it just does not get notifications — which is the status quo.
+                android.util.Log.w("MainActivity", "FCM re-registration failed: ${e.message}")
+            }
+        }
+
         setContent {
             val themeMode by tokenManager.themeMode.collectAsState(initial = "system")
             val systemDark = isSystemInDarkTheme()
@@ -127,6 +164,30 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         if (intent == null) return
         val type = intent.getStringExtra("type") ?: return
         val target = when (type) {
+            // R34 — Support notifications had NO route at all.
+            //
+            // MARK_REGISTRY emits six support_* types (support_ticket,
+            // support_reply, support_assigned, support_resolved, support_reopened,
+            // support_closed) and this when() handled none of them, so every one
+            // fell through to the quiet no-op and dumped the parent on the
+            // dashboard. Observed on device: a TICKET_REPLIED notification opened
+            // MainActivity and landed on the home screen, with no way back to the
+            // ticket except navigating the drawer by hand.
+            //
+            // That is worst on this module in particular: the notification is
+            // often the ONLY signal a parent gets that the school answered, and
+            // support_closed tells them their complaint was ended without their
+            // agreement. Making them hunt for the thread from the dashboard is
+            // where a complaint quietly dies.
+            //
+            // ticketId is carried by every support mark's data() in the registry,
+            // so deep-link straight into the thread when it is present and fall
+            // back to the ticket list when it is not.
+            "support_ticket", "support_reply", "support_assigned",
+            "support_resolved", "support_reopened", "support_closed"      -> {
+                val tid = intent.getStringExtra("ticketId")?.takeIf { it.isNotBlank() }
+                if (tid != null) "support_thread/$tid" else "support"
+            }
             "fee_reminder", "fee_defaulter_alert", "fee_payment_confirmed" -> "fees"
             "student_absent", "student_late", "attendance_update"         -> "attendance"
             "leave_approved", "leave_rejected"                            -> "leave"
