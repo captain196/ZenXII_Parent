@@ -370,10 +370,17 @@ class SupportViewModel @Inject constructor(
             if (open >= SupportFirestoreRepository.MAX_OPEN_TICKETS) {
                 _uiState.update {
                     it.copy(isSubmitting = false, errorMessage =
+                        // Joined with an explicit space. The plural used to carry a
+                        // TRAILING SPACE and this was a bare '+', but Android strips
+                        // leading/trailing whitespace from string resources unless
+                        // they are quoted — so the two sentences rendered glued
+                        // together: "…5 खुले टिकट हैं।दूसरा दर्ज करने…" (and
+                        // "…open tickets.Please wait…" in English). Observed on
+                        // device at the cap, in every locale.
                         appContext.localizedPlural(
                             R.plurals.support_open_tickets_fmt,
                             SupportFirestoreRepository.MAX_OPEN_TICKETS,
-                            SupportFirestoreRepository.MAX_OPEN_TICKETS) +
+                            SupportFirestoreRepository.MAX_OPEN_TICKETS).trim() + " " +
                         appContext.localizedString(R.string.support_wait_resolve))
                 }
                 return@launch

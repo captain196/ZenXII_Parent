@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PluralsCandidate conversions. Several of these had a wrong
+     form before: Tamil stu_count_fmt read a singular noun for
+     every count. -->
+<resources>
+    <plurals name="support_attach_limit">
+        <item quantity="one">તમે વધુમાં વધુ %1$d ફોટો જોડી શકો છો.</item>
+        <item quantity="other">તમે વધુમાં વધુ %1$d ફોટા જોડી શકો છો.</item>
+    </plurals>
+    <plurals name="support_open_tickets_fmt">
+        <item quantity="one">તમારી પાસે પહેલેથી %1$d ખુલ્લી ટિકિટ છે.</item>
+        <item quantity="other">તમારી પાસે પહેલેથી %1$d ખુલ્લી ટિકિટો છે.</item>
+    </plurals>
+</resources>
