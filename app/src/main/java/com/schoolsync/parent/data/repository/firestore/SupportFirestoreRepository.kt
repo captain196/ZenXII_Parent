@@ -120,11 +120,45 @@ class SupportFirestoreRepository @Inject constructor(
     }
 
     /** Unique message document id. Random, never a sequence. */
-    private fun newMessageId(): String {
-        val rnd = SecureRandom()
-        val sb = StringBuilder("MSG_")
-        repeat(20) { sb.append(ID_ALPHABET[rnd.nextInt(ID_ALPHABET.length)]) }
-        return sb.toString()
+    /**
+     * An IDEMPOTENT message id, derived from what the message IS.
+     *
+     * This replaces a random-per-call id whose rationale reasoned only about
+     * COLLISION — "two people replying in the same second must not land on the
+     * same key". That was true and remains true: a hash over the sender and body
+     * separates two different people just as well. What it missed is RETRY: the
+     * same person sending the same body twice, believing the first attempt
+     * failed. (The random generator is now removed rather than left unused, so
+     * nothing invites re-wiring it.)
+     *
+     * Confirmed on device 2026-09-02 (SD-T2-010): the identical body sent twice
+     * stored TWO documents, MSG_PAP2RAZ8249VBRQ8XB1A and MSG_1P0E619ZKPCKCXCXEVSD.
+     * The panel was hardened for exactly this in B4 and refuses a duplicate staff
+     * reply; the parent surface — where a retry is far MORE likely, since R1's
+     * history is that an empty-looking thread invites re-sending — was not.
+     *
+     * Deriving the id from (ticket, sender, body, 5-minute bucket) makes the
+     * duplicate unexpressible rather than detected: the retry addresses the same
+     * document. Because supportMessages is create-only in the rules, that second
+     * write is refused server-side and the thread keeps exactly one copy — the
+     * end state a retrying user actually wants.
+     *
+     * The bucket is deliberately coarse: a parent who genuinely sends "ok" twice
+     * an hour apart gets two messages, which is correct. Only a rapid re-send of
+     * identical text collapses.
+     *
+     * NO read is performed to check for an existing document. A blocking read
+     * would break R1 — the offline fix depends on the write being ENQUEUED, and
+     * a read cannot be served offline.
+     */
+    private fun idempotentMessageId(ticketId: String, uid: String, body: String): String {
+        val bucket = System.currentTimeMillis() / 300_000L   // 5-minute window
+        val seed = listOf(ticketId, uid, "parent", body, bucket.toString()).joinToString("|")
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(seed.toByteArray(Charsets.UTF_8))
+        val hex = StringBuilder("MSG_")
+        for (i in 0 until 10) hex.append(String.format(java.util.Locale.ROOT, "%02x", digest[i]))  // i18n-ignore: hex format
+        return hex.toString()
     }
 
     // ── reads ────────────────────────────────────────────────────────────────
@@ -418,7 +452,7 @@ class SupportFirestoreRepository @Inject constructor(
             // not land on the same key.
             firestoreService.enqueueDocument(
                 Constants.Firestore.SUPPORT_MESSAGES,
-                newMessageId(),
+                idempotentMessageId(ticketId, uid, body),
                 msg
             ).await()
             Result.success(Unit)
@@ -432,7 +466,12 @@ class SupportFirestoreRepository @Inject constructor(
      *
      * Exists so createTicket can get the opening message into the local write
      * queue before it blocks on anything. Same document shape as
-     * [appendMessage] — see the note there on why the id is random.
+     * [appendMessage], and the same idempotent id — see [idempotentMessageId].
+     *
+     * The OPENING message is the one SD-T2-010 is named for, and the one where a
+     * retry is most likely: R1's failure mode left tickets with no message at
+     * all, and the natural response to a thread that looks empty is to send it
+     * again. A random id per call made that produce a second copy.
      */
     private fun enqueueMessage(
         school: String,
@@ -454,12 +493,20 @@ class SupportFirestoreRepository @Inject constructor(
         )
         return firestoreService.enqueueDocument(
             Constants.Firestore.SUPPORT_MESSAGES,
-            newMessageId(),
+            idempotentMessageId(ticketId, uid, body),
             msg
         )
     }
 
-    /** Human label for a category key. */
+    /**
+     * ENGLISH label for a category key — deliberately not localized.
+     *
+     * This value is written to Firestore as the ticket `subject` when the
+     * parent leaves it blank, and school staff read that subject in the
+     * admin panel. Translating it would put the parent's language into the
+     * school's triage queue. For DISPLAY in the app use
+     * SupportViewModel.categoryLabelLocalized().
+     */
     fun categoryLabel(key: String): String = when (key) {
         "fees" -> "Fees & Payments"
         "transport" -> "Transport"
