@@ -50,7 +50,24 @@ class ConductContactViewModel @Inject constructor(
         val name: String = "",
         val phone: String = "",
         val email: String = "",
-        val isLoading: Boolean = true
+        val isLoading: Boolean = true,
+        /**
+         * R22 — did this contact come from a DESIGNATED grievance officer, or
+         * from the school's general details because none is configured?
+         *
+         * The fallback chain above is deliberate and stays. What was missing is
+         * that nobody was told which arm produced the answer. On this screen the
+         * distinction is not cosmetic: a complaint about a staff member may be
+         * routed to the office that staff member works in, and a complainant is
+         * entitled to know whether they are calling a designated grievance
+         * officer or the school's front desk before they speak.
+         *
+         * Confirmed against live data (SD-T2 R22): in this tenant
+         * grievance_contact, principal_name, principal_phone and principal_email
+         * are ALL absent, so the dialog served the school's general phone/email
+         * and said nothing about it.
+         */
+        val isDesignated: Boolean = false
     ) {
         /** True when we have nothing actionable and must fall back to advice. */
         val isEmpty: Boolean get() = phone.isBlank() && email.isBlank()
@@ -120,6 +137,12 @@ class ConductContactViewModel @Inject constructor(
             fun pick(vararg candidates: String?): String =
                 candidates.firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
 
+            // Designated only when the school actually configured a grievance
+            // contact reachable in some way. A name alone is not enough: a name
+            // with the school's general number is still the front desk.
+            val designated = !(grievance?.get("number")?.toString()).isNullOrBlank()
+                          || !(grievance?.get("email")?.toString()).isNullOrBlank()
+
             _contact.value = Contact(
                 name = pick(
                     grievance?.get("name")?.toString(),
@@ -135,7 +158,8 @@ class ConductContactViewModel @Inject constructor(
                     config?.get("email")?.toString(),
                     school?.email
                 )),
-                isLoading = false
+                isLoading = false,
+                isDesignated = designated
             )
         }
     }

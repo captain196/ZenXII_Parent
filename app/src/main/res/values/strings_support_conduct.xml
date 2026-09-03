@@ -47,4 +47,5 @@
          subject line of an email is the least private part of it. -->
     <string name="conduct_route_email_subject">Concern about a staff member</string>
 
+    <string name="conduct_route_general_contact">This is the school’s general contact. No dedicated grievance officer has been listed.</string>
 </resources>

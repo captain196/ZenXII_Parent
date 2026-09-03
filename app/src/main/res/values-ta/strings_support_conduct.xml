@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Locale sibling for strings_support_conduct.xml, which was committed
+  English-only. The source file's two content rules hold here too:
+  state only what is true of OUR system (the report is not filed as a
+  ticket), never promise confidentiality, and never use "anonymous".
+-->
+<resources>
+    <string name="conduct_route_title">பணியாளர் குறித்த புகார்</string>
+    <string name="conduct_route_body">பணியாளர் தொடர்பான கவலைகள் ஆதரவு மையம் வழியாகக் கையாளப்படுவதில்லை. பள்ளியின் நியமிக்கப்பட்ட தொடர்பாளரிடம் நேரடியாகப் பேசவும்.</string>
+    <string name="conduct_route_not_logged">இங்கு எதுவும் ஆதரவு டிக்கெட்டாகச் சேமிக்கப்படுவதில்லை.</string>
+    <string name="conduct_route_contact_label">யாரைத் தொடர்பு கொள்வது</string>
+    <string name="conduct_route_loading">சரியான தொடர்பைத் தேடுகிறோம்…</string>
+    <string name="conduct_route_fallback">முதல்வர் அல்லது நியமிக்கப்பட்ட குறைதீர்ப்பு அலுவலரைப் பற்றி பள்ளி அலுவலகத்தில் கேட்கவும்.</string>
+    <string name="conduct_route_call">அழைக்க</string>
+    <string name="conduct_route_email">மின்னஞ்சல்</string>
+    <string name="conduct_route_close">மூடு</string>
+    <string name="conduct_route_email_subject">பணியாளர் குறித்த கவலை</string>
+    <string name="conduct_route_general_contact">இது பள்ளியின் பொதுத் தொடர்பு. தனி புகார் அலுவலர் பதிவு செய்யப்படவில்லை.</string>
+</resources>

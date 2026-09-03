@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Locale sibling for strings_support_conduct.xml, which was committed
+  English-only. The source file's two content rules hold here too:
+  state only what is true of OUR system (the report is not filed as a
+  ticket), never promise confidentiality, and never use "anonymous".
+-->
+<resources>
+    <string name="conduct_route_title">स्टाफ़ सदस्य की शिकायत</string>
+    <string name="conduct_route_body">स्टाफ़ सदस्य से जुड़ी चिंताएँ सहायता डेस्क के माध्यम से नहीं देखी जातीं। कृपया विद्यालय के नामित संपर्क से सीधे बात करें।</string>
+    <string name="conduct_route_not_logged">यहाँ कुछ भी सहायता टिकट के रूप में सहेजा नहीं जाता।</string>
+    <string name="conduct_route_contact_label">किससे संपर्क करें</string>
+    <string name="conduct_route_loading">सही संपर्क खोजा जा रहा है…</string>
+    <string name="conduct_route_fallback">प्रधानाचार्य या नामित शिकायत अधिकारी के लिए विद्यालय कार्यालय में पूछें।</string>
+    <string name="conduct_route_call">कॉल करें</string>
+    <string name="conduct_route_email">ईमेल</string>
+    <string name="conduct_route_close">बंद करें</string>
+    <string name="conduct_route_email_subject">स्टाफ़ सदस्य के बारे में चिंता</string>
+    <string name="conduct_route_general_contact">यह विद्यालय का सामान्य संपर्क है। कोई अलग शिकायत अधिकारी दर्ज नहीं किया गया है।</string>
+</resources>

@@ -380,6 +380,27 @@ private fun ConductRouteDialog(
                                 color = c.textPrimary
                             )
                         }
+                        // R22 — say WHICH contact this is.
+                        //
+                        // The fallback chain (grievance officer -> principal ->
+                        // school general) is deliberate and stays: requiring setup
+                        // would break this screen for every school until an admin
+                        // filled a field in. What was missing is that nobody was
+                        // told which arm answered. A complaint about a staff member
+                        // may be routed to the office that staff member works in,
+                        // so a complainant is entitled to know whether they are
+                        // calling a designated grievance officer or the front desk
+                        // BEFORE they speak.
+                        //
+                        // Factual, not alarming — the number is still worth calling.
+                        if (!contact.isDesignated) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                stringResource(R.string.conduct_route_general_contact),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = c.textSecondary
+                            )
+                        }
                         Spacer(Modifier.height(12.dp))
                         Row {
                             if (contact.phone.isNotBlank()) {
