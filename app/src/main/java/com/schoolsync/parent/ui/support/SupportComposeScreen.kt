@@ -22,6 +22,9 @@ import android.content.Intent
 import android.net.Uri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -277,7 +280,22 @@ private fun FlowCategoryPicker(
     colors: AppColors,
     onSelect: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // R31 — selectable(), not clickable().
+    //
+    // These chips are a single-choice group and a category is REQUIRED to submit
+    // (SupportViewModel.canSubmit), but selection was conveyed only visually:
+    // background colour and font weight. Confirmed on device (SD-T3-002) — every
+    // chip exposed clickable=true and NOTHING else: no checkable, no checked, no
+    // selected. A TalkBack user could move through all ten categories and never
+    // hear which one was chosen, on the one control they cannot skip.
+    //
+    // selectable(role = RadioButton) inside selectableGroup() is what makes the
+    // state audible, and it replaces clickable() in the same modifier position so
+    // the touch target and ripple bounds are unchanged.
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.selectableGroup()
+    ) {
         categories.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 row.forEach { key ->
@@ -291,7 +309,11 @@ private fun FlowCategoryPicker(
                             .weight(1f)
                             .clip(RoundedCornerShape(10.dp))
                             .background(if (on) colors.accentBg else colors.surfaceDark)
-                            .clickable { onSelect(key) }
+                            .selectable(
+                                selected = on,
+                                role = Role.RadioButton,
+                                onClick = { onSelect(key) }
+                            )
                             .padding(horizontal = 12.dp, vertical = 10.dp)
                     )
                 }
