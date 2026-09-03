@@ -23,6 +23,9 @@ import android.net.Uri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -127,7 +130,7 @@ fun SupportComposeScreen(
                 FlowCategoryPicker(
                     categories = viewModel.categories,
                     selected = uiState.category,
-                    label = viewModel::categoryLabel,
+                    label = viewModel::categoryLabelLocalized,
                     colors = c,
                     onSelect = { key ->
                         // "conduct" does NOT compose a ticket. v1 has no
@@ -180,6 +183,30 @@ fun SupportComposeScreen(
                         stringResource(R.string.support_photos_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = c.textSecondary
+                    )
+                }
+
+                // R12 — say it plainly when a restart dropped the attachments.
+                //
+                // The Uris cannot be restored (a Photo Picker grant dies with the
+                // process and is not persistable), so the honest alternative to
+                // keeping the photos is telling the parent they are gone. Without
+                // this the form restored its text and route and looked COMPLETE,
+                // which read as "I never attached them" rather than "they were
+                // dropped" — the restore disguised the loss.
+                //
+                // Placed directly above the strip, where the photos would have
+                // been, so it occupies the space whose emptiness it explains.
+                if (uiState.photosClearedByRestart > 0 && uiState.pickedImages.isEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        stringResource(R.string.support_photos_cleared),
+                        style = MaterialTheme.typography.bodySmall,
+                        // warning, not error: the ticket is still sendable and the
+                        // photos are re-attachable. c.error is reserved in this
+                        // module for a failed action (SupportListScreen retry).
+                        color = c.warning,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
                     )
                 }
 

@@ -7,4 +7,5 @@
     <string name="support_not_ready">பள்ளியின் அமைப்பு இதற்கு இன்னும் தயாராகவில்லை. பின்னர் முயற்சிக்கவும்.</string>
     <string name="support_offline_queue">நீங்கள் ஆஃப்லைனில் இருப்பதாகத் தெரிகிறது. மீண்டும் இணைந்ததும் அனுப்பப்படும்.</string>
     <string name="support_generic_error">ஏதோ தவறு நடந்தது. மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="support_photos_cleared">ஆப் மீண்டும் தொடங்கியபோது உங்கள் புகைப்படங்கள் நீக்கப்பட்டன. மீண்டும் இணைக்கவும்.</string>
 </resources>

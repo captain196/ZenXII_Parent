@@ -7,4 +7,5 @@
     <string name="support_not_ready">शाळेची सिस्टम अद्याप यासाठी तयार नाही. कृपया नंतर प्रयत्न करा.</string>
     <string name="support_offline_queue">तुम्ही ऑफलाइन दिसत आहात. पुन्हा जोडल्यावर ते पाठवले जाईल.</string>
     <string name="support_generic_error">काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा.</string>
+    <string name="support_photos_cleared">अ‍ॅप पुन्हा सुरू झाल्यावर तुमचे फोटो काढले गेले. कृपया ते पुन्हा जोडा.</string>
 </resources>

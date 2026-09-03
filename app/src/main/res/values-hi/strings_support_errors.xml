@@ -7,4 +7,5 @@
     <string name="support_not_ready">विद्यालय का सिस्टम अभी इसके लिए तैयार नहीं है। कृपया बाद में प्रयास करें।</string>
     <string name="support_offline_queue">आप ऑफ़लाइन प्रतीत होते हैं। दोबारा जुड़ने पर यह भेज दिया जाएगा।</string>
     <string name="support_generic_error">कुछ गड़बड़ हो गई। कृपया पुनः प्रयास करें।</string>
+    <string name="support_photos_cleared">ऐप फिर से शुरू होने पर आपकी फ़ोटो हट गईं। कृपया उन्हें दोबारा जोड़ें।</string>
 </resources>

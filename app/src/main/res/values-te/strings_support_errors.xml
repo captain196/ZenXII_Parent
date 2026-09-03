@@ -7,4 +7,5 @@
     <string name="support_not_ready">పాఠశాల వ్యవస్థ దీనికి ఇంకా సిద్ధంగా లేదు. దయచేసి తర్వాత ప్రయత్నించండి.</string>
     <string name="support_offline_queue">మీరు ఆఫ్‌లైన్‌లో ఉన్నట్లు కనిపిస్తోంది. మళ్లీ కనెక్ట్ అయ్యాక పంపబడుతుంది.</string>
     <string name="support_generic_error">ఏదో తప్పు జరిగింది. దయచేసి మళ్లీ ప్రయత్నించండి.</string>
+    <string name="support_photos_cleared">యాప్ మళ్లీ ప్రారంభమైనప్పుడు మీ ఫోటోలు తొలగించబడ్డాయి. దయచేసి వాటిని మళ్లీ జోడించండి.</string>
 </resources>

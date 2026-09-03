@@ -7,4 +7,5 @@
     <string name="support_not_ready">The school\'s system isn\'t ready for this yet. Please try again later.</string>
     <string name="support_offline_queue">You appear to be offline. It will send when you reconnect.</string>
     <string name="support_generic_error">Something went wrong. Please try again.</string>
+    <string name="support_photos_cleared">Your photos were cleared when the app restarted. Please attach them again.</string>
 </resources>

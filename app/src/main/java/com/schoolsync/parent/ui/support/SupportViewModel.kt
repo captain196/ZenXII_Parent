@@ -54,6 +54,11 @@ data class SupportUiState(
     val subject: String = "",
     val body: String = "",
     val pickedImages: List<Uri> = emptyList(),
+    /**
+     * How many photos were attached before the process was killed, when they
+     * could not be restored. Zero in every normal case. See [KEY_PHOTO_COUNT].
+     */
+    val photosClearedByRestart: Int = 0,
     val isSubmitting: Boolean = false,
     val submittedTicketId: String? = null,
 
@@ -82,6 +87,25 @@ private const val KEY_TICKET_ID = "support_draft_ticket_id"
 private const val KEY_CATEGORY = "support_draft_category"
 private const val KEY_SUBJECT = "support_draft_subject"
 private const val KEY_BODY = "support_draft_body"
+/**
+ * R12 — the COUNT of attached photos, not the photos themselves.
+ *
+ * The Uris cannot be persisted usefully. A Photo Picker result carries a grant
+ * scoped to this process and is NOT eligible for takePersistableUriPermission,
+ * so writing the Uri strings into SavedStateHandle would restore references the
+ * app can no longer read: broken thumbnails in place of evidence, which is worse
+ * than an empty strip because it looks like the photos are still attached.
+ *
+ * Confirmed on device (SD-T2-003): after process death the subject and category
+ * restored while both photos were gone, with NO message anywhere. Because the
+ * route and the text DO restore, the screen looks complete — so a parent reads
+ * the absence as "I never attached them" rather than "they were dropped". The
+ * restore was disguising the loss.
+ *
+ * Persisting only the count is safe (an Int has no permission attached) and is
+ * exactly enough to say the one thing the parent needs to hear.
+ */
+private const val KEY_PHOTO_COUNT = "support_draft_photo_count"
 
 @HiltViewModel
 class SupportViewModel @Inject constructor(
@@ -110,7 +134,27 @@ class SupportViewModel @Inject constructor(
 
     val categories: List<String> get() = SupportFirestoreRepository.CATEGORIES
 
+    /**
+     * ENGLISH label — use ONLY where the value is stored or sent to the school
+     * (the ticket subject fallback). See the repository doc.
+     */
     fun categoryLabel(key: String): String = repository.categoryLabel(key)
+
+    /** Localized label for DISPLAY. Never write this value anywhere. */
+    fun categoryLabelLocalized(key: String): String = appContext.localizedString(
+        when (key) {
+            "fees" -> R.string.supcat_fees
+            "transport" -> R.string.supcat_transport
+            "academics" -> R.string.supcat_academics
+            "attendance" -> R.string.supcat_attendance
+            "exams" -> R.string.supcat_exams
+            "certificates" -> R.string.supcat_certificates
+            "health" -> R.string.supcat_health
+            "app" -> R.string.supcat_app
+            "conduct" -> R.string.supcat_conduct
+            else -> R.string.supcat_other
+        }
+    )
 
     init {
         restoreDraft()
@@ -286,9 +330,19 @@ class SupportViewModel @Inject constructor(
             return
         }
         _uiState.update { it.copy(pickedImages = it.pickedImages + uris.take(room)) }
+        savedState[KEY_PHOTO_COUNT] = _uiState.value.pickedImages.size
     }
 
-    fun removeImage(uri: Uri) = _uiState.update { it.copy(pickedImages = it.pickedImages - uri) }
+    fun removeImage(uri: Uri) {
+        _uiState.update { it.copy(pickedImages = it.pickedImages - uri) }
+        savedState[KEY_PHOTO_COUNT] = _uiState.value.pickedImages.size
+    }
+
+    /** The parent has seen the "photos were cleared" notice; stop showing it. */
+    fun acknowledgePhotosCleared() {
+        savedState[KEY_PHOTO_COUNT] = 0
+        _uiState.update { it.copy(photosClearedByRestart = 0) }
+    }
 
     /**
      * Raise the ticket.
@@ -393,7 +447,11 @@ class SupportViewModel @Inject constructor(
             it.copy(
                 category = savedState.get<String>(KEY_CATEGORY).orEmpty(),
                 subject = savedState.get<String>(KEY_SUBJECT).orEmpty(),
-                body = savedState.get<String>(KEY_BODY).orEmpty()
+                body = savedState.get<String>(KEY_BODY).orEmpty(),
+                // pickedImages is deliberately NOT restored — see KEY_PHOTO_COUNT.
+                // If photos were attached when we died, say so instead of
+                // presenting a complete-looking form that quietly lost them.
+                photosClearedByRestart = savedState.get<Int>(KEY_PHOTO_COUNT) ?: 0
             )
         }
     }
@@ -402,6 +460,7 @@ class SupportViewModel @Inject constructor(
         savedState.remove<String>(KEY_CATEGORY)
         savedState.remove<String>(KEY_SUBJECT)
         savedState.remove<String>(KEY_BODY)
+        savedState.remove<Int>(KEY_PHOTO_COUNT)
     }
 
     fun clearError() = _uiState.update { it.copy(errorMessage = null) }

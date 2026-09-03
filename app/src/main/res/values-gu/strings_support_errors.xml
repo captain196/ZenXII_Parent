@@ -7,4 +7,5 @@
     <string name="support_not_ready">શાળાની સિસ્ટમ હજી આ માટે તૈયાર નથી. કૃપા કરી પછી પ્રયાસ કરો.</string>
     <string name="support_offline_queue">તમે ઑફલાઇન જણાઓ છો. ફરી જોડાતાં તે મોકલાશે.</string>
     <string name="support_generic_error">કંઈક ખોટું થયું. કૃપા કરી ફરી પ્રયાસ કરો.</string>
+    <string name="support_photos_cleared">એપ ફરી શરૂ થતાં તમારા ફોટા દૂર થઈ ગયા. કૃપા કરીને તેમને ફરીથી ઉમેરો.</string>
 </resources>
