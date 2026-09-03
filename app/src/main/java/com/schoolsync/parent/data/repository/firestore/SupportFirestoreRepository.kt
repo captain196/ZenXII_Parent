@@ -83,6 +83,9 @@ class SupportFirestoreRepository @Inject constructor(
         /** Statuses that count as still-open for the pre-check. */
         val ACTIVE_STATUSES = setOf("open", "assigned", "reopened")
 
+        /** Thread page size. Newest N are shown; see observeMessages. */
+        private const val MESSAGE_PAGE = 200L
+
         private const val ID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"  // Crockford: no I, L, O, U
     }
 
@@ -214,11 +217,44 @@ class SupportFirestoreRepository @Inject constructor(
                 ref.whereEqualTo("schoolId", school)
                     .whereEqualTo("ticketId", ticketId)
                     .whereEqualTo("reporterId", uid)
-                    .orderBy("createdAt", Query.Direction.ASCENDING)
-                    .limit(200)
-            }.map { snap -> snap.toObjects(SupportMessageDoc::class.java) }
+                    // R30 — DESCENDING, then reversed below. Ascending with a
+                    // limit returns the FIRST 200 by time, i.e. the OLDEST 200,
+                    // so past 200 messages the parent saw the beginning of their
+                    // thread while their CURRENT conversation was unreachable,
+                    // with nothing saying anything was withheld.
+                    //
+                    // Confirmed at E4: staged to 215 messages, this query returned
+                    // CAP-SEQ-0000..0194 and none of the newest ten, and on device
+                    // the thread simply ENDED at 0194.
+                    //
+                    // This is the same inversion B7 already fixed on the panel
+                    // (Support.php reads DESC and array_reverses for display).
+                    // The parent surface never received it — the third instance of
+                    // staff-hardened / parent-not in this module, after R13 and R12.
+                    //
+                    // Needs [schoolId, ticketId, reporterId, createdAt DESC], which
+                    // did NOT exist and was created for this change. Without it the
+                    // listen fails FAILED_PRECONDITION and every thread renders
+                    // EMPTY — Firestore evaluates listens statically, and this
+                    // module already lost a month to exactly that.
+                    .orderBy("createdAt", Query.Direction.DESCENDING)
+                    .limit(MESSAGE_PAGE)
+            }.map { snap ->
+                // Back to chronological for display. reversed(), not a re-sort:
+                // the server already ordered it and a client re-sort would have to
+                // reason about createdAt's type, which is exactly the mixed-type
+                // trap R25 closed.
+                snap.toObjects(SupportMessageDoc::class.java).reversed()
+            }
         )
     }
+
+    /**
+     * How many messages a thread shows. Exposed so the UI can say when it is
+     * showing a partial conversation rather than presenting it as the whole
+     * thing — the panel has said so since B7; the app said nothing.
+     */
+    fun messagePageSize(): Int = MESSAGE_PAGE.toInt()
 
     /** How many of this parent's tickets are still open. Drives the pre-check. */
     suspend fun openTicketCount(): Int {
