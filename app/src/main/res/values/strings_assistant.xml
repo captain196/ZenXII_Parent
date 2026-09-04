@@ -45,4 +45,9 @@
          are not repeated here. -->
     <string name="assistant_search_keywords">ask question doubt help chat</string>
     <string name="assistant_call_telemanas">Call Tele-MANAS 14416</string>
+    <string name="assistant_jump_latest">Jump to latest</string>
+    <string name="assistant_service_down">The assistant isn\'t available right now. Please try again later.</string>
+    <string name="assistant_bad_request">That message couldn\'t be sent. Try making it shorter.</string>
+    <string name="assistant_thread_cleared">Earlier messages aren\'t saved. You can ask again.</string>
+    <string name="assistant_new_chat">New chat</string>
 </resources>

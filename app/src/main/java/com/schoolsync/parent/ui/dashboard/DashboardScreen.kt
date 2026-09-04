@@ -43,6 +43,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.outlined.Assessment
 import androidx.compose.material.icons.outlined.Assignment
@@ -2933,7 +2934,8 @@ fun AcademicsHubContent(
     onNavigateToGallery: () -> Unit = {},
     onNavigateToLibrary: () -> Unit = {},
     onNavigateToPtmList: () -> Unit = {},
-    onNavigateToLessons: () -> Unit = {}
+    onNavigateToLessons: () -> Unit = {},
+    onNavigateToAssistant: () -> Unit = {}
 ) {
     // Wrap the menu items in a vertical scroll so the list always reaches
     // every entry on smaller phones (e.g. anything below 720dp tall) — adding
@@ -2955,6 +2957,13 @@ fun AcademicsHubContent(
             color = c.textPrimary,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
+        )
+        AcademicsMenuItem(
+            Icons.Filled.AutoAwesome,
+            stringResource(R.string.assistant_feature_title),
+            stringResource(R.string.assistant_subtitle),
+            c.accent,
+            onNavigateToAssistant
         )
         AcademicsMenuItem(Icons.Filled.CalendarMonth, stringResource(R.string.drawer_attendance), stringResource(R.string.academics_attendance_subtitle), c.success, onNavigateToAttendance)
         AcademicsMenuItem(Icons.AutoMirrored.Filled.Grading,       stringResource(R.string.drawer_results),    stringResource(R.string.academics_results_subtitle),    c.info,    onNavigateToResults)

@@ -467,7 +467,7 @@ fun MainScreen(
     // because it crosses two composables (assistant → support composer) and must
     // survive exactly one navigation, then be consumed. Not saved state: a draft
     // should not outlive the session that produced it.
-    var assistantDraft by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var assistantDraft by remember { mutableStateOf<Triple<String, String, String>?>(null) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -638,7 +638,8 @@ fun MainScreen(
                     onNavigateToGallery = { navController.navigate(Route.Gallery.route) },
                     onNavigateToLibrary = { navController.navigate(Route.Library.route) },
                     onNavigateToPtmList = { navController.navigate(Route.PtmList.route) },
-                    onNavigateToLessons = { navController.navigate(Route.MyLessons.route) }
+                    onNavigateToLessons = { navController.navigate(Route.MyLessons.route) },
+                    onNavigateToAssistant = { navController.navigate(Route.Assistant.route) }
                 )
             }
 
@@ -860,10 +861,17 @@ fun MainScreen(
                     // Allow-list, not a passthrough. navigate() with an unknown
                     // route throws IllegalArgumentException and crashes the app;
                     // the value comes from the server, so it is not trusted.
-                    onOpenSupport = { route, subject, details ->
+                    onOpenSupport = { route, subject, details, category ->
                         if (route == Route.SupportCompose.route) {
-                            assistantDraft = subject to details
-                            navController.navigate(route)
+                            assistantDraft = Triple(subject, details, category)
+                            // launchSingleTop: the button has no debounce and the
+                            // assistant stays clickable through the slide, so a
+                            // double tap pushed TWO composers. The second found the
+                            // draft already consumed and rendered an EMPTY form on
+                            // top of the filled one — the promised draft appearing
+                            // to vanish, and a second draftTicketId minted, which
+                            // defeats the idempotency that mint-once exists for.
+                            navController.navigate(route) { launchSingleTop = true }
                         }
                     },
                 )
@@ -877,9 +885,13 @@ fun MainScreen(
                 // exposes public updateSubject/updateBody.
                 val supportVm: com.schoolsync.parent.ui.support.SupportViewModel = hiltViewModel()
                 LaunchedEffect(Unit) {
-                    assistantDraft?.let { (subject, details) ->
+                    assistantDraft?.let { (subject, details, category) ->
                         if (subject.isNotBlank()) supportVm.updateSubject(subject)
                         if (details.isNotBlank()) supportVm.updateBody(details)
+                        // Without this the composer opens with Send DISABLED, because
+                        // canSubmit requires a category. Blank is not applied, so the
+                        // student picks a chip exactly as they do today.
+                        if (category.isNotBlank()) supportVm.updateCategory(category)
                         assistantDraft = null      // consume — never re-seed on return
                     }
                 }
@@ -1325,7 +1337,8 @@ fun AcademicsHubScreen(
     onNavigateToGallery: () -> Unit = {},
     onNavigateToLibrary: () -> Unit = {},
     onNavigateToPtmList: () -> Unit = {},
-    onNavigateToLessons: () -> Unit = {}
+    onNavigateToLessons: () -> Unit = {},
+    onNavigateToAssistant: () -> Unit = {}
 ) {
     com.schoolsync.parent.ui.dashboard.AcademicsHubContent(
         onNavigateToAttendance = onNavigateToAttendance,
@@ -1336,6 +1349,7 @@ fun AcademicsHubScreen(
         onNavigateToGallery = onNavigateToGallery,
         onNavigateToLibrary = onNavigateToLibrary,
         onNavigateToPtmList = onNavigateToPtmList,
-        onNavigateToLessons = onNavigateToLessons
+        onNavigateToLessons = onNavigateToLessons,
+        onNavigateToAssistant = onNavigateToAssistant
     )
 }

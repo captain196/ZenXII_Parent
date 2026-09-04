@@ -17,7 +17,21 @@ data class AssistantMessage(
     val handoffLabel: String? = null,
     val handoffSubject: String? = null,
     val handoffDetails: String? = null,
+    /**
+     * The area the model classified the problem as. Carried so the composer opens
+     * with its category chip already chosen — without it, Send stays DISABLED
+     * (`SupportViewModel.canSubmit` requires a category), so the assistant's
+     * "I've prepared this" led to a form the student could not send.
+     */
+    val handoffCategory: String? = null,
     val isError: Boolean = false,
+    /**
+     * How many characters are currently revealed, or null once the whole message
+     * is shown. This is a PROGRESSIVE REVEAL of an already-complete reply — not
+     * streaming. Real streaming needs firebase-functions v6 (`sendChunk`), and
+     * this codebase is on 5.1.1 shared by 20 deployed functions.
+     */
+    val revealChars: Int? = null,
 ) {
     enum class Role { USER, ASSISTANT }
 }
@@ -30,4 +44,11 @@ data class AssistantReply(
     val handoffLabel: String? = null,
     val handoffSubject: String? = null,
     val handoffDetails: String? = null,
+    /**
+     * The area the model classified the problem as. Carried so the composer opens
+     * with its category chip already chosen — without it, Send stays DISABLED
+     * (`SupportViewModel.canSubmit` requires a category), so the assistant's
+     * "I've prepared this" led to a form the student could not send.
+     */
+    val handoffCategory: String? = null,
 )

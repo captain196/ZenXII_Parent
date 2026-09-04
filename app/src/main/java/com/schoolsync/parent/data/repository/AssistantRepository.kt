@@ -37,11 +37,17 @@ class AssistantRepository @Inject constructor(
         message: String,
         history: List<Pair<String, String>>,
     ): AssistantReply {
-        // Which child this question is about. The app's switcher changes only
-        // local state and never re-mints the token, so without this the server
-        // falls back to the `student_id` claim — the FIRST child — and answers
-        // about the wrong one. The server authorises this value against the
-        // `student_ids` claim and refuses anything outside it.
+        // Which child this question is about. The server authorises this value
+        // against the `student_ids` claim and refuses anything outside it.
+        //
+        // Today this is always the login identity, because there is no child
+        // switcher in this app — so it equals the `student_id` claim and the
+        // server's selection branch never fires. It is sent anyway so that the
+        // day a switcher lands, the wiring is already correct and already
+        // authorised server-side rather than trusted from the request.
+        //
+        // This comment previously claimed it prevented the assistant answering
+        // about the wrong child. It cannot: there is no switcher to disagree with.
         val activeStudentId = tokenManager.user.firstOrNull()?.userId.orEmpty()
 
         val payload = mapOf(
@@ -81,6 +87,9 @@ class AssistantRepository @Inject constructor(
             // here is what made that a broken promise and an empty form.
             handoffSubject = handoff?.get("suggestedSubject") as? String,
             handoffDetails = handoff?.get("suggestedDetails") as? String,
+            // Server-validated against the rules allowlist; blank when the model
+            // gave something unusable, and a blank one is simply not applied.
+            handoffCategory = handoff?.get("category") as? String,
         )
     }
 

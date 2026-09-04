@@ -9,7 +9,7 @@
 
      ⚠ No string here may promise that a request was sent or a ticket raised.
      The assistant only hands the user to the Support screen; they send it
-     themselves. See raise_helpdesk_ticket in studentAssistant.js.
+     themselves. See draft_support_request in studentAssistant.js.
 
      MACHINE-ASSISTED, PENDING NATIVE REVIEW. -->
 <resources>
@@ -43,4 +43,9 @@
          are not repeated here. -->
     <string name="assistant_search_keywords">પૂછો પ્રશ્ન શંકા મદદ સહાય વાત</string>
     <string name="assistant_call_telemanas">Tele-MANAS 14416 પર કૉલ કરો</string>
+    <string name="assistant_jump_latest">નવીનતમ પર જાઓ</string>
+    <string name="assistant_service_down">સહાયક અત્યારે ઉપલબ્ધ નથી. કૃપા કરીને થોડી વાર પછી પ્રયાસ કરો.</string>
+    <string name="assistant_bad_request">આ સંદેશ મોકલી શકાયો નથી. તેને ટૂંકો કરીને પ્રયાસ કરો.</string>
+    <string name="assistant_thread_cleared">અગાઉના સંદેશા સાચવવામાં આવતા નથી. તમે ફરીથી પૂછી શકો છો.</string>
+    <string name="assistant_new_chat">નવી ચેટ</string>
 </resources>

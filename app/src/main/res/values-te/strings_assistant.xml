@@ -9,7 +9,7 @@
 
      ⚠ No string here may promise that a request was sent or a ticket raised.
      The assistant only hands the user to the Support screen; they send it
-     themselves. See raise_helpdesk_ticket in studentAssistant.js.
+     themselves. See draft_support_request in studentAssistant.js.
 
      MACHINE-ASSISTED, PENDING NATIVE REVIEW. -->
 <resources>
@@ -43,4 +43,9 @@
          are not repeated here. -->
     <string name="assistant_search_keywords">అడుగు ప్రశ్న సందేహం సహాయం మాట్లాడు</string>
     <string name="assistant_call_telemanas">Tele-MANAS 14416 కు కాల్ చేయండి</string>
+    <string name="assistant_jump_latest">తాజాదానికి వెళ్లండి</string>
+    <string name="assistant_service_down">సహాయకుడు ప్రస్తుతం అందుబాటులో లేరు. దయచేసి కొద్దిసేపటి తర్వాత ప్రయత్నించండి.</string>
+    <string name="assistant_bad_request">ఈ సందేశాన్ని పంపలేకపోయాము. దీన్ని కుదించి ప్రయత్నించండి.</string>
+    <string name="assistant_thread_cleared">మునుపటి సందేశాలు సేవ్ చేయబడవు. మీరు మళ్లీ అడగవచ్చు.</string>
+    <string name="assistant_new_chat">కొత్త చాట్</string>
 </resources>

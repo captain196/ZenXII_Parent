@@ -9,7 +9,7 @@
 
      ⚠ No string here may promise that a request was sent or a ticket raised.
      The assistant only hands the user to the Support screen; they send it
-     themselves. See raise_helpdesk_ticket in studentAssistant.js.
+     themselves. See draft_support_request in studentAssistant.js.
 
      MACHINE-ASSISTED, PENDING NATIVE REVIEW. -->
 <resources>
@@ -32,7 +32,7 @@
     <string name="assistant_tool_timetable">तुमचे वेळापत्रक पाहिले</string>
     <string name="assistant_tool_results">तुमचे निकाल पाहिले</string>
     <string name="assistant_tool_generic">तुमचे रेकॉर्ड पाहिले</string>
-    <string name="assistant_open_support">सहाय्य उघडा</string>
+    <string name="assistant_open_support">मदत उघडा</string>
     <string name="assistant_unavailable">हा सहाय्यक अद्याप तुमच्या शाळेसाठी उपलब्ध नाही.</string>
     <string name="assistant_quota_reached">तुम्ही आजची प्रश्न मर्यादा पूर्ण केली आहे. ती उद्या पुन्हा सुरू होईल.</string>
     <string name="assistant_signed_out">सहाय्यक वापरण्यासाठी कृपया पुन्हा साइन इन करा.</string>
@@ -43,4 +43,9 @@
          are not repeated here. -->
     <string name="assistant_search_keywords">विचारा प्रश्न शंका मदत सहाय्य बोला</string>
     <string name="assistant_call_telemanas">Tele-MANAS 14416 वर कॉल करा</string>
+    <string name="assistant_jump_latest">नवीनतम वर जा</string>
+    <string name="assistant_service_down">सहाय्यक सध्या उपलब्ध नाही. कृपया थोड्या वेळाने पुन्हा प्रयत्न करा.</string>
+    <string name="assistant_bad_request">हा संदेश पाठवता आला नाही. तो लहान करून पहा.</string>
+    <string name="assistant_thread_cleared">मागील संदेश जतन केले जात नाहीत. तुम्ही पुन्हा विचारू शकता.</string>
+    <string name="assistant_new_chat">नवीन चॅट</string>
 </resources>

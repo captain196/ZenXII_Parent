@@ -33,6 +33,7 @@
             android:launchMode="singleTop"
             android:resizeableActivity="true"
             android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.SchoolSyncParent">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
