@@ -64,8 +64,45 @@ data class CheckoutRequest(
     val description: String,
     val prefillEmail: String,
     val prefillContact: String,
-    val themeColor: String = "#0F766E"
+    val themeColor: String = "#0F766E",
+
+    /**
+     * Which checkout engine the school's active provider requires, verbatim
+     * from the server. NOT the provider name - several providers can share one
+     * engine, and that is precisely what lets a new provider be added without
+     * an app release.
+     *
+     * Defaults to NATIVE_SDK so a response from an older server (which omits
+     * the field entirely) behaves exactly as it always has.
+     */
+    val checkoutType: String = CheckoutEngine.NATIVE_SDK
 )
+
+/**
+ * The checkout engines this app version actually implements.
+ *
+ * Adding a provider that needs an engine listed in [SUPPORTED] is a
+ * server-side change only. Adding one that needs an engine NOT in this list
+ * genuinely requires an app release - that is a real constraint, not an
+ * architectural failure, and [isSupported] exists so the app says so plainly
+ * instead of guessing and failing obscurely mid-payment.
+ */
+object CheckoutEngine {
+    const val NATIVE_SDK      = "native_sdk"
+    const val WEBVIEW         = "webview"
+    const val HOSTED_REDIRECT = "hosted_redirect"
+    const val UPI_INTENT      = "upi_intent"
+
+    /**
+     * What THIS build can render. Currently only the bundled Razorpay
+     * Standard Checkout SDK. Deliberately a whitelist: an unknown engine must
+     * be refused, never attempted.
+     */
+    val SUPPORTED: Set<String> = setOf(NATIVE_SDK)
+
+    fun isSupported(engine: String?): Boolean =
+        engine != null && engine in SUPPORTED
+}
 
 data class PaymentFailure(
     val code: Int = 0,
@@ -87,7 +124,7 @@ data class FeesUiState(
      * Months the user JUST paid for but where the server pipeline
      * hasn't yet pushed the updated demand snapshot. Rendered in a
      * muted "processing…" visual state so the parent sees immediate
-     * feedback instead of waiting 10–40 s for the Firestore listener
+     * feedback instead of waiting 10â€“40 s for the Firestore listener
      * to catch up on slow networks. Cleared automatically when the
      * demand listener reports the months as `paid`/`partial` OR when
      * the verify call returns an error (rollback).
@@ -165,7 +202,10 @@ class FeesViewModel @Inject constructor(
         val orderId: String,
         val amountPaise: Long,
         val currency: String,
-        val description: String
+        val description: String,
+        // Pinned at order-creation time so a retry cannot open a
+        // different engine than the order was minted for.
+        val checkoutType: String = CheckoutEngine.NATIVE_SDK
     )
     private var lastCheckout: CachedCheckout? = null
 
@@ -309,7 +349,7 @@ class FeesViewModel @Inject constructor(
         }
     }
 
-    // ── Live listeners (push-based; replace the old loadFees pull pattern) ──
+    // â”€â”€ Live listeners (push-based; replace the old loadFees pull pattern) â”€â”€
 
     // Track listener jobs so pull-refresh can cancel + reattach them,
     // recovering any Flow that the repo-level .catch absorbed on failure.
@@ -462,7 +502,7 @@ class FeesViewModel @Inject constructor(
                 val modeLabel = if (refund.refundMode.isBlank()) {
                     "Refund"
                 } else {
-                    "Refund · ${refund.refundMode.replaceFirstChar { it.uppercase() }}"
+                    "Refund \u00B7 ${refund.refundMode.replaceFirstChar { it.uppercase() }}"
                 }
 
                 // Receipt-no column: normal receipts are "F10", "F9"…
@@ -627,53 +667,13 @@ class FeesViewModel @Inject constructor(
     }
 
     /**
-     * Pure mapper — Firestore demands → UI PendingFees model.
+     * Pure mapper — Firestore demands â†’ UI PendingFees model.
      * Extracted from the old loadFeesFromFirestore so both the listener
      * path and any future one-shot can share the same logic.
      */
-    /**
-     * Compute how many days a period is past its grace window.
-     *
-     * "Month starts on the 1st; 15-day grace". So April 2026 becomes
-     * overdue on 16 April 2026. For Jan–Mar (which roll into session
-     * year+1), the computation uses sessionYear+1.
-     *
-     * Yearly Fees is tied to session start (April) so it overdues
-     * alongside April.
-     *
-     * Returns 0 when the month is not yet past the grace window — e.g.
-     * June demand viewed in May → 0. This keeps the UI calm during the
-     * legitimate window.
-     */
-    private fun computeOverdueDays(monthLabel: String, sessionStartYear: Int): Int {
-        val monthIndex = when (monthLabel) {
-            "April"      -> 4
-            "May"        -> 5
-            "June"       -> 6
-            "July"       -> 7
-            "August"     -> 8
-            "September"  -> 9
-            "October"    -> 10
-            "November"   -> 11
-            "December"   -> 12
-            "January"    -> 1
-            "February"   -> 2
-            "March"      -> 3
-            "Yearly Fees" -> 4     // treat as session-start
-            else -> return 0
-        }
-        val year = if (monthIndex in 1..3) sessionStartYear + 1 else sessionStartYear
-        val cal = java.util.Calendar.getInstance()
-        // Grace: 15 days from the 1st. Overdue starts on day 16.
-        cal.set(year, monthIndex - 1, 16, 0, 0, 0)
-        cal.set(java.util.Calendar.MILLISECOND, 0)
-        val overdueAt = cal.timeInMillis
-        val now       = System.currentTimeMillis()
-        if (now < overdueAt) return 0
-        val days = ((now - overdueAt) / (1000L * 60 * 60 * 24)).toInt()
-        return days.coerceAtLeast(1)
-    }
-
+    // PARENT-DUE-1 — the overdue rule moved to FeeDueDates. It was private
+    // here, so the only way to test it was to copy it into the test, and a
+    // copy passes whether or not the real code is right.
     private fun mapDemandsToPendingFees(
         demands: List<com.schoolsync.parent.data.model.firestore.FeeDemandDoc>,
         studentId: String
@@ -686,7 +686,36 @@ class FeesViewModel @Inject constructor(
         // Firestore SDK fallback path), archived demands MUST NOT enter the
         // aggregation — otherwise post-promotion phantom dues surface in
         // Total/Paid/Due cards.
-        val active = demands.filter { it.status != "archived" }
+        // ── PA-FEE-1 · AN ALLOWLIST, NOT A DENYLIST OF ONE ───────────────
+        //
+        // This was `it.status != "archived"`. Excluding exactly one status
+        // means every OTHER status is treated as money a parent may pay —
+        // including the two the school has explicitly decided not to collect:
+        //
+        //   frozen    the student exited (deactivated, TC issued)
+        //   reversed  the admission was reversed
+        //
+        // REPRODUCED ON A PHYSICAL DEVICE (2026-08-27): with 4 demands frozen
+        // and 2 reversed out of 25, Firestore held ₹8,400 collectable and this
+        // screen showed "Due ₹11,800 / UNPAID (13 months)", offering April —
+        // whose only two demands were BOTH frozen — as a payable ₹900 row.
+        // A parent could have paid money the school had already written off.
+        //
+        // `FeeFirestoreRepository.PAYABLE_DEMAND_STATUSES` already exists for
+        // exactly this, and its docblock gives the reason the shape matters:
+        // "a status added on the admin side later defaults to NOT-payable,
+        // which is the safe direction". A denylist of one defaults every new
+        // status to PAYABLE — the unsafe direction — which is precisely how
+        // frozen and reversed slipped through here.
+        //
+        // `paid` is added because this aggregation also feeds the Paid card and
+        // the settled-month rows. It is not payable, and the per-month status
+        // computation below already treats it as settled.
+        // The rule lives in FeeAggregation so a test can exercise the SHIPPED
+        // code rather than a restatement of it. Mutation-testing showed the
+        // inline form could be reverted to the old denylist with every
+        // assertion in FrozenDemandNotPayableTest still passing.
+        val active = FeeAggregation.aggregatable(demands)
         if (active.isEmpty()) return PendingFees(studentId = studentId)
         val grouped = active.groupBy { it.month.ifBlank { "Unknown" } }
         val academicOrder = listOf(
@@ -705,7 +734,37 @@ class FeesViewModel @Inject constructor(
         val pendingMonths = grouped.map { (month, monthDemands) ->
             val totalNet  = monthDemands.sumOf { it.netAmount }
             val totalPaid = monthDemands.sumOf { it.paidAmount }
-            val balance   = (totalNet - totalPaid).coerceAtLeast(0.0)
+
+            // â”€â”€ LATE-2 · PREFER THE SERVER'S BALANCE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // The server defines balance as `netAmount + fine - paidAmount`
+            // (Fee_late_fee_service, Fees.php). This recomputed it as
+            // `netAmount - paidAmount` and therefore silently DROPPED any late
+            // fee: a parent with a Rs.50 fine on a Rs.1000 demand saw Rs.1000,
+            // paid it, and stayed Rs.50 short with the demand still 'partial'.
+            //
+            // This is the figure the parent actually pays — unpaid months
+            // display balanceAmount, not totalAmount — so the understatement was
+            // not cosmetic.
+            //
+            // Deliberately NOT reading the fine field and adding it back.
+            //
+            // CORRECTION (PARENT-DUE-1 pass): this previously said `fineAmount`
+            // was unreliable because the server writes snake_case. It is not —
+            // updateDemand() maps 'fineAmount' => ['fine_amount','fineAmount']
+            // and emits camelCase only, so the field arrives correctly named.
+            //
+            // The rule stands for a better reason: `balance` is the single
+            // figure the server computed and the one the payment path charges
+            // against. Rebuilding it here as netAmount + fineAmount - paidAmount
+            // would be a second copy of the same formula, free to drift.
+            //
+            // Falls back to the old computation only where the server supplied
+            // no positive balance, so a demand written before this field was
+            // populated can never display LESS than it does today.
+            val balance = monthDemands.sumOf { d ->
+                if (d.balance > 0.0) d.balance
+                else (d.netAmount - d.paidAmount).coerceAtLeast(0.0)
+            }
             val allPaid   = monthDemands.all { it.status == "paid" }
             val anyPartial = monthDemands.any { it.status == "partial" }
             val status = when {
@@ -718,11 +777,11 @@ class FeesViewModel @Inject constructor(
                 totalAmount = totalNet,
                 paidAmount = totalPaid,
                 balanceAmount = balance,
-                dueDate = "",
+                dueDate = FeeDueDates.earliestOpenDueDate(monthDemands),
                 status = status,
                 // Only non-Paid months can be "overdue". Helper returns
                 // 0 for future / on-time / cleared months.
-                overdueDays = if (allPaid) 0 else computeOverdueDays(month, sessionYear),
+                overdueDays = if (allPaid) 0 else FeeDueDates.overdueDaysFor(monthDemands, month, sessionYear),
                 feeHeads = monthDemands.map { d ->
                     FeeHeadDue(
                         name = d.feeHead.ifBlank {
@@ -735,7 +794,13 @@ class FeesViewModel @Inject constructor(
                         },
                         netAmount = d.netAmount,
                         paidAmount = d.paidAmount,
-                        balance = (d.netAmount - d.paidAmount).coerceAtLeast(0.0),
+                        // LATE-2 — same rule as the month aggregate above: the
+                        // server's balance already includes the fine.
+                        balance = if (d.balance > 0.0) {
+                            d.balance
+                        } else {
+                            (d.netAmount - d.paidAmount).coerceAtLeast(0.0)
+                        },
                         status = d.status
                     )
                 }
@@ -756,7 +821,7 @@ class FeesViewModel @Inject constructor(
     }
 
     /**
-     * Pure mapper — Firestore receipt docs → UI FeePayment list, sorted
+     * Pure mapper — Firestore receipt docs â†’ UI FeePayment list, sorted
      * newest first. Listener already imposes a 50-doc limit + DESC order
      * but we re-sort here defensively.
      *
@@ -795,7 +860,7 @@ class FeesViewModel @Inject constructor(
                             is String -> rawAmt.toDoubleOrNull() ?: 0.0
                             else -> 0.0
                         }
-                        "$head: Rs. ${"%,.0f".format(amt)}"
+                        "$head: \u20B9${"%,.0f".format(amt)}"
                     }.joinToString(" | ")
 
                     FeePayment(
@@ -822,7 +887,7 @@ class FeesViewModel @Inject constructor(
     /**
      * Pull-to-refresh entry — toggles `isRefreshing` while the load
      * runs, then clears the Pending Dues selection AFTER the data
-     * arrives so the user sees: pull → spinner → data updates → ticks
+     * arrives so the user sees: pull â†’ spinner â†’ data updates â†’ ticks
      * clear (much smoother than clearing first).
      *
      * `minSpinnerMs` guarantees a visible spinner even when the load
@@ -846,7 +911,7 @@ class FeesViewModel @Inject constructor(
                 loadFeesAsync()
                 Log.d(
                     "FeesVM",
-                    "pullRefresh: load complete in ${System.currentTimeMillis() - startedAt}ms — " +
+                    "pullRefresh: load complete in ${System.currentTimeMillis() - startedAt}ms \u2014 " +
                         "demands=${_uiState.value.overview.pendingFees.pendingMonths.size}"
                 )
             } catch (e: Exception) {
@@ -979,14 +1044,14 @@ class FeesViewModel @Inject constructor(
                 didClaim = true
                 current.copy(
                     paymentInProgress = true,
-                    paymentStatus = "Creating order…",
+                    paymentStatus = "Creating order\u2026",
                     errorMessage = null,
                     paymentFailure = null
                 )
             }
         }
         if (!didClaim) {
-            Log.w("FeesVM", "initiatePayment ignored — a payment is already in progress")
+            Log.w("FeesVM", "initiatePayment ignored \u2014 a payment is already in progress")
             return
         }
 
@@ -1063,7 +1128,16 @@ class FeesViewModel @Inject constructor(
                     it.copy(
                         paymentInProgress = false,
                         paymentStatus = null,
-                        errorMessage = "Razorpay is not configured. Ask the school admin to enable it."
+                        // The message used to name Razorpay unconditionally. For a school on
+                        // any other provider that is simply FALSE  14 and it is the kind of
+                        // falsehood a parent repeats to the office, sending them to check a
+                        // gateway they do not use. The server already resolved the provider;
+                        // name THAT, or stay generic when it did not say.
+                        errorMessage = response.provider
+                            ?.takeIf { it.isNotBlank() && !it.equals("mock", ignoreCase = true) }
+                            ?.replaceFirstChar { c -> c.uppercaseChar() }
+                            ?.let { "$it is not fully configured for this school. Ask the school admin to complete the payment setup." }
+                            ?: "Online payment is not configured for this school. Ask the school admin to enable it."
                     )
                 }
                 return@launch
@@ -1075,15 +1149,16 @@ class FeesViewModel @Inject constructor(
                 (response.amount * 100).toLong()
             }
 
-            _uiState.update { it.copy(paymentStatus = "Opening checkout…") }
-            val description = "Fees — ${months.joinToString(", ")}"
+            _uiState.update { it.copy(paymentStatus = "Opening checkout\u2026") }
+            val description = "Fees \u2014 ${months.joinToString(", ")}"
             // Cache for one-tap retry without a fresh createOrder hop.
             lastCheckout = CachedCheckout(
                 apiKey = response.api_key,
                 orderId = response.gateway_order_id,
                 amountPaise = amountPaise,
                 currency = response.currency.ifBlank { "INR" },
-                description = description
+                description = description,
+                checkoutType = response.checkout_type ?: CheckoutEngine.NATIVE_SDK
             )
             _checkoutRequests.trySend(
                 CheckoutRequest(
@@ -1094,7 +1169,12 @@ class FeesViewModel @Inject constructor(
                     name = user.schoolDisplayName.ifBlank { "School Fees" },
                     description = description,
                     prefillEmail = user.email,
-                    prefillContact = user.phone
+                    prefillContact = user.phone,
+                    // Verbatim from the server. The app does not choose,
+                    // infer, or map school -> provider -> engine. A null
+                    // (older server, or legacy config path) falls back to the
+                    // historical native_sdk behaviour.
+                    checkoutType = response.checkout_type ?: CheckoutEngine.NATIVE_SDK
                 )
             )
         }
@@ -1161,14 +1241,14 @@ class FeesViewModel @Inject constructor(
                 didClaim = true
                 current.copy(
                     paymentInProgress = true,
-                    paymentStatus = "Reopening checkout…",
+                    paymentStatus = "Reopening checkout\u2026",
                     errorMessage = null,
                     paymentFailure = null
                 )
             }
         }
         if (!didClaim) {
-            Log.w("FeesVM", "retry ignored — payment already in progress")
+            Log.w("FeesVM", "retry ignored \u2014 payment already in progress")
             return
         }
         viewModelScope.launch {
@@ -1182,7 +1262,11 @@ class FeesViewModel @Inject constructor(
                     name = user.schoolDisplayName.ifBlank { "School Fees" },
                     description = cached.description,
                     prefillEmail = user.email,
-                    prefillContact = user.phone
+                    prefillContact = user.phone,
+                    // Retry reuses the cached order, so it must reuse that
+                    // order's engine too - re-deriving it could open a
+                    // different checkout than the one the order was minted for.
+                    checkoutType = cached.checkoutType
                 )
             )
         }

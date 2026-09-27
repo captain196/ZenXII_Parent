@@ -48,14 +48,48 @@ object ReceiptPdfGenerator {
      *
      * @param meta  Optional school header details (logo, address, GSTIN).
      */
+    /**
+     * Render a server ISO-8601 timestamp as a human date in IST.
+     *
+     * The server emits `date('c')` — e.g. `2026-08-26T06:18:07+02:00`. The
+     * offset varies with the host's timezone (ZenX pins none), but the instant
+     * is unambiguous, so it is parsed with its offset and displayed in IST:
+     * the school, the parent and the books are all in India.
+     *
+     * Returns the input unchanged if it cannot be parsed — a slightly ugly
+     * receipt beats a blank date field on a financial document.
+     */
+    private fun formatIsoForDisplay(raw: String): String {
+        if (raw.isBlank()) return ""
+        val ist = java.util.TimeZone.getTimeZone("Asia/Kolkata")
+        val out = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).apply { timeZone = ist }
+        for (pattern in arrayOf("yyyy-MM-dd'T'HH:mm:ssXXX", "yyyy-MM-dd'T'HH:mm:ssZ", "yyyy-MM-dd'T'HH:mm:ss")) {
+            try {
+                return out.format(SimpleDateFormat(pattern, Locale.US).parse(raw)!!)
+            } catch (_: Exception) { /* try the next shape */ }
+        }
+        return raw
+    }
+
+    /**
+     * Create a PDF file for the receipt and return the File reference.
+     * Filename includes an epoch suffix so concurrent share intents
+     * don't fight over the same file (Android stale-URI bug).
+     *
+     * @param meta  Optional school header details (logo, address, GSTIN).
+     */
     fun generate(
         context: Context,
         receipt: FeeReceiptDoc,
         schoolName: String,
-        meta: PdfSchoolMeta? = null
+        meta: PdfSchoolMeta? = null,
+        // Allocation-derived per-head rows — what this receipt actually
+        // settled. Defaulted to empty so existing callers keep compiling and
+        // fall back to receipt.feeBreakdown; pass it wherever it is available.
+        headAllocations: List<com.schoolsync.parent.ui.fees.HeadAllocation> = emptyList()
     ): File {
         val dir = File(context.cacheDir, "receipts").apply { if (!exists()) mkdirs() }
-        val rkey = receipt.receiptNo.ifBlank { receipt.receiptKey.ifBlank { "R" } }
+        val rkey = receipt.displayReceiptNo.ifBlank { "R" }
         val stamp = (System.currentTimeMillis() / 1000)
         val file = File(dir, "Receipt_${rkey}_${stamp}.pdf")
 
@@ -156,10 +190,18 @@ object ReceiptPdfGenerator {
         y += 18f
 
         // Receipt + date row
-        val receiptNoLabel = "Receipt #: ${receipt.receiptNo.ifBlank { receipt.receiptKey }}"
-        val dateStr = when (val c = receipt.createdAt) {
-            is com.google.firebase.Timestamp -> SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(c.toDate())
-            is String -> c
+        val receiptNoLabel = "Receipt #: ${receipt.displayReceiptNo}"
+        // The String branch used to print createdAt verbatim, so the printed
+        // receipt carried a raw machine timestamp —
+        //     2026-08-26T06:18:07+02:00
+        // — where a human date belongs. (The +02:00 is a separate server-side
+        // defect: ZenX pins no timezone and inherited the host's.) The instant
+        // is correct either way, so it is parsed and rendered in IST, matching
+        // what the in-app receipt shows.
+        val dateStr = when (val cAt = receipt.createdAt) {
+            is com.google.firebase.Timestamp ->
+                SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(cAt.toDate())
+            is String -> formatIsoForDisplay(cAt)
             else -> ""
         }
         canvas.drawText(receiptNoLabel, MARGIN, y, h2)
@@ -198,23 +240,41 @@ object ReceiptPdfGenerator {
         canvas.drawLine(MARGIN, y, PAGE_WIDTH - MARGIN, y, line)
         y += 14f
 
+        // Print what this receipt ACTUALLY settled.
+        //
+        // This used to print receipt.feeBreakdown, which the server derived
+        // from the class fee structure. Receipt F1 (2026-08-26) printed
+        // Tuition 600 + Library 50 + Transport 200 + Admission 1000 — line
+        // items summing to Rs 1,850 — directly above "Net Paid Rs 700", while
+        // the ID Card Replacement charge that was actually paid appeared
+        // nowhere. A receipt whose items contradict its own total is worse
+        // than one with no items at all: a parent cannot reconcile it, and a
+        // school office cannot defend it.
+        //
+        // headAllocations is allocation-derived, so it also renders correctly
+        // for receipts written before the server-side fix.
         var breakdownTotal = 0.0
-        receipt.feeBreakdown.forEach { row ->
-            val head = (row["head"] as? String) ?: ""
-            val amt = ((row["amount"] as? String)?.toDoubleOrNull()
-                ?: (row["amount"] as? Number)?.toDouble()) ?: 0.0
-            val freq = (row["frequency"] as? String) ?: ""
+        val pdfRows: List<Pair<String, Double>> = if (headAllocations.isNotEmpty()) {
+            headAllocations.map { it.head to it.allocatedThisReceipt }
+        } else {
+            receipt.feeBreakdown.mapNotNull { row ->
+                val h = (row["head"] as? String) ?: return@mapNotNull null
+                val a = ((row["amount"] as? String)?.toDoubleOrNull()
+                    ?: (row["amount"] as? Number)?.toDouble()) ?: 0.0
+                h to a
+            }
+        }
+        pdfRows.forEach { (head, amt) ->
             if (head.isNotBlank()) {
-                val label = if (freq.isNotBlank()) "$head  ·  ${freq.replaceFirstChar { it.uppercase() }}" else head
-                canvas.drawText(label, col1, y, body)
-                val amtStr = "Rs. ${"%,.2f".format(amt)}"
+                canvas.drawText(head, col1, y, body)
+                val amtStr = "\u20B9${"%,.2f".format(amt)}"
                 canvas.drawText(amtStr, PAGE_WIDTH - MARGIN - body.measureText(amtStr), y, body)
                 y += 16f
                 breakdownTotal += amt
             }
         }
 
-        if (receipt.feeBreakdown.isEmpty()) {
+        if (pdfRows.isEmpty()) {
             // Fallback: list months
             receipt.feeMonths.forEach { m ->
                 canvas.drawText(m, col1, y, body); y += 16f
@@ -229,7 +289,7 @@ object ReceiptPdfGenerator {
         fun totalRow(label: String, amount: Double, emphasis: Boolean = false) {
             val p = if (emphasis) h2 else body
             canvas.drawText(label, col1, y, p)
-            val s = "Rs. ${"%,.2f".format(amount)}"
+            val s = "\u20B9${"%,.2f".format(amount)}"
             canvas.drawText(s, PAGE_WIDTH - MARGIN - p.measureText(s), y, p)
             y += if (emphasis) 20f else 16f
         }

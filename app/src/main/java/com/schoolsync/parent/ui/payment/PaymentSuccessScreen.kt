@@ -56,7 +56,7 @@ import java.util.Locale
  * Defensive rendering rules (per user spec "no crash if receipt data
  * is delayed or null"):
  *  - If `amount == 0` (Firestore confirm timed out), the rupee figure
- *    is hidden — better than rendering "Rs 0".
+ *    is hidden — better than rendering "\u20B90".
  *  - If `receiptNo` is blank, the receipt-row and the View Receipt
  *    button are hidden.
  *  - If `confirmedFromBackend == false`, a softer subtitle explains
@@ -141,10 +141,10 @@ fun PaymentSuccessScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Amount — only when we know it. "Rs 0" looks like a bug.
+            // Amount — only when we know it. "\u20B90" looks like a bug.
             if (details.amount > 0) {
                 Text(
-                    "Rs ${"%,.0f".format(details.amount)}",
+                    "\u20B9${"%,.0f".format(details.amount)}",
                     style = MaterialTheme.typography.displaySmall,
                     color = c.textPrimary,
                     fontWeight = FontWeight.Bold,
@@ -156,7 +156,7 @@ fun PaymentSuccessScreen(
             // Subtitle: which months + cleared/partial status
             //
             // The "cleared" / "remaining" copy must be honest — saying
-            // "January fee cleared" after a Rs 500 partial against Rs
+            // "January fee cleared" after a \u20B9500 partial against Rs
             // 2,800 dues is misleading. PaymentSession reads the
             // allocation doc to compute isPartial + remainingByMonth so
             // we can render accurate per-month status here.
@@ -167,7 +167,7 @@ fun PaymentSuccessScreen(
                     "Receipt is being prepared by the school. You can safely close this screen."
                 details.isPartial && details.remainingByMonth.isNotEmpty() -> {
                     val parts = details.remainingByMonth.entries.joinToString(" · ") { (m, bal) ->
-                        "$m: Rs ${"%,.0f".format(bal)} remaining"
+                        "$m: \u20B9${"%,.0f".format(bal)} remaining"
                     }
                     parts
                 }

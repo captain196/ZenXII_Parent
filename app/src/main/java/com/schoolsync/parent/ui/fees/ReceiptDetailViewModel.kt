@@ -52,7 +52,16 @@ data class MonthAllocation(
 data class HeadAllocation(
     val head: String,
     val allocatedThisReceipt: Double,
-    val totalAmount: Double
+    /**
+     * The DEMAND's total for this head — what this receipt paid plus whatever
+     * still stands on it. Not the class fee-chart price: a chart head and a
+     * demand can share a name and be unrelated amounts (an ad-hoc "Tuition
+     * Fee" student charge of ₹350 against a chart line of ₹600/month), and
+     * comparing them made a fully-settled head render as partially paid.
+     */
+    val totalAmount: Double,
+    /** Still due on the demand after this receipt. 0 == fully settled. */
+    val remainingOnDemand: Double = 0.0
 )
 
 data class ReceiptDetailUiState(
@@ -258,6 +267,7 @@ class ReceiptDetailViewModel @Inject constructor(
         viewModelScope.launch {
             // ── 1) allocation doc → per-head + per-month breakdown ──
             val perHead = mutableMapOf<String, Double>()      // head → allocated by this receipt
+            val perHeadRemaining = mutableMapOf<String, Double>() // head → still due on the demand
             val perMonthAlloc = mutableMapOf<String, Double>() // month → allocated by this receipt
             try {
                 val allocId = "${schoolId}_${session}_F${receiptNo}"
@@ -275,11 +285,18 @@ class ReceiptDetailViewModel @Inject constructor(
                         val monthName = periodToMonth(period).ifEmpty { period }
                         val head = (row["fee_head"] as? String).orEmpty()
                         val allocated = (row["allocated"] as? Number)?.toDouble() ?: 0.0
+                        // `balance` is what remains ON THE DEMAND after this
+                        // receipt — written by the server alongside the
+                        // allocation. It is the authoritative answer to "was
+                        // this head fully settled?", and it was being ignored
+                        // in favour of comparing against the class fee chart.
+                        val remaining = (row["balance"] as? Number)?.toDouble() ?: 0.0
                         if (monthName.isNotEmpty()) {
                             perMonthAlloc[monthName] = (perMonthAlloc[monthName] ?: 0.0) + allocated
                         }
                         if (head.isNotEmpty()) {
                             perHead[head] = (perHead[head] ?: 0.0) + allocated
+                            perHeadRemaining[head] = (perHeadRemaining[head] ?: 0.0) + remaining
                         }
                     }
                 }
@@ -323,18 +340,62 @@ class ReceiptDetailViewModel @Inject constructor(
                     )
                 }
 
-            // Per-head: total = head amount from feeBreakdown,
-            // allocated = sum from allocations (0 if head wasn't touched).
-            val headList = feeBreakdown.mapNotNull { row ->
+            // Per-head rows are driven by the ALLOCATIONS — what this receipt
+            // actually settled — not by the class fee structure.
+            //
+            // Iterating feeBreakdown dropped any head that was paid but does
+            // not appear in the fee chart. Receipt F1 (2026-08-26) settled
+            // ID Card Replacement 350 + Tuition Fee 350, and the card listed
+            // Tuition / Library / Transport / Admission from the chart: three
+            // heads this receipt never touched, and the ID card charge missing
+            // entirely. Ad-hoc student charges exist in no structure, so a
+            // structure-driven list can never show them.
+            //
+            // The server now writes an allocation-derived feeBreakdown, but
+            // this stays allocation-driven anyway so receipts written BEFORE
+            // that fix still render correctly. Their stored breakdown is left
+            // exactly as written — a financial record is not edited to make a
+            // display look right.
+            val breakdownTotals = feeBreakdown.mapNotNull { row ->
                 if (row !is Map<*, *>) return@mapNotNull null
-                val head = (row["head"] as? String) ?: return@mapNotNull null
-                val total = ((row["amount"] as? String)?.toDoubleOrNull()
+                val h = (row["head"] as? String) ?: return@mapNotNull null
+                val t = ((row["amount"] as? String)?.toDoubleOrNull()
                     ?: (row["amount"] as? Number)?.toDouble()) ?: 0.0
-                HeadAllocation(
-                    head = head,
-                    allocatedThisReceipt = perHead[head] ?: 0.0,
-                    totalAmount = total
-                )
+                h to t
+            }.toMap()
+
+            val headList = if (perHead.isNotEmpty()) {
+                perHead.entries
+                    .filter { it.value > 0.005 }
+                    .map { (head, allocated) ->
+                        // The demand's own total = paid here + still standing.
+                        // Deriving it from the fee chart instead is what made
+                        // receipt F1 report "350.00 / 600.00 — Partially
+                        // applied" for a Tuition demand of 350 that was paid
+                        // in full (balance 0, status paid). The 600 was the
+                        // chart's monthly tuition line, an unrelated amount
+                        // that merely shares the head name with an ad-hoc
+                        // student charge.
+                        val remaining = perHeadRemaining[head] ?: 0.0
+                        HeadAllocation(
+                            head = head,
+                            allocatedThisReceipt = allocated,
+                            totalAmount = allocated + remaining,
+                            remainingOnDemand = remaining
+                        )
+                    }
+            } else {
+                // No allocation doc (very old receipts). Fall back to the
+                // stored breakdown rather than showing nothing — but treat it
+                // as fully allocated, since without allocations there is no
+                // basis for claiming any head was only partly paid.
+                breakdownTotals.map { (head, total) ->
+                    HeadAllocation(
+                        head = head,
+                        allocatedThisReceipt = total,
+                        totalAmount = total
+                    )
+                }
             }
 
             _uiState.update {

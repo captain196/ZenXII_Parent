@@ -113,12 +113,13 @@ import com.schoolsync.parent.ui.theme.AppColors
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import com.schoolsync.parent.ui.theme.glassCard
 import com.schoolsync.parent.ui.theme.gradientBackground
+import com.schoolsync.parent.util.friendlyGatewayError
 
 /**
  * Smart rupee formatter — prints whole rupees without trailing zeros
  * ("Rs 2,000") and paise only when the amount actually has them
  * ("Rs 1,999.99"). Replaces the blanket "%,.0f" which silently
- * rounded paise away (₹149.99 → "Rs 150") and the overly chatty
+ * rounded paise away (₹149.99 â†’ "Rs 150") and the overly chatty
  * "%,.2f" which littered integer amounts with ".00".
  *
  * Called from money displays throughout this screen via `fmtRupee(x)`.
@@ -174,13 +175,31 @@ fun FeesScreen(
     val context = LocalContext.current
     // Single SnackbarHost for the whole Fees screen — replaces the
     // older dual Toast LaunchedEffects which could overlap and stack
-    // on rapid status changes (Creating → Opening → Verifying → ...).
+    // on rapid status changes (Creating â†’ Opening â†’ Verifying â†’ ...).
     val snackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
 
     // Launch Razorpay checkout whenever the ViewModel emits a request.
     LaunchedEffect(Unit) {
         viewModel.checkoutRequests.collect { req ->
             val activity = context as? Activity ?: return@collect
+
+            // ── P14 · DISPATCH ON THE SERVER-SELECTED CHECKOUT ENGINE ────
+            // The app does NOT decide the provider and does NOT map a school
+            // to one. The server resolved this school's active provider and
+            // told us which engine it needs; we launch an engine we have, or
+            // say plainly that we do not have it.
+            //
+            // Refusing an unknown engine is the whole point: attempting the
+            // Razorpay SDK for, say, a hosted-redirect provider would fail
+            // obscurely mid-payment, and to a parent that is indistinguishable
+            // from a declined card.
+            if (!CheckoutEngine.isSupported(req.checkoutType)) {
+                snackbarHostState.showSnackbar(
+                    "This school's payment method needs a newer version of the app. " +
+                    "Please update from the Play Store, or pay at the school office."
+                )
+                return@collect
+            }
             // Razorpay Standard Checkout options. Schema reference:
             //   https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/build-integration/
             //
@@ -207,7 +226,7 @@ fun FeesScreen(
                 // Explicitly enable UPI + alternates. method.upi=true is
                 // the supported Standard Checkout flag for showing the
                 // UPI block. UPI must ALSO be enabled in your Razorpay
-                // dashboard (Settings → Payment Methods); test-mode
+                // dashboard (Settings â†’ Payment Methods); test-mode
                 // accounts have it on by default but Live mode requires
                 // KYC + activation.
                 put("method", JSONObject().apply {
@@ -216,11 +235,35 @@ fun FeesScreen(
                     put("netbanking", true)
                     put("wallet", true)
                 })
-                // upi_flow="intent" → on Android, picks the system
-                // intent flow so GPay / PhonePe / Paytm appear as
-                // direct buttons instead of a single "Pay via any UPI
-                // app" collect-VPA prompt.
-                put("upi_flow", "intent")
+                // ── PAY-OPS-5 · `upi_flow = "intent"` REMOVED ────────────────
+                //
+                // It forced the UPI INTENT flow, on the reasoning that GPay /
+                // PhonePe / Paytm should appear as direct buttons rather than a
+                // single "Pay via any UPI app" collect-VPA prompt.
+                //
+                // But forcing it does not ADD the intent flow — it REMOVES the
+                // alternative. Two consequences, both observed on a real device:
+                //
+                //  • A parent with NO UPI app installed gets no UPI block at
+                //    all, silently. Not "UPI is awkward" but "UPI is not
+                //    offered", with nothing on screen to explain why.
+                //
+                //  • It could not be tested. Razorpay TEST mode cannot complete
+                //    a real intent handoff to GPay/PhonePe; test-mode UPI works
+                //    only through the collect flow (`success@razorpay`) that
+                //    this line switched off. So the UPI path was unverifiable
+                //    end to end — the block simply never rendered.
+                //
+                // Omitting the option lets Checkout decide: intent buttons when
+                // UPI apps are present, collect-VPA when they are not. That is
+                // a SUPERSET of the old behaviour — the direct-button
+                // experience survives on phones that can use it, and phones
+                // that cannot now get a working fallback instead of a blank.
+                //
+                // `method.upi = true` above is what actually enables the UPI
+                // block and is unchanged. UPI must ALSO be enabled on the
+                // Razorpay account (Dashboard → Settings → Payment Methods);
+                // Live mode requires KYC/activation.
             }
             try {
                 Checkout().apply { setKeyID(req.apiKey) }.open(activity, options)
@@ -261,7 +304,7 @@ fun FeesScreen(
             .gradientBackground()
             .statusBarsPadding()
     ) {
-        // ── Rich Summary Header ──
+        // â”€â”€ Rich Summary Header â”€â”€
         Text(
             text = "Fees",
             style = MaterialTheme.typography.headlineLarge,
@@ -284,19 +327,19 @@ fun FeesScreen(
         ) {
             FeeSummaryChip(
                 label = "Total Fees",
-                value = "Rs. ${fmtRupee(totalFees)}",
+                value = "\u20B9${fmtRupee(totalFees)}",
                 color = c.accent,
                 modifier = Modifier.weight(1f)
             )
             FeeSummaryChip(
                 label = "Paid",
-                value = "Rs. ${fmtRupee(overview.totalPaid)}",
+                value = "\u20B9${fmtRupee(overview.totalPaid)}",
                 color = c.success,
                 modifier = Modifier.weight(1f)
             )
             FeeSummaryChip(
                 label = "Due",
-                value = "Rs. ${fmtRupee(overview.pendingFees.totalPending)}",
+                value = "\u20B9${fmtRupee(overview.pendingFees.totalPending)}",
                 color = if (overview.pendingFees.totalPending > 0) c.error else c.success,
                 modifier = Modifier.weight(1f)
             )
@@ -312,7 +355,7 @@ fun FeesScreen(
             ) {
                 FeeSummaryChip(
                     label = "Scholarship",
-                    value = "Rs. ${"%,.0f".format(overview.scholarshipAmount)}",
+                    value = "\u20B9${"%,.0f".format(overview.scholarshipAmount)}",
                     color = Color(0xFF9C27B0),
                     modifier = Modifier.weight(1f)
                 )
@@ -321,7 +364,7 @@ fun FeesScreen(
 
         // Persistent error banner — renders above the tabs and stays
         // until the parent taps Dismiss. The previous snackbar approach
-        // auto-dismissed too quickly (Long duration ≈ 10 s) which hid
+        // auto-dismissed too quickly (Long duration â‰ˆ 10 s) which hid
         // important messages like "Razorpay not configured" before they
         // could be read.
         if (!error.isNullOrBlank()) {
@@ -345,7 +388,7 @@ fun FeesScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Tab Row + HorizontalPager ──
+        // â”€â”€ Tab Row + HorizontalPager â”€â”€
         // Using foundation.pager.HorizontalPager so users can swipe
         // left/right between tabs in addition to tapping. The pager
         // and tab row stay synced both ways.
@@ -353,14 +396,14 @@ fun FeesScreen(
             initialPage = FeesTab.entries.indexOf(uiState.selectedTab).coerceAtLeast(0),
             pageCount = { FeesTab.entries.size }
         )
-        // Tap a tab → animate the pager.
+        // Tap a tab â†’ animate the pager.
         LaunchedEffect(uiState.selectedTab) {
             val idx = FeesTab.entries.indexOf(uiState.selectedTab)
             if (idx >= 0 && pagerState.currentPage != idx) {
                 pagerState.animateScrollToPage(idx)
             }
         }
-        // Swipe → mirror back to selectedTab so other consumers (e.g.
+        // Swipe â†’ mirror back to selectedTab so other consumers (e.g.
         // bottom buttons that depend on which tab is active) stay in sync.
         LaunchedEffect(pagerState.currentPage) {
             val tab = FeesTab.entries.getOrNull(pagerState.currentPage)
@@ -399,7 +442,7 @@ fun FeesScreen(
             }
         }
 
-        // ── Pager content ──
+        // â”€â”€ Pager content â”€â”€
         androidx.compose.foundation.pager.HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize()
@@ -677,7 +720,7 @@ private fun FeeStructureCard(item: FeeHead) {
             }
         }
         Text(
-            text = "Rs. ${"%,.0f".format(item.amount)}",
+            text = "\u20B9${"%,.0f".format(item.amount)}",
             style = MaterialTheme.typography.titleMedium,
             color = c.textPrimary,
             fontWeight = FontWeight.SemiBold
@@ -776,7 +819,7 @@ private fun PendingFeesContent(
             if (unpaidMonths.isNotEmpty()) {
                 item {
                     Text(
-                        text = "UNPAID (${unpaidMonths.size} months)",
+                        text = "UNPAID (${unpaidMonths.size} ${if (unpaidMonths.size == 1) "month" else "months"})",
                         style = MaterialTheme.typography.labelMedium,
                         color = c.error,
                         fontWeight = FontWeight.Bold,
@@ -785,7 +828,7 @@ private fun PendingFeesContent(
                 }
                 // Stable key=month-name prevents Compose slot-table
                 // mismatch when the demand listener pushes a fresh
-                // list and a row moves from unpaid → paid section
+                // list and a row moves from unpaid â†’ paid section
                 // (different items() block). Without keys, positional
                 // remapping caused
                 //   ClassCastException: $9$1$3$1 cannot be cast to
@@ -806,7 +849,7 @@ private fun PendingFeesContent(
             if (paidMonths.isNotEmpty()) {
                 item(key = "paid_header") {
                     Text(
-                        text = "PAID (${paidMonths.size} months)",
+                        text = "PAID (${paidMonths.size} ${if (paidMonths.size == 1) "month" else "months"})",
                         style = MaterialTheme.typography.labelMedium,
                         color = c.success,
                         fontWeight = FontWeight.Bold,
@@ -819,7 +862,7 @@ private fun PendingFeesContent(
             }
         }
 
-        // ── Bottom payment action bar ──
+        // â”€â”€ Bottom payment action bar â”€â”€
         if (unpaidMonths.isNotEmpty()) {
             Column(
                 modifier = Modifier
@@ -840,112 +883,141 @@ private fun PendingFeesContent(
                     .background(c.bgStart)
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
-                // Prominent summary card — replaces the tiny caption
+                // -- Payment bar ------------------------------------
+                // GPay-style commitment hierarchy: ONE primary action,
+                // carrying the amount it is about to charge. Everything
+                // else is demoted to quiet text.
+                //
+                // The old bar offered three equally-weighted pay CTAs at
+                // once -- "Pay Selected", "Pay Full Year" and "Pay a
+                // custom amount" -- so the moment of commitment asked
+                // "which of these three payments?" instead of "confirm
+                // this one". No consumer payment app does that, and it
+                // is the main reason this surface read as unprofessional.
+                //
+                // The rupee sign is the \u20B9 ESCAPE, never a literal.
+                // This file already survived one cp1252 round-trip that
+                // destroyed every literal sign in it -- the corpse is
+                // still visible in fmtRupee's own docblock. An escape is
+                // plain ASCII in source and cannot be corrupted that way.
+                //
+                // PRESENTATION ONLY. onPayNow, onPayCustom, onSelectAll,
+                // the selection set and every amount computation are
+                // untouched by this change.
                 if (selectedMonths.isNotEmpty()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            // Solid surface layered on the accent tint
-                            // so the card is fully opaque regardless of
-                            // what sits behind it in the list.
-                            .background(c.bgStart)
-                            .background(c.accent.copy(alpha = 0.12f))
-                            .border(
-                                BorderStroke(1.dp, c.accent.copy(alpha = 0.35f)),
-                                RoundedCornerShape(14.dp)
-                            )
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                            .padding(bottom = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(c.accent.copy(alpha = 0.18f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Filled.Receipt,
-                                    null,
-                                    tint = c.accent,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = if (selectedMonths.size == 1)
-                                        "1 month selected"
-                                    else
-                                        "${selectedMonths.size} months selected",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = c.textSecondary,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = "Total Payable",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = c.textTertiary
-                                )
-                            }
+                        Column {
+                            Text(
+                                text = "Total payable",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = c.textTertiary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (selectedMonths.size == 1)
+                                    "1 month selected"
+                                else
+                                    "${selectedMonths.size} months selected",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = c.textSecondary,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
+                        // Amount-first: the figure is the largest thing on
+                        // the bar. Tabular figures so digits hold their
+                        // column as the selection changes.
                         Text(
-                            text = "Rs. ${fmtRupee(selectedTotal)}",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = c.accent,
+                            text = "\u20B9${fmtRupee(selectedTotal)}",
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontFeatureSettings = "tnum"
+                            ),
+                            color = c.textPrimary,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    Spacer(modifier = Modifier.height(10.dp))
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                // Single primary CTA. The disabled state says what to do
+                // next instead of presenting an unexplained dead button.
+                Button(
+                    onClick = { onPayNow(selectedMonths.toList()) },
+                    enabled = selectedMonths.isNotEmpty() && !paymentInProgress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = c.accent,
+                        disabledContainerColor = c.accent.copy(alpha = 0.30f)
+                    )
                 ) {
-                    Button(
-                        onClick = { onPayNow(selectedMonths.toList()) },
-                        enabled = selectedMonths.isNotEmpty() && !paymentInProgress,
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = c.accent)
-                    ) {
-                        // While the full-screen PaymentVerifyScreen is up
-                        // (Verifying / Confirming), the overlay owns the
-                        // processing UX — no need to also animate a
-                        // spinner + dots here behind it. The button
-                        // remains disabled either way via paymentInProgress.
-                        val showInButtonSpinner = paymentInProgress && !isPaymentOverlayActive
-                        if (showInButtonSpinner) {
+                    // While the full-screen PaymentVerifyScreen is up the
+                    // overlay owns the processing UX, so the in-button
+                    // spinner would be redundant behind it.
+                    val showInButtonSpinner = paymentInProgress && !isPaymentOverlayActive
+                    when {
+                        showInButtonSpinner -> {
                             CircularProgressIndicator(
                                 color = Color.White,
                                 strokeWidth = 2.dp,
                                 modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 "Processing${rememberAnimatedDots()}",
-                                style = MaterialTheme.typography.labelLarge,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
-                        } else {
-                            Icon(Icons.Filled.Payment, null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        selectedMonths.isEmpty() -> {
                             Text(
-                                "Pay Selected",
-                                style = MaterialTheme.typography.labelLarge,
+                                "Select months to pay",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        else -> {
+                            // The amount rides ON the button, so what is
+                            // about to be charged is unambiguous at the
+                            // instant of the tap.
+                            Icon(
+                                Icons.Filled.Payment,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Pay \u20B9${fmtRupee(selectedTotal)}",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontFeatureSettings = "tnum"
+                                ),
+                                color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
-                    OutlinedButton(
+                }
+
+                // Secondary actions as quiet text: reachable, but never
+                // competing with the primary for the same tap.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
                         onClick = {
                             // Confirm before committing to a high-value
-                            // full-year payment — easy to tap by accident
-                            // right next to "Pay Selected".
+                            // full-year charge.
                             if (fullYearTotal > PAY_FULL_YEAR_CONFIRM_THRESHOLD) {
                                 showPayFullYearConfirm = true
                             } else {
@@ -953,38 +1025,60 @@ private fun PendingFeesContent(
                                 onPayNow(unpaidMonthNames)
                             }
                         },
-                        enabled = !paymentInProgress,
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.5.dp, c.accent)
+                        enabled = !paymentInProgress && unpaidMonthNames.isNotEmpty()
                     ) {
                         Text(
-                            "Pay Full Year",
-                            style = MaterialTheme.typography.labelLarge,
+                            "Pay full year",
+                            style = MaterialTheme.typography.labelMedium,
                             color = c.accent,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         )
+                    }
+
+                    // Partial payments are allocated server-side (oldest
+                    // demand first) by the existing verify flow, so this
+                    // stays limited to a single-month selection.
+                    if (selectedMonths.size == 1) {
+                        val only = selectedMonths.first()
+                        val monthBalance = unpaidMonths.find { it.month == only }?.balanceAmount ?: 0.0
+                        Text(
+                            "\u00B7",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = c.textTertiary
+                        )
+                        TextButton(
+                            onClick = { showCustomPayDialog = true },
+                            enabled = !paymentInProgress && monthBalance > 0.0
+                        ) {
+                            Text(
+                                "Custom amount",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = c.accent,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
 
-                // "Pay custom amount" — enabled only for a single-month
-                // selection. Partial payments are allocated server-side
-                // (oldest demand first) by the existing verify flow.
-                if (selectedMonths.size == 1) {
-                    val only = selectedMonths.first()
-                    val monthBalance = unpaidMonths.find { it.month == only }?.balanceAmount ?: 0.0
-                    TextButton(
-                        onClick = { showCustomPayDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !paymentInProgress && monthBalance > 0.0
-                    ) {
-                        Text(
-                            "Pay a custom amount (≤ Rs. ${fmtRupee(monthBalance)})",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = c.accent,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                // Trust cue, the way every consumer payment app closes
+                // its confirm surface.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.VerifiedUser,
+                        contentDescription = null,
+                        tint = c.textTertiary,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        "Secured by Razorpay",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = c.textTertiary
+                    )
                 }
             }
         }
@@ -1038,7 +1132,7 @@ private fun PendingFeesContent(
                             color = c.textSecondary
                         )
                         Text(
-                            "Rs. ${fmtRupee(fullYearTotal)}",
+                            "\u20B9${fmtRupee(fullYearTotal)}",
                             style = MaterialTheme.typography.titleLarge,
                             color = c.accent,
                             fontWeight = FontWeight.Bold
@@ -1081,9 +1175,9 @@ private fun PendingFeesContent(
 }
 
 /**
- * Cycles "" → "." → ".." → "..." every 400ms. Use as a live suffix
+ * Cycles "" â†’ "." â†’ ".." â†’ "..." every 400ms. Use as a live suffix
  * on a "Processing" label so users see progress while the verify
- * round-trip is in flight (Razorpay → backend → Firestore).
+ * round-trip is in flight (Razorpay â†’ backend â†’ Firestore).
  */
 @Composable
 private fun rememberAnimatedDots(): String {
@@ -1218,8 +1312,8 @@ private fun PendingFeeCard(
                                     .padding(horizontal = 7.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = if (month.overdueDays == 1) "Overdue · 1d"
-                                           else "Overdue · ${month.overdueDays}d",
+                                    text = if (month.overdueDays == 1) "Overdue \u00B7 1d"
+                                           else "Overdue \u00B7 ${month.overdueDays}d",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = c.error,
                                     fontWeight = FontWeight.Bold,
@@ -1232,7 +1326,7 @@ private fun PendingFeeCard(
                         isProcessing -> "Processing${rememberAnimatedDots()}"
                         isPaid -> "Paid"
                         isPartial -> "Partially Paid"
-                        isYearly -> "One-time · Due"
+                        isYearly -> "One-time \u00B7 Due"
                         else -> "Due"
                     }
                     Text(
@@ -1249,7 +1343,7 @@ private fun PendingFeeCard(
                 // about what's left to pay than the original amount.
                 val displayAmount = if (isPaid) month.totalAmount else month.balanceAmount
                 Text(
-                    text = "Rs. ${fmtRupee(displayAmount)}",
+                    text = "\u20B9${fmtRupee(displayAmount)}",
                     style = MaterialTheme.typography.titleMedium,
                     color = if (isPaid) c.textPrimary else statusColor,
                     fontWeight = FontWeight.Bold
@@ -1273,7 +1367,7 @@ private fun PendingFeeCard(
             )
         }
 
-        // ── Progress bar + paid/total split ───────────────────────
+        // â”€â”€ Progress bar + paid/total split â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Hidden for fully-paid months (no useful info there) and
         // for fully-unpaid months (progress would be 0 — we show the
         // info via the "Due Rs X" label only). Shown for partials and
@@ -1295,7 +1389,7 @@ private fun PendingFeeCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "Rs ${fmtRupee(month.paidAmount)} paid of Rs ${fmtRupee(month.totalAmount)}",
+                    "\u20B9${fmtRupee(month.paidAmount)} paid of \u20B9${fmtRupee(month.totalAmount)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = c.textSecondary
                 )
@@ -1332,7 +1426,7 @@ private fun PendingFeeCard(
                             modifier = Modifier.weight(1f)
                         )
                         Text(
-                            text = "Rs. ${"%,.0f".format(head.netAmount)}",
+                            text = "\u20B9${"%,.0f".format(head.netAmount)}",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = headColor
@@ -1349,7 +1443,7 @@ private fun PendingFeeCard(
                     ) {
                         Text("Paid", style = MaterialTheme.typography.labelMedium, color = c.success)
                         Text(
-                            "Rs. ${"%,.0f".format(month.paidAmount)}",
+                            "\u20B9${"%,.0f".format(month.paidAmount)}",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = c.success
@@ -1431,7 +1525,7 @@ private fun PaymentRecordCard(
                     )
                     if (record.mode.isNotBlank()) {
                         Text(
-                            text = " · ${record.mode}",
+                            text = " \u00B7 ${record.mode}",
                             style = MaterialTheme.typography.labelSmall,
                             color = c.textTertiary
                         )
@@ -1440,7 +1534,7 @@ private fun PaymentRecordCard(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "Rs. ${"%,.0f".format(record.amount)}",
+                    text = "\u20B9${"%,.0f".format(record.amount)}",
                     style = MaterialTheme.typography.titleMedium,
                     color = c.success,
                     fontWeight = FontWeight.Bold
@@ -1509,7 +1603,7 @@ private fun ModuleFeesContent(
                     subtitle = "${hostelFee.building} - Room ${hostelFee.room}",
                     amount = hostelFee.amount + hostelFee.messCharges,
                     detail = if (hostelFee.messCharges > 0)
-                        "Room: Rs. ${"%,.0f".format(hostelFee.amount)} + Mess: Rs. ${"%,.0f".format(hostelFee.messCharges)}"
+                        "Room: \u20B9${"%,.0f".format(hostelFee.amount)} + Mess: \u20B9${"%,.0f".format(hostelFee.messCharges)}"
                     else hostelFee.period,
                     status = hostelFee.status
                 )
@@ -1609,7 +1703,7 @@ private fun ModuleFeeCard(
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = "Rs. ${"%,.0f".format(amount)}",
+                text = "\u20B9${"%,.0f".format(amount)}",
                 style = MaterialTheme.typography.titleMedium,
                 color = c.textPrimary,
                 fontWeight = FontWeight.SemiBold
@@ -1663,7 +1757,7 @@ private fun ClearanceContent(clearanceStatus: ClearanceStatus?) {
                     )
                     if (!clearanceStatus.allClear) {
                         Text(
-                            text = "Total Dues: Rs. ${"%,.0f".format(clearanceStatus.totalDues)}",
+                            text = "Total Dues: \u20B9${"%,.0f".format(clearanceStatus.totalDues)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = c.error
                         )
@@ -1759,7 +1853,7 @@ private fun ClearanceItemRow(
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = if (isClear) "Cleared" else "Dues: Rs. ${"%,.0f".format(dues)}",
+                    text = if (isClear) "Cleared" else "Dues: \u20B9${"%,.0f".format(dues)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = if (isClear) c.success else c.error
                 )
@@ -1781,7 +1875,7 @@ private fun ClearanceItemRow(
             )
         } else {
             Text(
-                text = "Rs. ${"%,.0f".format(dues)}",
+                text = "\u20B9${"%,.0f".format(dues)}",
                 style = MaterialTheme.typography.titleMedium,
                 color = c.error,
                 fontWeight = FontWeight.Bold
@@ -1942,9 +2036,9 @@ private fun FeeSummaryChip(
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Dialogs: partial payment + payment failure
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 private fun PartialPaymentDialog(
@@ -1988,7 +2082,7 @@ private fun PartialPaymentDialog(
                     .border(BorderStroke(1.dp, c.glassBorder), RoundedCornerShape(20.dp))
                     .padding(20.dp)
             ) {
-                // ── Header ──
+                // â”€â”€ Header â”€â”€
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
@@ -2008,7 +2102,7 @@ private fun PartialPaymentDialog(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "$month  ·  Balance Rs. ${"%,.0f".format(maxAmount)}",
+                            "$month  \u00B7  Balance \u20B9${"%,.0f".format(maxAmount)}",
                             style = MaterialTheme.typography.labelMedium,
                             color = c.textSecondary
                         )
@@ -2017,7 +2111,7 @@ private fun PartialPaymentDialog(
 
                 Spacer(Modifier.height(18.dp))
 
-                // ── Amount input — currency prefix + big number ──
+                // â”€â”€ Amount input — currency prefix + big number â”€â”€
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2035,7 +2129,7 @@ private fun PartialPaymentDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "₹",
+                        "\u20B9",
                         style = MaterialTheme.typography.headlineSmall,
                         color = c.textSecondary,
                         fontWeight = FontWeight.SemiBold
@@ -2082,7 +2176,7 @@ private fun PartialPaymentDialog(
                 if (input.isNotEmpty() && !valid) {
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Enter an amount between Rs. 1 and Rs. ${"%,.0f".format(maxAmount)}",
+                        "Enter an amount between \u20B91 and \u20B9${"%,.0f".format(maxAmount)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = c.error
                     )
@@ -2090,7 +2184,7 @@ private fun PartialPaymentDialog(
 
                 Spacer(Modifier.height(14.dp))
 
-                // ── Quick-amount chips ──
+                // â”€â”€ Quick-amount chips â”€â”€
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -2122,7 +2216,7 @@ private fun PartialPaymentDialog(
                     }
                 }
 
-                // ── Live breakdown ──
+                // â”€â”€ Live breakdown â”€â”€
                 if (parsed != null && parsed > 0) {
                     Spacer(Modifier.height(14.dp))
                     Column(
@@ -2133,15 +2227,15 @@ private fun PartialPaymentDialog(
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        BreakdownRow("Paying now", "Rs. ${"%,.0f".format(parsed)}", c.accent, bold = true)
-                        BreakdownRow("Remaining due", "Rs. ${"%,.0f".format(remainingAfter)}",
+                        BreakdownRow("Paying now", "\u20B9${"%,.0f".format(parsed)}", c.accent, bold = true)
+                        BreakdownRow("Remaining due", "\u20B9${"%,.0f".format(remainingAfter)}",
                             if (remainingAfter > 0) c.warning else c.success)
                     }
                 }
 
                 Spacer(Modifier.height(20.dp))
 
-                // ── Action row — large buttons, properly spaced ──
+                // â”€â”€ Action row — large buttons, properly spaced â”€â”€
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -2164,7 +2258,7 @@ private fun PartialPaymentDialog(
                         Icon(Icons.Filled.Payment, null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            if (parsed != null && valid) "Pay Rs. ${"%,.0f".format(parsed)}"
+                            if (parsed != null && valid) "Pay \u20B9${"%,.0f".format(parsed)}"
                             else "Enter amount",
                             fontWeight = FontWeight.Bold
                         )
@@ -2207,10 +2301,14 @@ private fun PaymentFailureDialog(
     // Razorpay code 0 = cancelled by user, 2 = network, 3 = invalid options
     val isCancelled = failure.code == com.razorpay.Checkout.PAYMENT_CANCELED
     val headline = if (isCancelled) "Payment cancelled" else "Payment failed"
+    // The gateway hands back RAW JSON in `description`, and this rendered it
+    // verbatim — a parent was shown
+    //   {"error":{"code":"BAD_REQUEST_ERROR", … "step":"payment_authentication" …}}
+    // which is both unprofessional and unactionable. Same leak Stage B1 fixed
+    // for transport errors; this path never went through the mapper.
     val body = when {
-        isCancelled -> "You cancelled the payment. No money was deducted."
-        failure.description.isNotBlank() -> failure.description
-        else -> "Something went wrong while processing the payment. No money was deducted."
+        isCancelled -> "You cancelled the payment. Your fees are still due."
+        else -> friendlyGatewayError(failure.description)
     }
 
     androidx.compose.material3.AlertDialog(
@@ -2258,9 +2356,9 @@ private fun PaymentFailureDialog(
     )
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Discounts tab — scholarships + carry-forward + active discounts
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 private fun DiscountsContent(
@@ -2288,7 +2386,7 @@ private fun DiscountsContent(
                     iconColor = c.success,
                     title = "Scholarship",
                     subtitle = "Awarded for the current session",
-                    amountText = "−Rs. ${"%,.0f".format(scholarshipAmount)}",
+                    amountText = "\u2212\u20B9${"%,.0f".format(scholarshipAmount)}",
                     amountColor = c.success
                 )
             }
@@ -2301,7 +2399,7 @@ private fun DiscountsContent(
                     iconColor = c.warning,
                     title = "Carry-forward dues",
                     subtitle = "Outstanding fees rolled over from last session",
-                    amountText = "+Rs. ${"%,.0f".format(carryForwardDues)}",
+                    amountText = "+\u20B9${"%,.0f".format(carryForwardDues)}",
                     amountColor = c.warning
                 )
             }

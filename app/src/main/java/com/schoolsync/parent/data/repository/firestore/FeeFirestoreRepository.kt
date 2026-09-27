@@ -106,8 +106,28 @@ class FeeFirestoreRepository @Inject constructor(
     }
 
     /**
-     * Fetch only pending (non-paid) fee demands for a student in the current session.
-     * Filters out demands with status "paid".
+     * Fetch only PAYABLE fee demands for a student in the current session.
+     *
+     * ── WHY THIS IS AN ALLOWLIST ─────────────────────────────────────────
+     * This used to filter `status != "paid"`, with the server excluding
+     * "archived". That is a denylist over a vocabulary of six values, and it
+     * silently admitted the two that mean "do not collect":
+     *
+     *   unpaid   payable
+     *   partial  payable
+     *   paid     settled
+     *   archived superseded by a later class/section
+     *   frozen   student exited — do not collect   <-- was shown as dues
+     *   reversed admission reversed                <-- was shown as dues
+     *
+     * So a withdrawn student's parent, and a family whose admission had been
+     * reversed, saw money the school had already decided not to collect — and
+     * could act on it. `Fee_late_fee_service` already exempts frozen demands
+     * from fines; this brings the Parent App onto that same meaning rather
+     * than inventing a new one.
+     *
+     * The docblock always claimed the "unpaid + partial only" semantic. Only
+     * the implementation disagreed.
      */
     suspend fun getPendingDemands(studentId: String): Result<List<FeeDemandDoc>> {
         val schoolCode = getSchoolCode()
@@ -130,7 +150,7 @@ class FeeFirestoreRepository @Inject constructor(
                     .whereNotEqualTo("status", "archived")
                 // No orderBy — see getDemands() for the rationale.
             }
-            val pending = demands.filter { it.status != "paid" }
+            val pending = demands.filter { it.status in PAYABLE_DEMAND_STATUSES }
             Result.success(pending)
         } catch (e: Exception) {
             Result.failure(e)
@@ -533,5 +553,19 @@ class FeeFirestoreRepository @Inject constructor(
 
     private suspend fun getSession(): String? {
         return tokenManager.user.firstOrNull()?.session?.takeIf { it.isNotBlank() }
+    }
+
+    companion object {
+        /**
+         * The only demand statuses a parent may be asked to pay.
+         *
+         * Mirrors `Fee_lifecycle`'s documented vocabulary — unpaid, partial,
+         * paid, archived, frozen, reversed — of which exactly two are
+         * collectable. Named as an allowlist so a status added on the admin
+         * side later defaults to NOT-payable, which is the safe direction: a
+         * new state showing up as money owed is worse than one that has to be
+         * added here deliberately.
+         */
+        val PAYABLE_DEMAND_STATUSES = setOf("unpaid", "partial")
     }
 }

@@ -1,4 +1,4 @@
-package com.schoolsync.parent.data.remote
+﻿package com.schoolsync.parent.data.remote
 
 import retrofit2.http.Body
 import retrofit2.http.Header
@@ -45,7 +45,34 @@ data class CreateOrderResponse(
     val student_id: String? = null,
     val student_name: String? = null,
     val school_id: String? = null,
-    val error: String? = null
+    val error: String? = null,
+
+    // ── P5/P14 · THE NORMALIZED CHECKOUT CONTRACT ────────────────────────
+    // The server resolves WHICH provider this school currently uses and
+    // tells the app which checkout ENGINE that provider needs. The app must
+    // never decide the provider itself, and must never map school -> provider.
+    //
+    // Nullable with null defaults ON PURPOSE: an older server build, or the
+    // legacy config path, simply omits these keys. Null therefore means
+    // "the server did not say", which the app treats as the historical
+    // native_sdk behaviour rather than as an error — that is what keeps
+    // already-installed builds working against either server version.
+    //
+    // Known engines: "native_sdk" | "webview" | "hosted_redirect" | "upi_intent"
+    val checkout_type: String? = null,
+    val capabilities: CheckoutCapabilities? = null
+)
+
+/**
+ * What the school's ACTIVE provider can actually do. Sent by the server from
+ * the adapter's own capabilities() declaration — never inferred client-side,
+ * and never a hardcoded assumption about a particular provider.
+ */
+data class CheckoutCapabilities(
+    val cards: Boolean = false,
+    val upi: Boolean = false,
+    val net_banking: Boolean = false,
+    val wallets: Boolean = false
 )
 
 data class VerifyPaymentRequest(
@@ -59,7 +86,7 @@ data class VerifyPaymentResponse(
     val already_paid: Boolean = false,
     /**
      * Razorpay captured the payment but the server-side receipt write
-     * is still pending — admin reconciliation will replay it. Parent
+     * is still pending â€” admin reconciliation will replay it. Parent
      * app should render a soft "syncing" banner instead of an error.
      */
     val pending: Boolean = false,

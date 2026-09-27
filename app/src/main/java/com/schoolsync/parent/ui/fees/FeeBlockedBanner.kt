@@ -84,7 +84,7 @@ fun FeeBlockedBanner(
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = "Outstanding fees: Rs. ${"%,.0f".format(dueAmount)}",
+                text = "Outstanding fees: \u20B9${"%,.0f".format(dueAmount)}",
                 style = MaterialTheme.typography.titleSmall,
                 color = c.error,
                 fontWeight = FontWeight.Bold

@@ -89,7 +89,8 @@ fun ReceiptDetailScreen(
                 ReceiptActionButtons(
                     receipt = receipt,
                     schoolName = uiState.user?.schoolDisplayName.orEmpty(),
-                    schoolMeta = uiState.schoolMeta
+                    schoolMeta = uiState.schoolMeta,
+                    headAllocations = uiState.headAllocations
                 )
             }
         }
@@ -127,7 +128,8 @@ fun ReceiptDetailScreen(
 private fun ReceiptActionButtons(
     receipt: FeeReceiptDoc,
     schoolName: String,
-    schoolMeta: com.schoolsync.parent.ui.fees.SchoolMetaUi
+    schoolMeta: com.schoolsync.parent.ui.fees.SchoolMetaUi,
+    headAllocations: List<HeadAllocation> = emptyList()
 ) {
     val c = LocalAppColors.current
     val context = LocalContext.current
@@ -157,7 +159,8 @@ private fun ReceiptActionButtons(
                 email   = schoolMeta.email,
                 gstin   = schoolMeta.gstin,
                 logo    = logoBitmap
-            )
+            ),
+            headAllocations = headAllocations
         )
         com.schoolsync.parent.util.ReceiptPdfGenerator.cleanupOldReceipts(context)
         return@build pdf
@@ -168,7 +171,7 @@ private fun ReceiptActionButtons(
             try {
                 val pdf = buildPdf()
                 val savedPath = com.schoolsync.parent.util.ReceiptPdfGenerator.saveToDownloads(
-                    context, pdf, "Receipt_${receipt.receiptNo.ifBlank { receipt.receiptKey }}.pdf"
+                    context, pdf, "Receipt_${receipt.displayReceiptNo}.pdf"
                 )
                 Toast.makeText(context, "Saved to $savedPath", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
@@ -286,7 +289,7 @@ private fun HeroCard(
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                "Rs ${"%,.0f".format(receipt.netAmount.takeIf { it > 0 } ?: receipt.amount)}",
+                "\u20B9${"%,.0f".format(receipt.netAmount.takeIf { it > 0 } ?: receipt.amount)}",
                 style = MaterialTheme.typography.displaySmall,
                 color = c.onBanner,
                 fontWeight = FontWeight.Bold,
@@ -332,11 +335,11 @@ private fun HeroCard(
 
 /**
  * Per-fee-head card. Shows for each head:
- *   "Tuition Fee   Rs 0 / Rs 2,000"
- *   "Computer Fee  Rs 500 / Rs 500   (cleared green tag)"
+ *   "Tuition Fee   \u20B90 / \u20B92,000"
+ *   "Computer Fee  \u20B9500 / \u20B9500   (cleared green tag)"
  *
  * Critical for partial-payment trust — without this card the parent
- * sees the receipt amount (Rs 500) but no indication of which head
+ * sees the receipt amount (\u20B9500) but no indication of which head
  * the money landed on, or what's still owed per head.
  */
 @Composable
@@ -355,8 +358,25 @@ private fun FeeHeadBreakdownCard(receipt: FeeReceiptDoc, heads: List<HeadAllocat
         SectionHeader("FEE BREAKDOWN")
         Spacer(Modifier.height(10.dp))
         heads.forEach { h ->
-            val cleared = h.totalAmount > 0 && h.allocatedThisReceipt + 0.005 >= h.totalAmount
-            val paidLabel = "Rs ${"%,.2f".format(h.allocatedThisReceipt)} / Rs ${"%,.2f".format(h.totalAmount)}"
+            // Settlement is decided by the DEMAND's remaining balance after
+            // this receipt \u2014 written by the server next to each allocation \u2014
+            // not by comparing what was paid against the class fee chart.
+            //
+            // The chart comparison made receipt F1 report
+            //     Tuition Fee \u00B7 Partially applied \u00B7 350.00 / 600.00
+            // for a demand of 350 that was paid in full (balance 0, status
+            // paid). 600 was the chart's monthly tuition line: an unrelated
+            // amount that happened to share a name with an ad-hoc student
+            // charge. A parent reads that as "I still owe 250".
+            val cleared = h.remainingOnDemand <= 0.005
+            // When a head is fully settled the "/ total" half is noise \u2014
+            // "350.00 / 350.00" invites the reader to look for a shortfall
+            // that does not exist.
+            val paidLabel = if (cleared) {
+                "\u20B9${"%,.2f".format(h.allocatedThisReceipt)}"
+            } else {
+                "\u20B9${"%,.2f".format(h.allocatedThisReceipt)} / \u20B9${"%,.2f".format(h.totalAmount)}"
+            }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -393,18 +413,19 @@ private fun FeeHeadBreakdownCard(receipt: FeeReceiptDoc, heads: List<HeadAllocat
                             fontWeight = FontWeight.Medium
                         )
                     } else {
-                        // We used to say "Rs X still due on this head" here,
-                        // but the widget only knows about THIS receipt and
-                        // can't see whether a prior receipt already closed
-                        // the gap (e.g. F7 pays ₹150 of Library's ₹300, F8
-                        // pays the remaining ₹150 — F8 would still falsely
-                        // show "Rs 150 still due" because its allocation
-                        // alone doesn't cover the head's full rate). The
-                        // paidLabel column next to this already shows
-                        // "Rs X / Rs Y"; a status hint is all we should
-                        // add here — no unverifiable balance claim.
+                        // This used to refuse to name a figure: it knew only
+                        // what THIS receipt paid, and could not tell whether
+                        // an earlier receipt had already closed the gap (F7
+                        // pays 150 of Library's 300, F8 pays the rest — F8
+                        // would still have claimed "150 still due").
+                        //
+                        // `balance` removes that blindness. It is the demand's
+                        // balance AFTER this receipt was applied, so it already
+                        // accounts for every prior payment. The figure is
+                        // verifiable now, and a parent needs the number, not
+                        // just the word "partially".
                         Text(
-                            "Partially applied this receipt",
+                            "\u20B9${"%,.2f".format(h.remainingOnDemand)} still due on this head",
                             style = MaterialTheme.typography.labelSmall,
                             color = c.warning,
                             fontWeight = FontWeight.Medium
@@ -460,7 +481,7 @@ private fun PaidForCard(receipt: FeeReceiptDoc, allocations: List<MonthAllocatio
                         )
                         Text(
                             text = if (alloc.remainingAfter > 0.005)
-                                "Paid Rs ${"%,.0f".format(alloc.paidThisReceipt)} · Rs ${"%,.0f".format(alloc.remainingAfter)} remaining"
+                                "Paid \u20B9${"%,.0f".format(alloc.paidThisReceipt)} · \u20B9${"%,.0f".format(alloc.remainingAfter)} remaining"
                             else
                                 "Cleared",
                             style = MaterialTheme.typography.labelSmall,
@@ -469,7 +490,7 @@ private fun PaidForCard(receipt: FeeReceiptDoc, allocations: List<MonthAllocatio
                         )
                     }
                     Text(
-                        "Rs ${"%,.0f".format(alloc.paidThisReceipt)}",
+                        "\u20B9${"%,.0f".format(alloc.paidThisReceipt)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = c.textPrimary,
                         fontWeight = FontWeight.SemiBold
@@ -547,10 +568,10 @@ private fun ReceiptInfoCard(receipt: FeeReceiptDoc) {
         Spacer(Modifier.height(10.dp))
         InfoRow(
             label = "Receipt No.",
-            value = "#${receipt.receiptNo.ifBlank { receipt.receiptKey }}",
+            value = "#${receipt.displayReceiptNo}",
             copyable = true,
             onCopy = {
-                clipboard.setText(AnnotatedString(receipt.receiptKey.ifBlank { receipt.receiptNo }))
+                clipboard.setText(AnnotatedString(receipt.displayReceiptNo))
                 Toast.makeText(context, "Receipt number copied", Toast.LENGTH_SHORT).show()
             }
         )
@@ -665,7 +686,7 @@ private fun AmountRow(label: String, amount: Double, color: Color, bold: Boolean
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium
         )
         Text(
-            "Rs ${"%,.0f".format(amount)}",
+            "\u20B9${"%,.0f".format(amount)}",
             style = if (bold) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
             color = color,
             fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold
