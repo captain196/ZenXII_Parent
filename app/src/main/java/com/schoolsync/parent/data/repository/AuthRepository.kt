@@ -2,7 +2,6 @@ package com.schoolsync.parent.data.repository
 
 import android.util.Log
 import com.schoolsync.parent.data.firebase.FirebaseAuthManager
-import com.schoolsync.parent.data.firebase.FirebaseService
 import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.remote.AuthApi
@@ -24,7 +23,6 @@ sealed class AuthResult<out T> {
 class AuthRepository @Inject constructor(
     private val tokenManager: TokenManager,
     private val firebaseAuthManager: FirebaseAuthManager,
-    private val firebaseService: FirebaseService,
     private val firestoreService: FirestoreService,
     private val authApi: AuthApi,
 ) {
@@ -36,14 +34,22 @@ class AuthRepository @Inject constructor(
     val currentUser: Flow<User> = tokenManager.user
 
     /**
-     * Login flow — Phase 2: Firestore-first with RTDB fallback.
+     * Login flow — Phase 3 (2026-08-13): Firestore-only.
      *
      * 1. Firebase Auth sign-in (email/password)
      * 2. Read custom claims (role, school_id, parent_db_key)
      * 3. Read profile from Firestore students/{schoolId}_{userId}
-     * 4. If Firestore fails → fallback to RTDB Users/Parents/{parentDbKey}/{userId}
-     * 5. Resolve active session
-     * 6. Save to TokenManager
+     * 4. Resolve active session
+     * 5. Save to TokenManager
+     *
+     * The Phase 2 RTDB profile fallback (Users/Parents/{parentDbKey}/{userId})
+     * is REMOVED per PARENT_APP_FIRESTORE_ONLY_HARDENING_REPORT.md — it was a
+     * proven strict subset of the Firestore fields (no mustChangePassword
+     * equivalent, session always blank) and the doc comment above it already
+     * called this exact removal "Phase 3." Removing it means a genuine
+     * Firestore outage now surfaces as a login error instead of silently
+     * degrading to stale/incomplete data — the correct Firestore-only
+     * behavior, not a regression.
      */
     suspend fun login(userId: String, password: String, deviceId: String): AuthResult<User> {
         return try {
@@ -74,17 +80,14 @@ class AuthRepository @Inject constructor(
 
             Log.d(TAG, "Claims: schoolId=$schoolId, schoolCode=$schoolCode, parentDbKey=$parentDbKey")
 
-            // ── Step 3: Firestore-first profile read ────────────────
+            // ── Step 3: Firestore profile read (Firestore-only, Phase 3) ──
             val loadedProfile = loadProfileFromFirestore(userId, schoolId, schoolCode, parentDbKey, role)
-                ?: loadProfileFromRtdb(userId, schoolId, schoolCode, parentDbKey, role)
                 ?: return AuthResult.Error("Student profile not found")
 
             // WATERTIGHT (2026-07-20): honour the `must_change_password` CLAIM too,
-            // not just the students-doc field. Closes two force-change bypasses:
-            //  (a) the RTDB fallback above never populates the field (defaults false),
-            //  (b) a transient Firestore-read miss on the doc.
-            // The claim is set alongside the doc field on both account creation and
-            // admin reset, so OR-ing them fails safe toward gating.
+            // not just the students-doc field. Closes a transient Firestore-read-miss
+            // force-change bypass. The claim is set alongside the doc field on both
+            // account creation and admin reset, so OR-ing them fails safe toward gating.
             val claimMustChange = when (val v = claims["must_change_password"]) {
                 is Boolean -> v
                 is String  -> v.equals("true", ignoreCase = true)
@@ -94,7 +97,7 @@ class AuthRepository @Inject constructor(
                 mustChangePassword = loadedProfile.mustChangePassword || claimMustChange
             )
 
-            Log.d(TAG, "Profile loaded: name=${user.name}, source=${if (user.profilePic.isNotBlank()) "Firestore" else "RTDB"}, mustChangePassword=${user.mustChangePassword}, status=${user.status}")
+            Log.d(TAG, "Profile loaded: name=${user.name}, mustChangePassword=${user.mustChangePassword}, status=${user.status}")
 
             // ── B2 — Status gate ────────────────────────────────────
             // Reject login for any student whose Firestore doc isn't
@@ -127,9 +130,11 @@ class AuthRepository @Inject constructor(
             // StudentDoc.session at saveUserDirect above, and (b) the live
             // observer in SchoolFirestoreRepository.observeSchool() which
             // mirrors schools/{schoolCode}.currentSession into TokenManager
-            // continuously while the app is foregrounded.
-            // The lookupActiveSession() helper at line 388-392 is preserved
-            // unused (dead-code) so SW4 rollback is a single atomic revert.
+            // continuously while the app is foregrounded. The dead
+            // lookupActiveSession() helper (kept unused since SW4 purely so
+            // that revert stayed a single atomic diff) is REMOVED as of this
+            // pass — SW4 has been live since 2026-05-26 with no rollback,
+            // and this is now Phase 3's Firestore-only cleanup.
             if (schoolCode.isNotBlank()) {
                 tokenManager.saveSchoolCode(schoolCode)
             }
@@ -218,64 +223,13 @@ class AuthRepository @Inject constructor(
                 schoolCode = schoolCode,
                 mustChangePassword = doc.mustChangePassword,
                 status = doc.status.ifBlank { "Active" },
+                // Phase 11 — already on the wire: this is the same full-document
+                // GET, no extra read, no extra query, no extra round trip.
+                srNo = doc.srNoText,
+                admissionNumber = doc.admissionNumber.trim(),
             )
         } catch (e: Exception) {
             Log.w(TAG, "Firestore profile read failed for $userId", e)
-            null
-        }
-    }
-
-    /**
-     * FALLBACK: Read student profile from RTDB.
-     * Path: Users/Parents/{parentDbKey}/{userId}
-     * Will be removed in Phase 3 when RTDB is decommissioned.
-     */
-    private suspend fun loadProfileFromRtdb(
-        userId: String, schoolId: String, schoolCode: String,
-        parentDbKey: String, role: String
-    ): User? {
-        if (parentDbKey.isBlank()) return null
-
-        return try {
-            val profilePath = "Users/Parents/$parentDbKey/$userId"
-            val data = firebaseService.readMap(profilePath)
-            if (data.isEmpty()) {
-                Log.w(TAG, "RTDB profile empty at $profilePath")
-                return null
-            }
-
-            Log.d(TAG, "RTDB fallback profile loaded from $profilePath")
-            User(
-                userId = userId,
-                name = data["Name"]?.toString() ?: data["name"]?.toString() ?: "",
-                email = data["Email"]?.toString() ?: data["email"]?.toString() ?: "",
-                phone = data["Phone Number"]?.toString() ?: data["Phone"]?.toString() ?: data["phone"]?.toString() ?: "",
-                role = role.ifBlank { data["Role"]?.toString() ?: "student" },
-                schoolId = schoolId,
-                schoolDisplayName = data["SchoolName"]?.toString() ?: "",
-                profilePic = data["Profile Pic"]?.toString() ?: data["profilePic"]?.toString() ?: "",
-                className = Constants.Firebase.classKey(data["Class"]?.toString() ?: data["className"]?.toString() ?: ""),
-                section = Constants.Firebase.sectionKey(data["Section"]?.toString() ?: data["section"]?.toString() ?: ""),
-                rollNo = data["Roll No"]?.toString() ?: data["rollNo"]?.toString() ?: "",
-                fatherName = data["Father Name"]?.toString() ?: data["fatherName"]?.toString() ?: "",
-                motherName = data["Mother Name"]?.toString() ?: data["motherName"]?.toString() ?: "",
-                dob = data["DOB"]?.toString() ?: data["dob"]?.toString() ?: "",
-                gender = data["Gender"]?.toString() ?: data["gender"]?.toString() ?: "",
-                admissionDate = data["Admission Date"]?.toString() ?: data["admissionDate"]?.toString() ?: "",
-                parentDbKey = parentDbKey,
-                // BUG-065 / SW4 Option A (2026-05-26, conservative):
-                // RTDB profile fallback path cannot know the canonical
-                // current session. Setting session="" intentionally;
-                // SchoolFirestoreRepository.observeSchool() will self-heal
-                // this within the first Firestore snapshot delivery after
-                // the parent's MainActivity subscribes (typically ms).
-                // Hard-fail-on-empty path NOT chosen here to preserve
-                // login UX during transient Firestore unavailability.
-                session = "",
-                schoolCode = schoolCode
-            )
-        } catch (e: Exception) {
-            Log.w(TAG, "RTDB profile read failed for $userId", e)
             null
         }
     }
@@ -440,16 +394,60 @@ class AuthRepository @Inject constructor(
 
     suspend fun ensureFirebaseAuth(): Boolean = firebaseAuthManager.isSignedIn
 
+    // Phase 8.3 (2026-08-13) — migrated from RTDB to Firestore, per
+    // PARENT_APP_SCHOOL_CODE_FIRESTORE_MIGRATION_REPORT.md. Prior state (RTDB
+    // Indexes/School_codes/{code} -> schoolId, FirebaseService.readString) is
+    // preserved in git history and in that report's "pre-change architecture"
+    // section; not reproduced here as dead comment weight.
+    //
+    // Live-data verification (Phase 8.2, real read against the production
+    // Firebase project, not inferred) proved Firestore already contains every
+    // mapping RTDB served for this lookup, plus 7 more schools RTDB never had
+    // — so this migration needed zero backfill and is a strict improvement in
+    // coverage, not a downgrade.
+    //
+    // Resolves ONLY the schoolCode -> schoolId direction (the schoolId-claim-
+    // first path above this function is completely unchanged). Distinguishes
+    // its failure modes rather than collapsing everything to "not found":
+    //   - zero matches            -> null (caller already falls back to the
+    //                                raw claim value unchanged, same as the
+    //                                RTDB version's null-on-miss behavior)
+    //   - query exception         -> null, logged (same fail-safe shape as
+    //                                the RTDB version's catch-all)
+    //   - MORE than one match     -> should be structurally impossible (Phase
+    //                                8.2 verified zero duplicate schoolCode
+    //                                values in production) — if it ever
+    //                                happens anyway, this is a genuine data-
+    //                                integrity violation, not a routine miss,
+    //                                so it is logged at ERROR (distinct from
+    //                                the ordinary not-found path) rather than
+    //                                silently swallowed. The first match is
+    //                                still returned so login isn't blocked by
+    //                                a backend data bug, but the signal is
+    //                                not lost.
+    // No RTDB fallback exists anywhere in this function, by design — a
+    // migration that quietly keeps the old path as an emergency fallback
+    // would not actually remove the dependency it claims to remove.
     private suspend fun lookupSchoolCode(id: String): String? {
         return try {
-            firebaseService.readString(Constants.Firebase.schoolCodePath(id))
-        } catch (e: Exception) { null }
-    }
-
-    private suspend fun lookupActiveSession(schoolCode: String): String? {
-        return try {
-            firebaseService.readString("Schools/$schoolCode/Config/ActiveSession")
-        } catch (e: Exception) { null }
+            val snapshot = firestoreService.queryDocuments(Constants.Firestore.SCHOOLS) { ref ->
+                ref.whereEqualTo("schoolCode", id).limit(2)
+            }
+            when (snapshot.size()) {
+                0 -> {
+                    Log.w(TAG, "lookupSchoolCode: no Firestore school matches schoolCode=$id")
+                    null
+                }
+                1 -> snapshot.documents.first().id
+                else -> {
+                    Log.e(TAG, "lookupSchoolCode: DATA INTEGRITY — multiple schools share schoolCode=$id (expected exactly 0 or 1, per Phase 8.2 verification)")
+                    snapshot.documents.first().id
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "lookupSchoolCode: Firestore query failed for schoolCode=$id", e)
+            null
+        }
     }
 
     private fun mapAuthError(e: Exception): String = when {

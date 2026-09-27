@@ -57,6 +57,15 @@ class MyTeachersViewModel @Inject constructor(
             val startedAt = System.currentTimeMillis()
             val minSpinnerMs = 600L
             try {
+                // Phase 0M (Staff Lifecycle security/dependency hardening):
+                // getMyTeachers() serves from an in-memory cache when the
+                // class/section key matches, so without this the pull-to-
+                // refresh gesture never actually re-fetched — a teacher
+                // deactivated or reassigned mid-session kept showing as
+                // Active/contactable until the app process was killed and
+                // restarted. invalidateCache() already existed but was never
+                // called anywhere in the codebase.
+                repo.invalidateCache()
                 repo.getMyTeachers().fold(
                     onSuccess = { entries ->
                         _uiState.update { it.copy(teachers = entries.toRows()) }

@@ -27,6 +27,8 @@ data class MyLessonsUiState(
     val progress: List<SubjectPlanProgressDoc> = emptyList(),
     val isLoadingLessons: Boolean = true,
     val isLoadingProgress: Boolean = true,
+    /** Set when the progress strip could not be READ — not when it is empty. */
+    val progressError: String? = null,
     val error: String? = null,
 )
 
@@ -49,7 +51,8 @@ class MyLessonsViewModel @Inject constructor(
             val sec = u?.section.orEmpty()
             _ui.update { it.copy(
                 className = cls, section = sec,
-                isLoadingLessons = true, isLoadingProgress = true, error = null
+                isLoadingLessons = true, isLoadingProgress = true,
+                error = null, progressError = null
             ) }
 
             // Daily lessons
@@ -70,8 +73,13 @@ class MyLessonsViewModel @Inject constructor(
                 onSuccess = { rows ->
                     _ui.update { it.copy(progress = rows, isLoadingProgress = false) }
                 },
-                onFailure = {
-                    _ui.update { it.copy(progress = emptyList(), isLoadingProgress = false) }
+                onFailure = { e ->
+                    // Not silence: with the strip simply absent, a parent reads
+                    // it as a school that does not publish progress.
+                    _ui.update {
+                        it.copy(progress = emptyList(), isLoadingProgress = false,
+                                progressError = e.message ?: "unavailable")
+                    }
                 }
             )
         }

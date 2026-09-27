@@ -90,7 +90,14 @@ class ResultsViewModel @Inject constructor(
             if (user.userId.isBlank()) return@launch
             try {
                 val demands = feeFirestoreRepo.getPendingDemands(user.userId).getOrNull().orEmpty()
-                val pending = demands.sumOf { (it.netAmount - it.paidAmount).coerceAtLeast(0.0) }
+                // LATE-2: same rule as the Fees and Dashboard view models — the
+                // server's balance already includes the late fee, so recomputing
+                // it from netAmount/paidAmount understates the dues shown beside
+                // a result.
+                val pending = demands.sumOf { d ->
+                    if (d.balance > 0.0) d.balance
+                    else (d.netAmount - d.paidAmount).coerceAtLeast(0.0)
+                }
                 _uiState.update { it.copy(pendingFees = pending) }
             } catch (e: Exception) {
                 Log.w("ResultsVM", "Dues snapshot failed", e)

@@ -233,13 +233,15 @@ fun ProfileScreen(
                             bgColor = c.successBg,
                             modifier = Modifier.weight(1f)
                         )
-                        StatPill(
-                            value = "#4",
-                            label = "Rank",
-                            valueColor = c.info,
-                            bgColor = c.infoBg,
-                            modifier = Modifier.weight(1f)
-                        )
+                        // P11-D2 (Phase 11): a hardcoded `value = "#4"` Rank pill
+                        // used to sit here. It was a literal, not a calculation —
+                        // every parent, in every school, was told their child ranks
+                        // 4th. Removed rather than replaced: ZenX has no canonical
+                        // rank field, and computing a real one needs a class-wide
+                        // results aggregation (a genuine feature with genuine read
+                        // cost). No placeholder is substituted — "#0" / "#—" / "N/A"
+                        // would still imply a ranking exists. If ranking is built
+                        // later, this row is where the pill goes back.
                         val pending = uiState.pendingHomeworkCount
                         val homeworkValue = when {
                             !uiState.homeworkLoaded -> "\u2014"
@@ -316,12 +318,30 @@ fun ProfileScreen(
                         // Expanded student details
                         AnimatedVisibility(visible = profileExpanded, enter = expandVertically(), exit = shrinkVertically()) {
                             Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+                                // Student Identity (Phase 11)
+                                // Every value here comes from the `User` cached in
+                                // DataStore, which is written from the SAME student
+                                // document the app already fetches at login / splash /
+                                // dashboard load. Zero additional Firestore reads,
+                                // queries or round trips — no lookup against
+                                // srNoIndex or admissionNoIndex is performed or needed.
+                                //
+                                // Deliberately absent: APAAR (PII, admin-only masked +
+                                // audited reveal) and previousStudentId (historical
+                                // linkage; a parent seeing an old ID would confuse the
+                                // current admission). Blank fields render nothing.
+                                ProfileSectionHeader(text = "Student Identity", color = c.accent)
+                                ProfileDetailRow(label = "Student ID", value = user?.userId, color = c)
+                                ProfileDetailRow(label = "SR No.", value = user?.srNo, color = c)
+                                ProfileDetailRow(label = "Admission No.", value = user?.admissionNumber, color = c)
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
                                 // Personal Information
                                 ProfileSectionHeader(text = "Personal Information", color = c.accent)
                                 ProfileDetailRow(label = "Date of Birth", value = user?.dob, color = c)
                                 ProfileDetailRow(label = "Gender", value = user?.gender, color = c)
                                 ProfileDetailRow(label = "Admission Date", value = user?.admissionDate, color = c)
-                                ProfileDetailRow(label = "Student ID", value = user?.userId, color = c)
 
                                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -343,6 +363,14 @@ fun ProfileScreen(
                                 ProfileSectionHeader(text = "School Information", color = c.accent)
                                 ProfileDetailRow(label = "School", value = user?.schoolDisplayName, color = c)
                                 ProfileDetailRow(label = "Session", value = user?.session, color = c)
+                                // Class/Section/Roll are the academic-position
+                                // fields — they legitimately CHANGE on promotion,
+                                // unlike the identity block above. Roll Number is
+                                // free text (may be alphanumeric) and is shown
+                                // verbatim; it is never parsed as a number here.
+                                ProfileDetailRow(label = "Class", value = user?.className, color = c)
+                                ProfileDetailRow(label = "Section", value = user?.section, color = c)
+                                ProfileDetailRow(label = "Roll No.", value = user?.rollNo, color = c)
 
                                 Spacer(modifier = Modifier.height(8.dp))
                             }

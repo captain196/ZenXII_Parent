@@ -147,6 +147,13 @@ class PtmFirestoreRepository @Inject constructor(
         className: String,
         section: String,
         rollNo: String,
+        // Phase 11.5 (G1) — the school's register number, denormalised onto the
+        // RSVP exactly like studentName/className/section/rollNo already are.
+        // The caller supplies it from the cached `User`, so this costs ZERO
+        // additional Firestore reads and adds no round trip: it is one extra key
+        // on a write that already happens. Display only — the RSVP is still
+        // keyed by `studentId`, and nothing resolves a student FROM srNo here.
+        srNo: String = "",
         parentName: String,
         parentPhone: String,
         parentEmail: String,
@@ -170,6 +177,7 @@ class PtmFirestoreRepository @Inject constructor(
             "className"      to className,
             "section"        to section,
             "rollNo"         to rollNo,
+            "srNo"           to srNo,          // Phase 11.5 (G1)
             "parentName"     to parentName,
             "parentPhone"    to parentPhone,
             "parentEmail"    to parentEmail,
@@ -215,6 +223,7 @@ class PtmFirestoreRepository @Inject constructor(
         className: String,
         section: String,
         rollNo: String,
+        srNo: String = "",          // Phase 11.5 (G1) — see setRsvp()
         parentName: String,
         parentPhone: String,
         parentEmail: String,
@@ -307,6 +316,7 @@ class PtmFirestoreRepository @Inject constructor(
             "className"    to className,
             "section"      to section,
             "rollNo"       to rollNo,
+            "srNo"         to srNo,          // Phase 11.5 (G1)
             "parentName"   to parentName,
             "parentPhone"  to parentPhone,
             "parentEmail"  to parentEmail,
@@ -375,6 +385,7 @@ class PtmFirestoreRepository @Inject constructor(
         className: String,
         section: String,
         rollNo: String,
+        srNo: String = "",          // Phase 11.5 (G1) — see setRsvp()
         parentName: String,
         parentPhone: String,
         parentEmail: String,
@@ -463,6 +474,7 @@ class PtmFirestoreRepository @Inject constructor(
                     "className"    to className,
                     "section"      to section,
                     "rollNo"       to rollNo,
+                    "srNo"         to srNo,          // Phase 11.5 (G1)
                     "parentName"   to parentName,
                     "parentPhone"  to parentPhone,
                     "parentEmail"  to parentEmail,
@@ -541,6 +553,7 @@ class PtmFirestoreRepository @Inject constructor(
         className: String,
         section: String,
         rollNo: String,
+        srNo: String = "",          // Phase 11.5 (G1) — see setRsvp()
         parentName: String,
         parentPhone: String,
         parentEmail: String,
@@ -561,6 +574,7 @@ class PtmFirestoreRepository @Inject constructor(
             "className"    to className,
             "section"      to section,
             "rollNo"       to rollNo,
+            "srNo"         to srNo,          // Phase 11.5 (G1)
             "parentName"   to parentName,
             "parentPhone"  to parentPhone,
             "parentEmail"  to parentEmail,

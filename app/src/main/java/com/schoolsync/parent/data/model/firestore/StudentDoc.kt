@@ -65,6 +65,25 @@ data class StudentDoc(
     val rollNo: String = "",
     val admissionDate: String = "",
 
+    // ── School / admission identity (Phase 11) ───────────────────────
+    // SRNO — the school's own register number. School-scoped, allocated by
+    // the admin panel, PRESERVED across promotion, class/section change and
+    // re-admission. Not the Student ID, never a join key: display only.
+    //
+    // Declared `Any?` on purpose. Every writer emits a String today, but the
+    // admin panel has several SRNO write paths and a single numeric write
+    // would fail deserialisation of the WHOLE document, taking the parent's
+    // entire profile down to render one row. Read via [srNoText].
+    val srNo: Any? = null,
+
+    // Admission Number — the admission-EVENT identifier ("2026/7K4P92").
+    // System-generated, frozen for that admission, NEW on re-admission.
+    // Bind the camelCase key ONLY: the admin panel dual-emits both this and
+    // a legacy spaced `Admission Number` key, and a @PropertyName alias for
+    // the spaced variant would collide case-insensitively with this property
+    // and crash the document (see class kdoc / Teacher StudentDoc docblock).
+    val admissionNumber: String = "",
+
     // ── Family ──────────────────────────────────────────────────────
     val fatherName: String = "",
     val fatherOccupation: String = "",
@@ -101,4 +120,16 @@ data class StudentDoc(
     @get:PropertyName("mustChangePassword")
     @set:PropertyName("mustChangePassword")
     var mustChangePassword: Boolean = false,
-)
+) {
+    /**
+     * SRNO as display text — tolerant of a String or numeric write, `""`
+     * when absent (the profile row then renders nothing).
+     */
+    val srNoText: String
+        get() = when (val v = srNo) {
+            null -> ""
+            is String -> v.trim()
+            is Number -> if (v.toDouble() % 1.0 == 0.0) v.toLong().toString() else v.toString()
+            else -> v.toString().trim()
+        }
+}

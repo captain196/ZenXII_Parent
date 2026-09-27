@@ -170,6 +170,9 @@ class PtmDetailViewModel @Inject constructor(
                     className    = user.className,
                     section      = user.section,
                     rollNo       = user.rollNo,
+                    // Phase 11.5 (G1) — already on the cached `user` (Phase 11),
+                    // alongside every other denorm field here. No lookup, no read.
+                    srNo         = user.srNo,
                     parentName   = parentName,
                     parentPhone  = user.phone,
                     parentEmail  = user.email,
@@ -244,6 +247,7 @@ class PtmDetailViewModel @Inject constructor(
                     className    = user.className,
                     section      = user.section,
                     rollNo       = user.rollNo,
+                    srNo         = user.srNo,   // Phase 11.5 (G1) — cached, 0 reads
                     parentName   = parentName,
                     parentPhone  = user.phone,
                     parentEmail  = user.email,

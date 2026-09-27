@@ -193,6 +193,25 @@ class StudentFirestoreRepository @Inject constructor(
                     val sid = s.userId.ifBlank { s.studentId }.ifBlank { s.id }
                     if (sid == primaryId || sid.isBlank()) return@filter false
 
+                    // N12-1 (Phase 13) — LIFECYCLE CORRECTNESS, not a sibling
+                    // redesign. A re-admitted student keeps the same phone and
+                    // parent names as their own WITHDRAWN pre-re-admission
+                    // record, so without this the parent's child switcher listed
+                    // the closed record as a second, current child — tapping it
+                    // showed a frozen page with no fees and no attendance.
+                    //
+                    // Only currently-enrolled records may appear. A blank status
+                    // is treated as Active for back-compat with older documents
+                    // that predate the field (the same convention
+                    // AuthRepository/TokenManager already use).
+                    //
+                    // Cost: ZERO additional Firestore reads — `status` is already
+                    // on every StudentDoc this query downloaded.
+                    val sStatus = s.status.trim()
+                    if (sStatus.isNotBlank() && !sStatus.equals("Active", ignoreCase = true)) {
+                        return@filter false
+                    }
+
                     val sPhone = listOfNotNull(
                         s.phone.takeIf { it.isNotBlank() },
                         s.phoneNumber.takeIf { it.isNotBlank() },

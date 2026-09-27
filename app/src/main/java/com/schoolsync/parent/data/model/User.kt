@@ -33,6 +33,14 @@ data class User(
      *  other than "Active" (TC, Inactive, Deleted, etc.) so a withdrawn
      *  student's parent can't keep using the app on stale credentials. */
     val status: String = "Active",
+    /** Phase 11 — school register number (school-scoped, preserved across
+     *  promotion / class change / re-admission). Display only: nothing in
+     *  either app or the admin panel joins on it. Blank when unset. */
+    val srNo: String = "",
+    /** Phase 11 — admission-event identifier, e.g. "2026/7K4P92".
+     *  System-generated, frozen for the admission, NEW on re-admission.
+     *  Sourced from the camelCase `admissionNumber` field only. */
+    val admissionNumber: String = "",
 ) {
     companion object {
         fun fromDto(dto: UserDto, schoolCode: String = ""): User {

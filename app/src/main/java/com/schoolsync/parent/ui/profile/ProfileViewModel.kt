@@ -191,11 +191,36 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    /**
+     * ── PA-1 · THE PROFILE MUST FOLLOW THE CACHE, NOT SNAPSHOT IT ────────
+     *
+     * This took ONE value (`firstOrNull()`) and stopped. `currentUser` is a
+     * `Flow<User>` backed directly by the DataStore cache, so the screen read
+     * the profile once at load and never saw another change.
+     *
+     * FOUND ON A PHYSICAL DEVICE: an admin moved the student from Section A
+     * to Section B while this screen was open. Firestore updated, the
+     * snapshot listener fired, and StudentProfileSynchronizer wrote the
+     * cache — the DataStore genuinely held `Section B` — yet the screen went
+     * on showing "Class 5th - Section A" until it was navigated away from and
+     * back.
+     *
+     * So no logout was ever required, and the data was never wrong once
+     * re-entered; but a parent looking at the screen at the moment their
+     * child was moved saw the old placement with nothing to say it was stale.
+     * Collecting closes that last hop.
+     *
+     * Deliberately scoped to a screen that DISPLAYS lifecycle placement. The
+     * other one-shot reads across the app use the cached user only to obtain
+     * ids for a query, where a snapshot is correct and collecting would
+     * re-issue that query on every unrelated profile write.
+     */
     fun loadProfile() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            val user = studentRepository.currentUser.firstOrNull()
-            _uiState.update { it.copy(isLoading = false, user = user) }
+            studentRepository.currentUser.collect { user ->
+                _uiState.update { it.copy(isLoading = false, user = user) }
+            }
         }
     }
 

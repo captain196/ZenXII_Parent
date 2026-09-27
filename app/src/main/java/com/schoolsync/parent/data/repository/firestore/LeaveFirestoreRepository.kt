@@ -2,7 +2,6 @@ package com.schoolsync.parent.data.repository.firestore
 
 import android.util.Log
 import com.google.firebase.firestore.Query
-import com.schoolsync.parent.data.firebase.FirebaseService
 import com.schoolsync.parent.data.firebase.FirestoreService
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.firestore.LeaveApplicationDoc
@@ -15,18 +14,24 @@ import javax.inject.Singleton
 /**
  * Repository for student leave application operations.
  *
- * Phase 9a (2026-04-09): submit + cancel write to RTDB because
- * Firestore security rules block client-side writes (same
- * PERMISSION_DENIED issue as userDevices/pushRequests). The admin
- * panel reads from RTDB and mirrors to Firestore on approval.
+ * Phase 9a (2026-04-09): submit + cancel wrote to RTDB because Firestore
+ * security rules blocked client-side writes (same PERMISSION_DENIED issue as
+ * userDevices/pushRequests). Phase 10 fixed the rules — Firestore writes have
+ * been primary and working ever since.
  *
- * Read (getLeaveHistory) is still Firestore-first with RTDB fallback
- * per the read contract.
+ * Phase 3 RTDB removal (2026-08-13, PARENT_APP_FIRESTORE_ONLY_HARDENING_REPORT.md
+ * §7/§8): the RTDB write/read fallbacks that survived Phase 10 as a safety net
+ * are REMOVED. They were not actually safe: the Admin Panel reads
+ * `leaveApplications` from Firestore only (confirmed — application/controllers/
+ * Attendance.php never reads RTDB for this feature), so a leave application
+ * that silently fell back to RTDB on a Firestore write failure would appear
+ * "submitted" to the parent while being invisible to the school forever. A
+ * clean Firestore-only failure that surfaces to the UI is strictly safer than
+ * a fallback that succeeds into a store nobody reads.
  */
 @Singleton
 class LeaveFirestoreRepository @Inject constructor(
     private val firestoreService: FirestoreService,
-    private val firebaseService: FirebaseService,
     private val tokenManager: TokenManager
 ) {
     companion object {
@@ -75,7 +80,6 @@ class LeaveFirestoreRepository @Inject constructor(
         )
 
         return try {
-            // Firestore FIRST (canonical — rules now allow leaveApplications writes)
             firestoreService.setDocument(
                 Constants.Firestore.LEAVE_APPLICATIONS,
                 leaveId,
@@ -84,34 +88,20 @@ class LeaveFirestoreRepository @Inject constructor(
             Log.w(TAG, "Leave submitted to Firestore: $leaveId")
             Result.success(leaveId)
         } catch (e: Exception) {
-            Log.e(TAG, "Leave Firestore submit failed, trying RTDB fallback", e)
-            // RTDB fallback
-            try {
-                firebaseService.writeValue(
-                    "Schools/$schoolCode/LeaveApplications/$leaveId",
-                    data
-                )
-                Log.w(TAG, "Leave submitted via RTDB fallback: $leaveId")
-                Result.success(leaveId)
-            } catch (e2: Exception) {
-                Log.e(TAG, "Leave submit failed on both stores", e2)
-                Result.failure(e2)
-            }
+            Log.e(TAG, "Leave submit failed", e)
+            Result.failure(e)
         }
     }
 
     /**
-     * Fetch leave history — Firestore first, RTDB fallback.
+     * Fetch leave history — Firestore only. A successful query (even EMPTY)
+     * is authoritative; an empty history must NOT be treated as a failure.
      */
     suspend fun getLeaveHistory(studentId: String): Result<List<LeaveApplicationDoc>> {
         val schoolCode = getSchoolCode()
             ?: return Result.failure(Exception("School code not available"))
 
-        // Firestore first — a successful query (even EMPTY) is authoritative.
-        // Fix H11: only fall back to the full-school RTDB scan on an actual
-        // Firestore EXCEPTION, never on an empty result. An empty history must
-        // NOT trigger a denied wide read that surfaces a spurious error snackbar.
-        try {
+        return try {
             val leaves = firestoreService.queryDocumentsAs<LeaveApplicationDoc>(
                 Constants.Firestore.LEAVE_APPLICATIONS
             ) { ref ->
@@ -124,46 +114,9 @@ class LeaveFirestoreRepository @Inject constructor(
                 compareByDescending<LeaveApplicationDoc> { appliedAtMillis(it.appliedAt) }
                     .thenByDescending { it.startDate }
             )
-            return Result.success(sorted)
+            Result.success(sorted)
         } catch (e: Exception) {
-            Log.w(TAG, "Firestore leave query failed, falling back to RTDB", e)
-        }
-
-        // RTDB fallback — reached ONLY on a Firestore exception above.
-        return try {
-            val path = "Schools/$schoolCode/LeaveApplications"
-            val allLeaves = firebaseService.readMap(path)
-            val result = mutableListOf<LeaveApplicationDoc>()
-            for ((id, value) in allLeaves) {
-                val map = value as? Map<*, *> ?: continue
-                if (map["applicantId"]?.toString() != studentId) continue
-                if (map["applicantType"]?.toString() != "student") continue
-                result.add(
-                    LeaveApplicationDoc(
-                        id = id,
-                        schoolId = map["schoolId"]?.toString() ?: "",
-                        applicantType = "student",
-                        applicantId = studentId,
-                        applicantName = map["applicantName"]?.toString() ?: "",
-                        sectionKey = map["sectionKey"]?.toString() ?: "",
-                        leaveType = map["leaveType"]?.toString() ?: "",
-                        startDate = map["startDate"]?.toString() ?: "",
-                        endDate = map["endDate"]?.toString() ?: "",
-                        numberOfDays = (map["numberOfDays"] as? Number)?.toInt() ?: 0,
-                        reason = map["reason"]?.toString() ?: "",
-                        status = map["status"]?.toString() ?: "pending",
-                        appliedAt = map["appliedAt"],
-                        approvedBy = map["approvedBy"]?.toString() ?: "",
-                        remarks = map["remarks"]?.toString() ?: ""
-                    )
-                )
-            }
-            result.sortWith(
-                compareByDescending<LeaveApplicationDoc> { appliedAtMillis(it.appliedAt) }
-                    .thenByDescending { it.startDate }
-            )
-            Result.success(result)
-        } catch (e: Exception) {
+            Log.w(TAG, "Firestore leave query failed", e)
             Result.failure(e)
         }
     }

@@ -109,6 +109,12 @@ fun MyLessonsScreen(
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp,
                     color = c.accent)
             }
+        } else if (state.progressError != null) {
+            Text(
+                "Subject progress could not be loaded just now.",
+                color = c.textSecondary, fontSize = 12.sp,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            )
         } else if (state.progress.isNotEmpty()) {
             SubjectProgressStrip(state.progress)
         }

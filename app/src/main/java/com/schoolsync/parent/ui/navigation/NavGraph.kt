@@ -288,7 +288,8 @@ fun AppNavGraph(
                         }
                     },
                     isLoggedIn = state.isLoggedIn,
-                    hasSeenOnboarding = state.hasSeenOnboarding
+                    hasSeenOnboarding = state.hasSeenOnboarding,
+                    schoolAccess = state.schoolAccess,
                 )
             }
         }
@@ -338,13 +339,33 @@ fun AppNavGraph(
         }
 
         composable(Route.Main.route) {
-            MainScreen(
-                onLogout = {
-                    navController.navigate(Route.Login.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
+            val toLogin = {
+                navController.navigate(Route.Login.route) {
+                    popUpTo(0) { inclusive = true }
                 }
-            )
+            }
+
+            // ── STUDENT LIFECYCLE GATE ───────────────────────────────────
+            // Login already refuses a student whose status is not Active, but
+            // that ran at LOGIN only: a session open when the school withdrew
+            // the student kept working. StudentProfileSynchronizer follows the
+            // live document and raises this the moment the status changes.
+            //
+            // Placed at Main, mirroring the school-level gate at Splash: say
+            // plainly what happened rather than route the parent into an app
+            // whose screens will quietly start returning nothing.
+            val accessViewModel: com.schoolsync.parent.ui.session.StudentAccessViewModel =
+                hiltViewModel()
+            val revokedStatus by accessViewModel.revokedStatus.collectAsState()
+            if (revokedStatus != null) {
+                com.schoolsync.parent.ui.session.StudentAccessRevokedScreen(
+                    status = revokedStatus,
+                    onSignOut = { accessViewModel.signOut(onDone = toLogin) }
+                )
+                return@composable
+            }
+
+            MainScreen(onLogout = toLogin)
         }
     }
 }

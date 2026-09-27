@@ -125,9 +125,11 @@ class LessonPlanParentRepository @Inject constructor(
             }
             Result.success(rows.sortedBy { it.subject })
         } catch (e: Exception) {
+            // NOT success(emptyList()). An empty strip is how a parent reads a
+            // class that has covered nothing; a read that failed is a different
+            // thing and the screen now says which it is.
             Log.e(TAG, "getSubjectProgress failed", e)
-            // Best-effort — empty list is acceptable for the progress strip.
-            Result.success(emptyList())
+            Result.failure(e)
         }
     }
 

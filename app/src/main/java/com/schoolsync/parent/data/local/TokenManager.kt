@@ -57,6 +57,19 @@ class TokenManager @Inject constructor(
         // gate survives a cold-restart of the app while the flag is still
         // true on the Firestore students doc.
         val MUST_CHANGE_PASSWORD = androidx.datastore.preferences.core.booleanPreferencesKey("must_change_password")
+
+        // Phase 11 identity fields. Adding keys is safe for existing installs:
+        // every read below is key-by-key with a default, so a User cached
+        // before these existed simply reads blank and self-heals on the next
+        // login / splash re-check / dashboard load.
+        val SR_NO = stringPreferencesKey("sr_no")
+        val ADMISSION_NUMBER = stringPreferencesKey("admission_number")
+        // P11-D3 — `status` existed on the User model and was read from
+        // Firestore at login, but was never written here and never read back,
+        // so it silently reverted to the model default "Active" on every app
+        // restart. A withdrawn student's cached profile therefore looked
+        // Active again after a cold start.
+        val STATUS = stringPreferencesKey("status")
     }
 
     // ── Device ID Flow ──────────────────────────────────────────────────
@@ -85,6 +98,14 @@ class TokenManager @Inject constructor(
             session = prefs[Keys.SESSION] ?: "",
             schoolCode = prefs[Keys.SCHOOL_CODE] ?: "",
             mustChangePassword = prefs[Keys.MUST_CHANGE_PASSWORD] ?: false,
+            // Blank/absent status falls back to "Active" — the same
+            // back-compat default the model documents. Firestore remains
+            // authoritative: AuthRepository.login() blocks a non-Active
+            // student, and the dashboard/splash re-checks overwrite this
+            // cached copy from the student document on every launch.
+            status = prefs[Keys.STATUS]?.takeIf { it.isNotBlank() } ?: "Active",
+            srNo = prefs[Keys.SR_NO] ?: "",
+            admissionNumber = prefs[Keys.ADMISSION_NUMBER] ?: "",
         )
     }
 
@@ -149,6 +170,9 @@ class TokenManager @Inject constructor(
             prefs[Keys.SESSION] = user.session
             prefs[Keys.SCHOOL_CODE] = user.schoolCode
             prefs[Keys.MUST_CHANGE_PASSWORD] = user.mustChangePassword
+            prefs[Keys.STATUS] = user.status          // P11-D3
+            prefs[Keys.SR_NO] = user.srNo             // Phase 11
+            prefs[Keys.ADMISSION_NUMBER] = user.admissionNumber
         }
     }
 

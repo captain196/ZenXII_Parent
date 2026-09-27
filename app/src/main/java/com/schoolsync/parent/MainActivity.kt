@@ -198,6 +198,13 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     }
 
     override fun onPaymentError(code: Int, description: String?, paymentData: PaymentData?) {
+        // The dialog now shows a calm sentence instead of the gateway JSON, so
+        // this is the ONLY place the raw payload survives. `reason`, `step` and
+        // `metadata` are what a Razorpay support conversation actually needs.
+        android.util.Log.e(
+            "Payment",
+            "Razorpay onPaymentError code=$code raw=${description ?: "(none)"}"
+        )
         PaymentBridge.emit(
             PaymentBridge.Event.Failure(
                 code = code,

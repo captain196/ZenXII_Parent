@@ -270,7 +270,17 @@ class DashboardViewModel @Inject constructor(
                     admissionDate = doc.admissionDate,
                     profilePic    = doc.profilePic,
                     email         = doc.email.ifBlank { current.email },
-                    phone         = current.phone // parent contact stays the same
+                    phone         = current.phone, // parent contact stays the same
+                    // Phase 11 (P11-G3) — this rebuild lists every field
+                    // EXPLICITLY, so any identity field omitted here silently
+                    // carries the PREVIOUS child's value through the switch.
+                    // These are per-student and must always come from `doc`;
+                    // never fall back to `current`.
+                    srNo            = doc.srNoText,
+                    admissionNumber = doc.admissionNumber.trim(),
+                    // Same trap for status: without this the withdrawn/active
+                    // state of the child we switched AWAY from would stick.
+                    status          = doc.status.ifBlank { "Active" }
                 )
                 tokenManager.saveUserDirect(next)
                 // Clear the previous child's per-student data BEFORE reloading
@@ -335,7 +345,17 @@ class DashboardViewModel @Inject constructor(
                 motherName = user.motherName.ifBlank { doc.motherName },
                 // DOB always prefers Firestore's current value — admin edits
                 // propagate to the parent app on the next dashboard load.
-                dob       = if (doc.dob.isNotBlank()) doc.dob else user.dob
+                dob       = if (doc.dob.isNotBlank()) doc.dob else user.dob,
+                // Phase 11 — identity fields follow the DOB pattern (Firestore
+                // wins when present) rather than the `ifBlank` pattern, so a
+                // late-allocated SRNO / Admission Number appears without
+                // requiring a logout.
+                srNo            = doc.srNoText.ifBlank { user.srNo },
+                admissionNumber = doc.admissionNumber.trim().ifBlank { user.admissionNumber },
+                // P11-D3 — status is AUTHORITATIVE from Firestore, never
+                // healed from cache. A student withdrawn admin-side must not
+                // keep reading "Active" out of DataStore.
+                status          = doc.status.ifBlank { "Active" }
             )
             // Also heal school display name from Firestore schools collection
             if (healed.schoolDisplayName.isBlank() && healed.schoolId.isNotBlank()) {
@@ -488,7 +508,11 @@ class DashboardViewModel @Inject constructor(
                     val todayStatus = currentMonthSummary?.dayWise?.getOrNull(todayDay - 1)?.let { code ->
                         when (code) {
                             'P' -> "Present"; 'A' -> "Absent"; 'L' -> "Leave"
-                            'H' -> "Holiday"; 'V' -> "Vacation"; 'T' -> "Tardy"
+                            // 'V' is the admin's PADDING code for unmarked days, NOT a
+                            // real "vacation" status (see AttendanceData.VACATION = "Not
+                            // recorded"). Labelling it "Vacation" here contradicted the
+                            // rest of the app; align to the canonical label.
+                            'H' -> "Holiday"; 'V' -> "Not recorded"; 'T' -> "Tardy"
                             else -> null
                         }
                     }
@@ -520,7 +544,18 @@ class DashboardViewModel @Inject constructor(
             val pendingResult = feeFirestoreRepo.getPendingDemands(studentId)
             pendingResult.fold(
                 onSuccess = { demands ->
-                    val totalPending = demands.sumOf { it.netAmount - it.paidAmount }
+                    // LATE-2: the server's balance is `netAmount + fine -
+                    // paidAmount`. Recomputing it here as `netAmount -
+                    // paidAmount` dropped any late fee, so the dashboard's
+                    // headline "amount due" understated what the family owed —
+                    // the first number they see, and the one they budget
+                    // against. Falls back to the old computation only where the
+                    // server supplied no positive balance, so nothing can
+                    // display less than it does today.
+                    val totalPending = demands.sumOf { d ->
+                        if (d.balance > 0.0) d.balance
+                        else (d.netAmount - d.paidAmount).coerceAtLeast(0.0)
+                    }
                     _uiState.update {
                         it.copy(pendingFeeAmount = totalPending, feesLoadFailed = false)
                     }
