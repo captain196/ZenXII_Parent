@@ -17,9 +17,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.schoolsync.parent.R
+import com.schoolsync.parent.data.lifecycle.SchoolAccess
 import com.schoolsync.parent.ui.theme.LocalAppColors
 import kotlinx.coroutines.delay
 
@@ -31,9 +33,22 @@ fun SplashScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToMain: () -> Unit,
     isLoggedIn: Boolean,
-    hasSeenOnboarding: Boolean
+    hasSeenOnboarding: Boolean,
+    schoolAccess: SchoolAccess = SchoolAccess.Unknown,
 ) {
     val colors = LocalAppColors.current
+
+    // ── SCHOOL LIFECYCLE GATE ────────────────────────────────────────
+    // When the school itself is not usable — archived, not yet open, or the
+    // service is on hold — say so plainly instead of routing the parent into
+    // an app whose every screen will fail with PERMISSION_DENIED and render as
+    // an empty list. Unknown fails OPEN (canUseApp = true), so an unreadable
+    // mirror never strands a legitimate user.
+    if (isLoggedIn && !schoolAccess.canUseApp) {
+        SchoolUnavailableScreen(schoolAccess)
+        return
+    }
+
     var phase by remember { mutableIntStateOf(0) }
     // Phase 0 = initial, 1 = logo appears, 2 = text appears, 3 = tagline appears
 
@@ -186,6 +201,54 @@ fun SplashScreen(
                 fontWeight = FontWeight.Medium,
                 color = ZenXiiGreen,
                 modifier = Modifier.alpha(taglineAlpha)
+            )
+        }
+    }
+}
+
+/**
+ * Shown instead of the app when the school itself is unavailable.
+ *
+ * Deliberately explains the SCHOOL's situation in the user's terms and never
+ * surfaces a Firestore error, a status code, or the words "permission
+ * denied" — a parent whose school has closed is not experiencing a
+ * permissions problem, and telling them so would be both confusing and
+ * untrue. The wording comes from SchoolAccess, so a commercial hold and a
+ * closure can never read the same.
+ */
+@Composable
+private fun SchoolUnavailableScreen(access: SchoolAccess) {
+    val colors = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(colors.bgStart, colors.bgMid, colors.bgEnd)
+                )
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = access.title,
+                color = colors.textPrimary,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = access.message,
+                color = colors.textSecondary,
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                textAlign = TextAlign.Center,
             )
         }
     }

@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolsync.parent.data.firebase.FirestoreService
+import com.schoolsync.parent.data.lifecycle.SchoolAccess
+import com.schoolsync.parent.data.lifecycle.SchoolLifecycleRepository
 import com.schoolsync.parent.data.local.TokenManager
 import com.schoolsync.parent.data.model.firestore.StudentDoc
 import com.schoolsync.parent.util.Constants
@@ -25,12 +27,21 @@ data class SplashState(
      *  Splash → ForceChangePassword instead of Splash → Main on cold start.
      *  Survives the user closing the app mid-force-change. */
     val mustChangePassword: Boolean = false,
+    /**
+     * The school's lifecycle state, resolved at cold start from the existing
+     * `tenantPublic` mirror. Lets the UI say WHY the app is unusable — closed,
+     * archived, not yet open, or a commercial hold — instead of letting a
+     * parent walk into screens that fail with PERMISSION_DENIED and render as
+     * empty lists. Defaults to Unknown, which is fail-open.
+     */
+    val schoolAccess: SchoolAccess = SchoolAccess.Unknown,
 )
 
 @HiltViewModel
 class SplashViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val firestoreService: FirestoreService,
+    private val schoolLifecycleRepository: SchoolLifecycleRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -126,6 +137,15 @@ class SplashViewModel @Inject constructor(
                             section   = doc.section.ifBlank   { cachedUser.section   },
                             session   = doc.session.ifBlank   { cachedUser.session   },
                             rollNo    = doc.rollNo.ifBlank    { cachedUser.rollNo    },
+                            // Phase 11 — same cold-start propagation for the
+                            // identity fields, so SRNO / Admission Number are
+                            // present on the very first screen after a restart
+                            // rather than only after a dashboard load.
+                            srNo            = doc.srNoText.ifBlank { cachedUser.srNo },
+                            admissionNumber = doc.admissionNumber.trim().ifBlank { cachedUser.admissionNumber },
+                            // P11-D3 — Firestore status is authoritative on
+                            // every cold start; the cached value never wins.
+                            status          = doc.status.ifBlank { "Active" },
                         )
                         if (refreshed != cachedUser) {
                             Log.i(TAG,
@@ -145,14 +165,34 @@ class SplashViewModel @Inject constructor(
                 }
             }
 
+            // Resolve the school's lifecycle state once the session is known.
+            // Only meaningful when logged in (schoolId comes from the stored
+            // session), and deliberately AFTER the token refresh above so the
+            // read carries current claims. Failure is absorbed inside the
+            // repository and surfaces as Unknown, which is fail-open — an
+            // unreadable convenience mirror must never block a working app.
+            val access = if (loggedIn) {
+                schoolLifecycleRepository.currentSchoolAccess()
+            } else {
+                SchoolAccess.Unknown
+            }
+
             _state.value = SplashState(
                 isLoading = false,
                 isLoggedIn = loggedIn,
                 hasSeenOnboarding = seenOnboarding,
                 mustChangePassword = loggedIn && (mustChange || claimMustChange),
+                schoolAccess = access,
             )
         }
     }
+
+    /**
+     * Live lifecycle state, for screens that must react while the app is
+     * OPEN — a school can be closed or suspended mid-session, and a parent
+     * should be told rather than watching their screens quietly start failing.
+     */
+    val schoolAccess = schoolLifecycleRepository.observeSchoolAccess()
 
     fun markOnboardingSeen() {
         prefs.edit().putBoolean("onboarding_seen", true).apply()
