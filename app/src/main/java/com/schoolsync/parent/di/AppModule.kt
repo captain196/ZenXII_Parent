@@ -11,9 +11,9 @@ import com.schoolsync.parent.data.remote.ApiService
 import com.schoolsync.parent.data.remote.AuthApi
 import com.schoolsync.parent.data.remote.AuthInterceptor
 import com.schoolsync.parent.data.remote.FeesApi
+import com.schoolsync.parent.data.remote.MapsApi
 import com.schoolsync.parent.data.repository.AttendanceRepository
 import com.schoolsync.parent.data.repository.AuthRepository
-import com.schoolsync.parent.data.repository.DataRepository
 import com.schoolsync.parent.data.repository.HomeworkRepository
 import com.schoolsync.parent.data.repository.RedFlagRepository
 import com.schoolsync.parent.data.repository.StudentRepository
@@ -136,6 +136,14 @@ object AppModule {
         return retrofit.create(AuthApi::class.java)
     }
 
+    @Provides
+    @Singleton
+    fun provideMapsApi(
+        retrofit: Retrofit
+    ): MapsApi {
+        return retrofit.create(MapsApi::class.java)
+    }
+
     // ── Firebase ─────────────────────────────────────────────────────────
 
     @Provides
@@ -171,20 +179,11 @@ object AppModule {
     fun provideAuthRepository(
         tokenManager: TokenManager,
         firebaseAuthManager: FirebaseAuthManager,
-        firebaseService: FirebaseService,
         firestoreService: FirestoreService,
         authApi: AuthApi
     ): AuthRepository {
-        return AuthRepository(tokenManager, firebaseAuthManager, firebaseService, firestoreService, authApi)
+        return AuthRepository(tokenManager, firebaseAuthManager, firestoreService, authApi)
     }
-
-    @Provides
-    @Singleton
-    fun provideDataRepository(
-        firestoreService: FirestoreService,
-        firebaseService: FirebaseService,
-        tokenManager: TokenManager
-    ): DataRepository = DataRepository(firestoreService, firebaseService, tokenManager)
 
     @Provides
     @Singleton
@@ -361,10 +360,9 @@ object AppModule {
     @Singleton
     fun provideLeaveFirestoreRepository(
         firestoreService: FirestoreService,
-        firebaseService: FirebaseService,
         tokenManager: TokenManager
     ): LeaveFirestoreRepository {
-        return LeaveFirestoreRepository(firestoreService, firebaseService, tokenManager)
+        return LeaveFirestoreRepository(firestoreService, tokenManager)
     }
 
     @Provides
