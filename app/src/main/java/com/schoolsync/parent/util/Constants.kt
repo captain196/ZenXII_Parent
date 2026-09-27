@@ -194,13 +194,46 @@ object Constants {
         fun storyViewsPath(schoolCode: String, storyId: String): String =
             "Schools/$schoolCode/Social/StoryViews/$storyId"
 
-        /** Ensure className has "Class " prefix (e.g. "9th" -> "Class 9th") */
-        fun classKey(className: String): String =
-            if (className.startsWith("Class ", ignoreCase = true)) className else "Class $className"
+        /**
+         * The canonical class label, byte-identical to what the admin panel
+         * stores through Entity_firestore_sync::normalizeClassSection.
+         *
+         * The timetable query narrows on `sectionKey`, and the projection that
+         * fills that collection REBUILDS the field from canonical parts — so a
+         * key built to a different rule here matches nothing and the parent is
+         * shown an empty week for a class that has a full timetable. A bare
+         * numeric label is the case that broke it: the catalogue stores key
+         * "8" while every document carries "Class 8th", and "Class 8" (prefix
+         * without the ordinal) failed the same way.
+         */
+        fun classKey(className: String): String {
+            val trimmed = className.trim()
+            if (trimmed.isEmpty()) return ""
+            val bare = if (trimmed.startsWith("Class ", ignoreCase = true))
+                trimmed.substring(6).trim() else trimmed
+            return "Class " + appendOrdinalSuffixIfNeeded(bare)
+        }
+
+        /** "8" -> "8th", "1" -> "1st"; anything non-numeric is returned as-is. */
+        private fun appendOrdinalSuffixIfNeeded(s: String): String {
+            val n = s.toIntOrNull() ?: return s
+            val mod100 = n % 100
+            if (mod100 in 11..13) return "${n}th"
+            return when (n % 10) {
+                1 -> "${n}st"
+                2 -> "${n}nd"
+                3 -> "${n}rd"
+                else -> "${n}th"
+            }
+        }
 
         /** Ensure section has "Section " prefix (e.g. "A" -> "Section A") */
-        fun sectionKey(section: String): String =
-            if (section.startsWith("Section ", ignoreCase = true)) section else "Section $section"
+        fun sectionKey(section: String): String {
+            val trimmed = section.trim()
+            if (trimmed.isEmpty()) return ""
+            if (trimmed.startsWith("Section ", ignoreCase = true)) return trimmed
+            return "Section $trimmed"
+        }
     }
 
     /** Firestore collection names */

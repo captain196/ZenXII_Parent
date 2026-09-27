@@ -68,3 +68,81 @@ fun friendlyErrorMessage(t: Throwable, fallback: String): String {
         else -> fallback
     }
 }
+
+/**
+ * Turn a Razorpay checkout failure into a calm, actionable sentence.
+ *
+ * ── WHY THIS EXISTS ───────────────────────────────────────────────────────
+ * `Checkout.onPaymentError(code, description, …)` hands back the gateway's RAW
+ * JSON in `description`, and the failure dialog rendered it verbatim. A parent
+ * was shown:
+ *
+ *   {"error":{"code":"BAD_REQUEST_ERROR","description":"Payment Failed",
+ *    "source":"customer","step":"payment_authentication",
+ *    "reason":"payment_error","metadata":{}}}
+ *
+ * That is the same leak Stage B1 fixed for transport errors above — this path
+ * simply never went through the mapper. Unprofessional, and worse,
+ * unactionable: nothing in that blob tells a parent what to do next.
+ *
+ * ── WHAT IT SAYS, AND WHY ─────────────────────────────────────────────────
+ * The useful signal is `step` — where in the flow the payment died. Razorpay's
+ * own vocabulary is stable and each step maps to a genuinely different action
+ * for the parent. `source: "customer"` at `payment_authentication` is the
+ * ordinary "the bank did not approve it" case, which is a bank conversation,
+ * not a school one.
+ *
+ * ── ON "NO MONEY WAS DEDUCTED" ────────────────────────────────────────────
+ * Deliberately NOT claimed as an absolute. A payment that fails at
+ * authentication was never captured, but banks do occasionally place and then
+ * release a hold, and a parent who sees a pending debit after being told
+ * "no money was deducted" will not trust the next thing the app says. The copy
+ * states what is certain — the payment did not complete, the fees are still
+ * due — and tells them what to do if they see a debit.
+ *
+ * The raw payload is still worth logging; it is the only place `reason` and
+ * `metadata` survive for a support conversation.
+ */
+fun friendlyGatewayError(rawDescription: String?): String {
+    val raw = rawDescription.orEmpty()
+
+    // Not JSON at all — the SDK sometimes passes a plain sentence.
+    if (!raw.trimStart().startsWith("{")) {
+        return raw.ifBlank {
+            "The payment could not be completed. Your fees are still due — please try again."
+        }
+    }
+
+    // Raw string: the pattern is mostly quotes and backslashes, and escaping it
+    // through a normal string is how it ends up subtly wrong.
+    fun field(name: String): String =
+        Regex(""""$name"\s*:\s*"([^"]*)"""").find(raw)?.groupValues?.get(1).orEmpty()
+
+    val step   = field("step")
+    val reason = field("reason")
+
+    return when {
+        step == "payment_authentication" ->
+            "Your bank did not approve this payment. This is usually a wrong OTP, an expired " +
+            "card, or a limit on online transactions. Your fees are still due — try again, or " +
+            "use a different card or UPI."
+
+        step == "payment_initiation" ->
+            "The payment could not be started with your bank. Your fees are still due — please " +
+            "try again in a moment."
+
+        reason == "payment_cancelled" ->
+            "The payment was cancelled before it completed. Your fees are still due."
+
+        reason.contains("insufficient", ignoreCase = true) ->
+            "The payment was declined for insufficient funds. Your fees are still due."
+
+        // A real sentence from the gateway is better than our generic one, but
+        // only if it is not the useless catch-all Razorpay sends most often.
+        field("description").isNotBlank() && field("description") != "Payment Failed" ->
+            field("description")
+
+        else ->
+            "The payment could not be completed. Your fees are still due — please try again."
+    }
+}

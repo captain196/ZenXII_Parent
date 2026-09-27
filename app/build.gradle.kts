@@ -57,6 +57,29 @@ android {
         // A developer can still point a debug build at a LAN IP / local XAMPP
         // at runtime via the hidden Dev Settings dialog (DevPrefs override).
         buildConfigField("String", "BASE_URL", "\"https://www.zenxii.com/\"")
+
+        // ── F13.1 M4 — map tile style (decision D-7) ─────────────────────
+        // MapLibre RENDERS tiles; it does not serve them. The public
+        // tile.openstreetmap.org service forbids heavy/commercial use and may
+        // block without notice, so it is not a production source for a
+        // multi-tenant ERP — a commercial OSM provider (MapTiler, Stadia,
+        // Thunderforest, Carto) supplies the style URL and the key.
+        //
+        // Supplied at build time, never committed:
+        //     ./gradlew assembleRelease -PZENXII_MAP_STYLE_URL="https://…/style.json?key=…"
+        // or a ZENXII_MAP_STYLE_URL line in a local, git-ignored
+        // gradle.properties.
+        //
+        // The default is deliberately EMPTY rather than a public-OSM URL. An
+        // unconfigured build then shows an explicit "map not configured"
+        // message instead of silently rendering blank grey tiles or quietly
+        // violating someone's usage policy — a missing key should be obvious
+        // at a glance, not diagnosed later from a support ticket.
+        buildConfigField(
+            "String",
+            "MAP_STYLE_URL",
+            "\"${(project.findProperty("ZENXII_MAP_STYLE_URL") as String?) ?: ""}\""
+        )
     }
 
     buildTypes {
@@ -80,11 +103,54 @@ android {
             val prodBaseUrl = (project.findProperty("PROD_BASE_URL") as String?)
                 ?: "https://www.zenxii.com/"
             buildConfigField("String", "BASE_URL", "\"$prodBaseUrl\"")
+            // Hard-wired empty, and deliberately NOT read from a Gradle
+            // property: there is no command line that points a RELEASE build
+            // at a Firebase emulator. See the debug block below.
+            buildConfigField("String", "FIREBASE_EMULATOR_HOST", "\"\"")
         }
-        // Debug builds inherit the production BASE_URL from defaultConfig
-        // (https://www.zenxii.com/Grader/school/). To test against a LAN PC,
-        // override at runtime via the hidden Dev Settings dialog instead of
-        // hardcoding a tunnel here.
+        // ── DEBUG ONLY — local end-to-end validation (F13.2 UAT) ─────────
+        // The release block above is untouched and still ships
+        // https://www.zenxii.com/.
+        //
+        // A debug build must NOT default to production: F13.1/F13.2/Maps are
+        // not deployed there (maps_config returns 404), so a debug build
+        // pointed at prod cannot exercise any of it. The runtime Dev Settings
+        // override still works, but relying on a manual dialog makes UAT
+        // results depend on whether someone remembered to set it.
+        //
+        // `localhost:8080` on the phone is bridged to this PC's Apache by
+        //     adb reverse tcp:8080 tcp:80
+        // which needs only the USB cable — no shared WiFi, no LAN IP to chase
+        // when DHCP moves, and nothing reachable from outside this machine.
+        // Port 8080 device-side because binding a privileged port (<1024)
+        // inside the app sandbox fails.
+        //
+        // Override with -PZENXII_LOCAL_BASE_URL=… when needed.
+        debug {
+            val localBase = (project.findProperty("ZENXII_LOCAL_BASE_URL") as String?)
+                ?: "http://localhost:8080/ZenX/school/"
+            buildConfigField("String", "BASE_URL", "\"$localBase\"")
+
+            // ── FIREBASE EMULATOR (opt-in, debug-only) ───────────────────
+            // Proving the real chain — admin transition → Firestore → an
+            // ALREADY-OPEN Parent App — needs the app and the admin panel
+            // talking to the same Firestore. Against production that would
+            // mean writing to an operator's live tenant and minting a real
+            // parent credential. Against an emulator it costs nothing and
+            // risks nothing.
+            //
+            // OFF unless explicitly requested:
+            //   ./gradlew :app:installDebug -PFIREBASE_EMULATOR_HOST=127.0.0.1
+            //
+            // Same USB bridge this block already relies on for BASE_URL —
+            // `adb reverse` maps the phone's localhost to this PC, so the
+            // handset reaches emulators bound to loopback with no LAN, no
+            // shared WiFi and nothing exposed off this machine:
+            //   adb reverse tcp:8092 tcp:8092   (Firestore)
+            //   adb reverse tcp:9099 tcp:9099   (Auth)
+            val emuHost = (project.findProperty("FIREBASE_EMULATOR_HOST") as String?) ?: ""
+            buildConfigField("String", "FIREBASE_EMULATOR_HOST", "\"$emuHost\"")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -197,21 +263,33 @@ dependencies {
     // Razorpay checkout
     implementation("com.razorpay:checkout:1.6.38")
 
-    // F10 (2026-07-07) — Google Maps SDK for future GPS live-tracking.
-    // Added at F10 to prepare the app dependency graph; NO live tracking
-    // is wired at F10 (operator directive — the map surface remains
-    // hidden / shows "Live tracking coming soon" until the dedicated
-    // GPS phase). play-services-maps for the map view;
-    // maps-compose for Composable integration; play-services-location
-    // for future device geolocation (parent-side, optional consent).
-    implementation("com.google.android.gms:play-services-maps:19.0.0")
-    implementation("com.google.maps.android:maps-compose:4.4.1")
-    implementation("com.google.android.gms:play-services-location:21.3.0")
+    // ── F13.1 M4 — live bus map (2026-08-08) ─────────────────────────
+    // MapLibre, not Google Maps. Architecture amendment A-1 requires the
+    // mapping layer to be provider-agnostic: Firestore stores only canonical
+    // telemetry (lat/lng/heading/speed/accuracy/altitude/timestamps), so the
+    // renderer can be swapped without touching the schema, the backend, the
+    // security rules or the trip lifecycle.
+    //
+    // The three Google artifacts added at F10 in anticipation of this phase
+    // were REMOVED here. No source file ever referenced them (verified), so
+    // this is a dependency swap with no functional change:
+    //     play-services-maps:19.0.0
+    //     maps-compose:4.4.1
+    //     play-services-location:21.3.0
+    //
+    // play-services-location went too: the parent watches the bus, it does not
+    // share its own position, so the app needs no location permission at all.
+    // A future "distance to me" feature would re-add it deliberately.
+    implementation("org.maplibre.gl:android-sdk:11.5.1")
 
     // Tests
     testImplementation("junit:junit:4.13.2")
     // Match kotlinx-coroutines-android version (1.7.3) above.
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    // Instrumented lifecycle-cache proof: DataStore is Android-only, so the
+    // cache round-trip the synchroniser depends on can only be exercised on a
+    // device/emulator. Test-only scope — the app is unaffected.
+    androidTestImplementation("androidx.test:runner:1.5.2")
 }
 
